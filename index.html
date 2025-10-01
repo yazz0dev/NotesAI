@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Journal</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header id="app-header" class="app-header">
+        <!-- Calendar remains unchanged -->
+        <div id="calendar-widget" class="calendar-widget">
+            <div id="calendar-tomorrow" class="calendar-page"><div class="calendar-top"><span id="calendar-day-name-tomorrow"></span></div><div class="calendar-bottom"><span id="calendar-day-number-tomorrow"></span><div class="calendar-month-year"><span id="calendar-month-tomorrow"></span><span id="calendar-year-tomorrow"></span></div></div></div>
+            <div id="calendar-today" class="calendar-page"><div class="calendar-top"><span id="calendar-day-name"></span></div><div class="calendar-bottom"><span id="calendar-day-number"></span><div class="calendar-month-year"><span id="calendar-month"></span><span id="calendar-year"></span></div></div></div>
+        </div>
+
+        <!-- NEW: On This Day Widget -->
+        <div id="on-this-day-widget" class="on-this-day-widget hidden"></div>
+    </header>
+
+    <main id="bookshelf-container" class="bookshelf-container">
+        <!-- This will be populated by JS -->
+        <div id="empty-state-container" class="empty-state-container hidden"></div>
+    </main>
+
+    <footer class="app-footer">
+        <!-- Action bar with settings -->
+        <div class="action-bar">
+            <!-- NEW: Settings Icon -->
+            <button id="settings-btn" class="settings-btn" title="Settings">⚙️</button>
+            <div id="search-input" class="search-input" contenteditable="true" role="textbox" aria-multiline="true"></div>
+            <button id="mic-button" class="mic-button" title="Start Journaling"><img src="assets/mic-icon.svg" class="mic-icon" alt="Microphone Icon"><img src="assets/stop-icon.svg" class="stop-icon" alt="Stop Icon"><img src="assets/loader-icon.svg" class="loader-icon" alt="Loading Icon"></button>
+        </div>
+    </footer>
+
+    <!-- Card Template remains unchanged -->
+    <template id="card-template"><div class="journal-card" role="button" tabindex="0"><h3 class="card-title"></h3><p class="card-snippet"></p><time class="card-date"></time></div></template>
+
+    <!-- Book viewer gets new buttons -->
+    <div id="book-viewer" class="book-viewer-overlay hidden">
+        <div class="book-viewer-content">
+            <div class="book-layout">
+                <div id="page-left" class="book-page">
+                    <div class="page-header">
+                        <div class="header-text">
+                            <h2 id="viewer-title"></h2>
+                            <time id="viewer-date"></time>
+                        </div>
+                        <div class="header-actions">
+                            <!-- NEW: Add Image Button -->
+                            <button id="add-image-btn" class="viewer-btn hidden" title="Add Image">Image</button>
+                            <button id="edit-btn" class="viewer-btn" title="Edit Entry">Edit</button>
+                            <button id="save-btn" class="viewer-btn hidden" title="Save Changes">Save</button>
+                            <button id="delete-btn" class="viewer-btn danger" title="Delete Entry">Delete</button>
+                        </div>
+                    </div>
+                    <div id="viewer-text-left" class="viewer-text"></div>
+                </div>
+                <div class="book-spine"></div>
+                <div id="page-right" class="book-page">
+                    <div id="viewer-text-right" class="viewer-text"></div>
+                </div>
+            </div>
+        </div>
+        <button id="close-viewer-btn" class="close-viewer-btn" title="Close book">&times;</button>
+    </div>
+
+    <!-- NEW: Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-dialog">
+            <h2 class="modal-title">Settings</h2>
+            <div class="setting-item">
+                <label for="hands-free-toggle">Hands-Free Mode ("Hey Journal")</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="hands-free-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="setting-description">Allow the app to listen for the "Hey Journal" hotword to enable full voice control. All processing is done on-device.</p>
+            <hr class="setting-divider">
+            <div class="setting-item disabled">
+                <label for="hybrid-ai-toggle">Hybrid AI Insights (Coming Soon)</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="hybrid-ai-toggle" disabled>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="setting-description">Optionally sync to the cloud to receive monthly reports on themes and trends in your writing.</p>
+            <div class="modal-actions">
+                <button id="settings-close-btn" class="modal-btn modal-btn-confirm">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for image uploads -->
+    <input type="file" id="image-input" accept="image/*" style="display: none;">
+
+    <!-- Confirmation Modal remains unchanged -->
+    <div id="confirmation-modal" class="modal-overlay hidden"><div class="modal-dialog"><h2 id="modal-title" class="modal-title">Confirm Action</h2><p id="modal-message" class="modal-message">Are you sure you want to proceed?</p><div class="modal-actions"><button id="modal-cancel-btn" class="modal-btn modal-btn-cancel">Cancel</button><button id="modal-confirm-btn" class="modal-btn modal-btn-confirm">Delete</button></div></div></div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
