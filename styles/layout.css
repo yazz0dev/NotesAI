@@ -1,65 +1,137 @@
 .app-header {
-    background: linear-gradient(180deg, rgba(30, 30, 30, 0.85) 0%, rgba(30, 30, 30, 0) 100%);
-    /* Padding is no longer needed as the calendar positions itself */
-    position: fixed;
-    top: 0;
-    left: 0; /* Align to the left edge */
-    width: 100%;
-    z-index: 10;
-    transition: background 0.3s ease;
-    /* Remove flex properties, not needed anymore */
-    height: 150px; /* Give it enough height for the calendar and gradient */
-    pointer-events: none; /* Allows clicking through the header background */
+  background: linear-gradient(
+    180deg,
+    rgba(30, 30, 30, 0.85) 0%,
+    rgba(30, 30, 30, 0) 100%
+  );
+  /* Padding is no longer needed as the calendar positions itself */
+  position: fixed;
+  top: 0;
+  left: 0; /* Align to the left edge */
+  width: 100%;
+  z-index: 10;
+  transition: background 0.3s ease;
+  /* Remove flex properties, not needed anymore */
+  height: 150px; /* Give it enough height for the calendar and gradient */
+  pointer-events: none; /* Allows clicking through the header background */
+}
+
+/* Mobile responsive header */
+@media (max-width: 768px) {
+  .app-header {
+    height: 120px;
+  }
 }
 
 .app-header.is-listening {
-    background: linear-gradient(180deg, rgba(0, 122, 255, 0.3) 0%, rgba(0, 122, 255, 0) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(0, 122, 255, 0.3) 0%,
+    rgba(0, 122, 255, 0) 100%
+  );
 }
 
 .bookshelf-container {
-    width: 100%;
-    min-height: 100vh;
-    padding: 8rem 5%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  padding: 8rem 5%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Mobile responsive bookshelf */
+@media (max-width: 768px) {
+  .bookshelf-container {
+    padding: 6rem 3% 6rem 3%;
+    min-height: 100dvh; /* Use dynamic viewport height for mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .bookshelf-container {
+    padding: 5rem 2% 5rem 2%;
+  }
 }
 
 .shelf-group {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rem;
 }
 
 #shelves-above-center {
-    flex-direction: column-reverse;
+  flex-direction: column-reverse;
 }
 
 .shelf {
-    width: 100%;
-    max-width: 1200px;
-    height: 1.5rem;
-    background-color: #3a2d24;
-    border-radius: 4px;
-    box-shadow: 0 10px 15px rgba(0,0,0,0.4), inset 0 -4px 5px rgba(0,0,0,0.3);
-    position: relative;
-    display: flex;
-    align-items: flex-end;
-    padding: 0 2rem;
-    justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  height: 1.5rem;
+  background-color: #3a2d24;
+  border-radius: 4px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.4),
+    inset 0 -4px 5px rgba(0, 0, 0, 0.3);
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+/* Cards container on each shelf */
+.shelf-cards {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: -1rem; /* Position cards above the shelf */
+  padding: 0 2rem;
+  flex-wrap: wrap;
+}
+
+/* Mobile responsive shelf cards */
+@media (max-width: 768px) {
+  .shelf-cards {
+    gap: 1rem;
+    padding: 0 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .shelf-cards {
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+  }
 }
 
 .app-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 1.5rem 2rem;
-    background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, rgba(18, 18, 18, 1) 50%);
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 1.5rem 2rem;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 18, 18, 0) 0%,
+    rgba(18, 18, 18, 1) 50%
+  );
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Mobile responsive footer */
+@media (max-width: 768px) {
+  .app-footer {
+    padding: 1rem 1rem;
+    /* Add safe area padding for devices with notches */
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .app-footer {
+    padding: 0.75rem 0.5rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
 }

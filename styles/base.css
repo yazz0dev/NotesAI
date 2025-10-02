@@ -1,32 +1,37 @@
 :root {
-    --font-sans: 'Inter', sans-serif;
-    --font-journal: 'Caveat', cursive;
-    --bg-color: #121212;
-    --surface-color: #1e1e1e;
-    --primary-color: #2a2a2a;
-    --hover-color: #333333;
-    --text-primary: #e0e0e0;
-    --text-secondary: #a0a0a0;
-    --accent-color: #007aff;
-    --border-color: #383838;
-    --danger-color: #ff453a;
-    /* Book Colors */
-    --book-color-1: #8E24AA; /* Purple */
-    --book-color-2: #D81B60; /* Pink */
-    --book-color-3: #00897B; /* Teal */
-    --book-color-4: #F4511E; /* Orange */
-    --book-color-5: #37474F; /* Slate */
+  --font-sans: "Inter", sans-serif;
+  --font-journal: "Caveat", cursive;
+  --bg-color: #121212;
+  --surface-color: #1e1e1e;
+  --primary-color: #2a2a2a;
+  --hover-color: #333333;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --accent-color: #007aff;
+  --border-color: #383838;
+  --danger-color: #ff453a;
+  /* Book Colors */
+  --book-color-1: #8e24aa; /* Purple */
+  --book-color-2: #d81b60; /* Pink */
+  --book-color-3: #00897b; /* Teal */
+  --book-color-4: #f4511e; /* Orange */
+  --book-color-5: #37474f; /* Slate */
 }
 
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-    font-family: var(--font-sans);
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"%3E%3Crect fill="%231a1a1a" width="80" height="80"%3E%3C/rect%3E%3Cg fill-opacity="0.05"%3E%3Crect x="0" y="0" width="10" height="10" fill="%23ffffff"%3E%3C/rect%3E%3Crect x="10" y="10" width="10" height="10" fill="%23ffffff"%3E%3C/rect%3E%3C/g%3E%3C/svg%3E');
+  font-family: var(--font-sans);
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80"%3E%3Crect fill="%231a1a1a" width="80" height="80"%3E%3C/rect%3E%3Cg fill-opacity="0.05"%3E%3Crect x="0" y="0" width="10" height="10" fill="%23ffffff"%3E%3C/rect%3E%3Crect x="10" y="10" width="10" height="10" fill="%23ffffff"%3E%3C/rect%3E%3C/g%3E%3C/svg%3E');
+  /* Prevent horizontal scrolling on mobile */
+  overflow-x: hidden;
+  /* Ensure full height on mobile */
+  min-height: 100vh;
+  min-height: 100dvh; /* Use dynamic viewport height for mobile */
 }

@@ -1,6 +1,8 @@
 /* styles/main.css */
 
-@import url('base.css');
-@import url('animations.css'); /* Import animations first */
-@import url('layout.css');
-@import url('components.css');
+@import url("base.css");
+@import url("animations.css"); /* Import animations first */
+@import url("layout.css");
+@import url("components-ui.css");
+@import url("components-modals.css");
+@import url("components-features.css");

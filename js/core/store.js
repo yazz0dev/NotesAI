@@ -1,7 +1,7 @@
 // js/store.js
 
-import { DB_NAME, DB_VERSION, NOTES_STORE } from './config.js';
-import { generateId } from './utils.js';
+import { DB_NAME, DB_VERSION, NOTES_STORE } from '../utils/config.js';
+import { generateId } from '../utils/utils.js';
 
 let db;
 
