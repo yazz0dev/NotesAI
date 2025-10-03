@@ -210,7 +210,8 @@ async function addAudioToViewer(audioData) {
 
   const audioTitle = document.createElement("div");
   audioTitle.className = "audio-section-title";
-  audioTitle.textContent = "Original Recording";
+  audioTitle.innerHTML =
+    '<span class="iconify" data-icon="material-symbols:mic"></span> Original Recording';
 
   const audioPlayer = createAudioPlayer(
     audioData.audioDataUrl,

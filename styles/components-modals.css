@@ -274,7 +274,7 @@ body.settings-modal-open {
   height: 100%;
 }
 
-.settings-dialog {
+.settings-modal .modal-dialog {
   position: absolute;
   top: 0;
   left: 0;
@@ -296,9 +296,14 @@ body.settings-modal-open {
   transform: translateY(50px) scale(0.98);
   opacity: 0;
   transition: all 0.5s cubic-bezier(0.2, 1, 0.3, 1);
+  /* Override modal-dialog default styles */
+  padding: 0;
+  border-radius: 0;
+  text-align: left;
+  max-width: none;
 }
 
-.settings-modal:not(.hidden) .settings-dialog {
+.settings-modal:not(.hidden) .modal-dialog {
   transform: translateY(0) scale(1);
   opacity: 1;
 }
@@ -504,41 +509,16 @@ body.settings-modal-open {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
   width: 24px;
   height: 24px;
-  text-align: center;
   flex-shrink: 0;
   z-index: 1;
 }
 
-.nav-icon[data-icon="mic"]::before {
-  content: "🎤";
-}
-
-.nav-icon[data-icon="export"]::before {
-  content: "📤";
-}
-
-.nav-icon[data-icon="import"]::before {
-  content: "📥";
-}
-
-.nav-icon[data-icon="goals"]::before {
-  content: "🎯";
-}
-
-.nav-icon[data-icon="settings"]::before {
-  content: "⚙️";
-}
-
-/* Prevent any pseudo-element duplication */
-.nav-icon::after {
-  content: none !important;
-}
-
-.nav-icon * {
-  pointer-events: none;
+.nav-icon .iconify {
+  font-size: 1.3rem;
+  width: 24px;
+  height: 24px;
 }
 
 /* Settings Content - Enhanced Design */
@@ -645,7 +625,7 @@ body.settings-modal-open {
     );
   }
 
-  .settings-dialog {
+  .settings-modal .modal-dialog {
     border-radius: 0;
     border: none;
     box-shadow: none;

@@ -1030,10 +1030,6 @@
   gap: 0.5rem;
 }
 
-.audio-section-title::before {
-  content: "🎤";
-}
-
 /* Compact audio player for cards */
 .card-audio-indicator {
   position: absolute;

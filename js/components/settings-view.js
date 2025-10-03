@@ -40,6 +40,18 @@ const cancelImportBtn = document.getElementById("cancel-import-btn");
 const viewGoalsBtn = document.getElementById("view-goals-btn");
 const addGoalBtn = document.getElementById("add-goal-btn");
 
+// --- Icon Mapping for Iconify ---
+function getIconifyIcon(iconName) {
+  const iconMap = {
+    mic: "material-symbols:mic",
+    export: "material-symbols:download",
+    import: "material-symbols:upload",
+    goals: "material-symbols:flag",
+    settings: "material-symbols:settings",
+  };
+  return iconMap[iconName] || "material-symbols:help";
+}
+
 // --- Settings Sections Configuration ---
 const settingsSections = {
   voice: {
@@ -214,17 +226,23 @@ function getSectionHTML(sectionId) {
                         <p class="section-description">Download your journal entries in different formats</p>
                         <div class="export-buttons" role="group" aria-label="Export format options">
                             <button id="export-json-btn" class="export-btn" data-format="json" aria-describedby="json-description">
-                                <span class="btn-icon export-json-icon" aria-hidden="true"></span>
+                                <span class="btn-icon" aria-hidden="true">
+                                  <span class="iconify" data-icon="material-symbols:data-object"></span>
+                                </span>
                                 <span class="btn-text">JSON Format</span>
                                 <span class="btn-description" id="json-description">Complete data with metadata</span>
                             </button>
                             <button id="export-txt-btn" class="export-btn" data-format="txt" aria-describedby="txt-description">
-                                <span class="btn-icon export-txt-icon" aria-hidden="true"></span>
+                                <span class="btn-icon" aria-hidden="true">
+                                  <span class="iconify" data-icon="material-symbols:description"></span>
+                                </span>
                                 <span class="btn-text">Text Format</span>
                                 <span class="btn-description" id="txt-description">Simple text for reading</span>
                             </button>
                             <button id="export-pdf-btn" class="export-btn" data-format="pdf" aria-describedby="pdf-description">
-                                <span class="btn-icon export-pdf-icon" aria-hidden="true"></span>
+                                <span class="btn-icon" aria-hidden="true">
+                                  <span class="iconify" data-icon="material-symbols:picture-as-pdf"></span>
+                                </span>
                                 <span class="btn-text">PDF Format</span>
                                 <span class="btn-description" id="pdf-description">Formatted for printing</span>
                             </button>
@@ -241,7 +259,9 @@ function getSectionHTML(sectionId) {
                         <p class="section-description">Restore journal entries from backup files</p>
                         <div class="import-area">
                             <button id="import-file-btn" class="import-btn" aria-describedby="import-description">
-                                <span class="btn-icon import-file-icon" aria-hidden="true"></span>
+                                <span class="btn-icon" aria-hidden="true">
+                                  <span class="iconify" data-icon="material-symbols:upload-file"></span>
+                                </span>
                                 <span class="btn-text">Choose File</span>
                                 <span class="btn-description" id="import-description">JSON or TXT format</span>
                             </button>
@@ -249,8 +269,12 @@ function getSectionHTML(sectionId) {
                             <div id="import-status" class="import-status hidden" role="region" aria-live="polite" aria-label="Import preview">
                                 <div class="import-preview" role="status"></div>
                                 <div class="import-actions" role="group" aria-label="Import actions">
-                                    <button id="confirm-import-btn" class="import-confirm-btn" aria-describedby="confirm-description">✅ Import</button>
-                                    <button id="cancel-import-btn" class="import-cancel-btn" aria-describedby="cancel-description">❌ Cancel</button>
+                                    <button id="confirm-import-btn" class="import-confirm-btn" aria-describedby="confirm-description">
+                                      <span class="iconify" data-icon="material-symbols:check-circle"></span> Import
+                                    </button>
+                                    <button id="cancel-import-btn" class="import-cancel-btn" aria-describedby="cancel-description">
+                                      <span class="iconify" data-icon="material-symbols:cancel"></span> Cancel
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -264,14 +288,20 @@ function getSectionHTML(sectionId) {
                     <div class="setting-section">
                         <h3 class="section-title" id="goals-section">${settingsSections.goals.title}</h3>
                         <p class="section-description">Track your personal development journey with AI-powered insights</p>
-                        <div class="goals-quick-actions" role="group" aria-label="Goals quick actions">
-                            <button id="view-goals-btn" class="goals-btn" aria-describedby="view-goals-description">
-                                <span class="btn-icon view-goals-icon" aria-hidden="true"></span>
-                                <span class="btn-text">View Progress</span>
+                        <div class="goals-actions-grid" role="group" aria-label="Goals actions">
+                            <button id="view-goals-btn" class="goals-action-btn primary" aria-describedby="view-goals-description">
+                                <span class="btn-icon" aria-hidden="true">
+                                  <span class="iconify" data-icon="material-symbols:dashboard"></span>
+                                </span>
+                                <span class="btn-text">View Dashboard</span>
+                                <span class="btn-description" id="view-goals-description">See progress, streaks, and insights</span>
                             </button>
-                            <button id="add-goal-btn" class="goals-btn" aria-describedby="add-goal-description">
-                                <span class="btn-icon add-goal-icon" aria-hidden="true"></span>
-                                <span class="btn-text">Add Goal</span>
+                            <button id="add-goal-btn" class="goals-action-btn" aria-describedby="add-goal-description">
+                                <span class="btn-icon" aria-hidden="true">
+                                  <span class="iconify" data-icon="material-symbols:add-task"></span>
+                                </span>
+                                <span class="btn-text">Create Goal</span>
+                                <span class="btn-description" id="add-goal-description">Set a new goal or habit</span>
                             </button>
                         </div>
                         <div id="goals-today" class="goals-today-section hidden" role="region" aria-label="Today's goals">
@@ -321,7 +351,9 @@ function initializeSettingsContent() {
   modalDialog.innerHTML = `
         <div class="settings-header">
             <h2 class="modal-title">Settings</h2>
-            <button id="settings-close-btn" class="settings-close-btn" aria-label="Close settings">×</button>
+            <button id="settings-close-btn" class="settings-close-btn" aria-label="Close settings">
+              <span class="iconify" data-icon="material-symbols:close"></span>
+            </button>
         </div>
 
         <div class="settings-body">
@@ -339,9 +371,11 @@ function initializeSettingsContent() {
                                 aria-controls="${id}-section"
                                 id="${id}-tab"
                                 aria-label="${section.title}">
-                            <span class="nav-icon" data-icon="${
-                              section.icon
-                            }" aria-hidden="true"></span>
+                            <span class="nav-icon" aria-hidden="true">
+                              <span class="iconify" data-icon="${getIconifyIcon(
+                                section.icon
+                              )}"></span>
+                            </span>
                             <span class="nav-text">${section.title}</span>
                         </button>
                     `
@@ -525,18 +559,13 @@ function initializeGoalsSettings() {
 
   if (viewGoalsBtn) {
     viewGoalsBtn.addEventListener("click", () => {
-      showGoalsModal();
+      showGoalsModal(false, true); // Show dashboard from settings (hide add goal button)
     });
   }
 
   if (addGoalBtn) {
     addGoalBtn.addEventListener("click", () => {
-      showGoalsModal();
-      // Trigger add goal form
-      setTimeout(() => {
-        const addNewGoalBtn = document.getElementById("add-new-goal-btn");
-        if (addNewGoalBtn) addNewGoalBtn.click();
-      }, 100);
+      showGoalsModal(true, true, true); // Show form from settings (hide modal actions, close after submit)
     });
   }
 }

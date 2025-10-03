@@ -70,13 +70,16 @@
 .shelf {
   width: 100%;
   max-width: 1200px;
-  height: 1.5rem;
+  height: 2rem;
   background-color: #3a2d24;
   border-radius: 4px;
   box-shadow: 0 10px 15px rgba(0, 0, 0, 0.4),
     inset 0 -4px 5px rgba(0, 0, 0, 0.3);
   position: relative;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Cards container on each shelf */
@@ -84,9 +87,13 @@
   display: flex;
   justify-content: center;
   gap: 2rem;
-  margin-top: -1rem; /* Position cards above the shelf */
+  width: 100%;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   padding: 0 2rem;
   flex-wrap: wrap;
+  z-index: 2;
 }
 
 /* Mobile responsive shelf cards */
@@ -95,12 +102,22 @@
     gap: 1rem;
     padding: 0 1rem;
   }
+
+  .shelf {
+    height: 1.8rem;
+    margin-bottom: 2.5rem;
+  }
 }
 
 @media (max-width: 480px) {
   .shelf-cards {
     gap: 0.5rem;
     padding: 0 0.5rem;
+  }
+
+  .shelf {
+    height: 1.6rem;
+    margin-bottom: 2rem;
   }
 }
 

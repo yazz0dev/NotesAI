@@ -56,67 +56,38 @@
 }
 
 .journal-card {
-  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
   transform-origin: center bottom;
   animation: gentleFloat 12s ease-in-out infinite;
-  will-change: transform, box-shadow, filter;
 }
 
 .journal-card:hover {
-  transform: translateY(-5px) rotateX(1deg) rotateY(2deg) scale(1.02);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 122, 255, 0.25),
-    0 0 12px rgba(0, 122, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  border-color: rgba(0, 122, 255, 0.3);
-  filter: brightness(1.03) saturate(1.05);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 122, 255, 0.15);
+  border-color: rgba(0, 122, 255, 0.25);
 }
 
-/* Enhanced hover glow effect */
+/* Subtle hover glow effect */
 .journal-card::before {
   content: "";
   position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 122, 255, 0.25) 0%,
-    rgba(0, 212, 255, 0.15) 25%,
-    rgba(0, 122, 255, 0.25) 50%,
-    rgba(0, 91, 181, 0.15) 75%,
-    rgba(0, 122, 255, 0.25) 100%
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(0, 122, 255, 0.05) 0%,
+    transparent 70%
   );
-  border-radius: 14px;
+  border-radius: 12px;
   opacity: 0;
   z-index: -1;
-  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-  animation: shimmer 4s ease-in-out infinite;
-  background-size: 200% 200%;
+  transition: opacity 0.3s ease;
 }
 
 .journal-card:hover::before {
-  opacity: 0.3;
-  transform: scale(1.005);
-}
-
-/* Add floating particles effect on hover */
-.journal-card::after {
-  content: "";
-  position: absolute;
-  top: 15%;
-  left: 15%;
-  width: 2px;
-  height: 2px;
-  background: rgba(0, 122, 255, 0.5);
-  border-radius: 50%;
-  opacity: 0;
-  transition: all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
-  animation: particleFloat 6s ease-in-out infinite;
-}
-
-.journal-card:hover::after {
-  opacity: 0.25;
-  animation: particleFloat 3s ease-in-out infinite;
+  opacity: 0.8;
 }
 
 @keyframes gentleFloat {
@@ -132,80 +103,30 @@
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: 0% 0%;
-  }
-  25% {
-    background-position: 50% 25%;
+/* Simplified hover-active state for JavaScript interaction */
+.journal-card.hover-active {
+  animation: gentleHoverPulse 4s ease-in-out infinite;
+}
+
+@keyframes gentleHoverPulse {
+  0%,
+  100% {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25),
+      0 0 0 1px rgba(0, 122, 255, 0.15);
   }
   50% {
-    background-position: 100% 50%;
-  }
-  75% {
-    background-position: 50% 75%;
-  }
-  100% {
-    background-position: 0% 0%;
-  }
-}
-
-@keyframes particleFloat {
-  0%,
-  100% {
-    transform: translateY(0px) translateX(0px);
-    opacity: 0.2;
-  }
-  20% {
-    transform: translateY(-3px) translateX(2px);
-    opacity: 0.4;
-  }
-  40% {
-    transform: translateY(-2px) translateX(-1px);
-    opacity: 0.3;
-  }
-  60% {
-    transform: translateY(-4px) translateX(3px);
-    opacity: 0.4;
-  }
-  80% {
-    transform: translateY(-1px) translateX(1px);
-    opacity: 0.3;
-  }
-}
-
-/* Enhanced hover-active state for JavaScript interaction */
-.journal-card.hover-active {
-  animation: hoverPulse 3s ease-in-out infinite;
-}
-
-@keyframes hoverPulse {
-  0%,
-  100% {
-    filter: brightness(1.03) saturate(1.05);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 122, 255, 0.25),
-      0 0 12px rgba(0, 122, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  }
-  33% {
-    filter: brightness(1.05) saturate(1.08);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22),
-      0 0 0 1px rgba(0, 122, 255, 0.3), 0 0 15px rgba(0, 122, 255, 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-  66% {
-    filter: brightness(1.04) saturate(1.06);
-    box-shadow: 0 9px 18px rgba(0, 0, 0, 0.21),
-      0 0 0 1px rgba(0, 122, 255, 0.28), 0 0 13px rgba(0, 122, 255, 0.13),
-      inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    transform: translateY(-10px) scale(1.025);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(0, 122, 255, 0.18);
   }
 }
 
 /* Tactile Feedback on Click */
 .journal-card:active {
-  transform: translateY(-3px) scale(0.99) rotateX(1deg) rotateY(1.5deg);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 122, 255, 0.2),
-    0 0 8px rgba(0, 122, 255, 0.1);
-  transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(-4px) scale(0.98);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 122, 255, 0.2);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-title {

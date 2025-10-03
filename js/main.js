@@ -34,6 +34,12 @@ import {
   GOAL_STATUS,
 } from "./services/goals-service.js";
 import {
+  startMeasurement,
+  endMeasurement,
+  measureAsync,
+} from "./utils/performance.js";
+import { getCachedResult, setCachedResult } from "./utils/cache.js";
+import {
   showGoalsModal,
   hideGoalsModal,
   showGoalForm,
@@ -78,42 +84,178 @@ let currentRecordingData = null; // Store audio recording data
 let recordingTimer = null; // Timer for recording duration display
 
 /**
+ * Cleans Chrome AI API response by removing markdown formatting
+ * @param {string} response - Raw response from Chrome AI API
+ * @returns {string} Clean text
+ */
+function cleanAIResponse(response) {
+  if (!response) return "";
+
+  // Remove markdown code block markers and extra whitespace
+  let cleaned = response
+    .replace(/```json\s*/gi, "") // Remove ```json (case insensitive)
+    .replace(/```\s*/g, "") // Remove ```
+    .replace(/`+/g, "") // Remove any remaining backticks
+    .trim();
+
+  // Remove any leading/trailing whitespace and newlines
+  cleaned = cleaned.replace(/^\s+|\s+$/g, "");
+
+  return cleaned;
+}
+
+/**
+ * Shows the app loading overlay with initial state
+ */
+function showAppLoading() {
+  const overlay = document.getElementById("app-loading-overlay");
+  const progressBar = document.getElementById("loading-progress-bar");
+  const statusText = document.getElementById("loading-status");
+
+  if (overlay) {
+    // Ensure page is at top and prevent scrolling
+    window.scrollTo(0, 0);
+
+    // Force show the overlay immediately
+    overlay.classList.remove("hidden");
+    overlay.style.display = "flex";
+
+    // Add loading-active class to body to prevent interference
+    document.body.classList.add("loading-active");
+
+    // Ensure overlay is properly positioned and centered
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100vw";
+    overlay.style.height = "100vh";
+    overlay.style.zIndex = "10002";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+
+    // Reset progress
+    if (progressBar) progressBar.style.width = "0%";
+    if (statusText) statusText.textContent = "Initializing your journal...";
+
+    // Reset all steps to inactive
+    const steps = document.querySelectorAll(".loading-step");
+    steps.forEach((step) => {
+      step.classList.remove("active", "completed");
+    });
+
+    console.log("🚀 Loading overlay shown - positioned at viewport center");
+  } else {
+    console.error("❌ Loading overlay element not found!");
+  }
+}
+
+/**
+ * Updates the loading progress and step indicators
+ * @param {string} step - The current step name
+ * @param {string} status - Status message to display
+ * @param {number} progress - Progress percentage (0-100)
+ */
+function updateLoadingProgress(step, status, progress = null) {
+  const statusText = document.getElementById("loading-status");
+  const progressBar = document.getElementById("loading-progress-bar");
+  const stepElements = document.querySelectorAll(".loading-step");
+
+  // Update status text
+  if (statusText && status) {
+    statusText.textContent = status;
+  }
+
+  // Update progress bar
+  if (progressBar && progress !== null) {
+    progressBar.style.width = `${progress}%`;
+  }
+
+  // Update step indicators
+  stepElements.forEach((stepEl) => {
+    const stepName = stepEl.dataset.step;
+
+    if (stepName === step) {
+      stepEl.classList.add("active");
+      stepEl.classList.remove("completed");
+    } else if (
+      stepEl.classList.contains("active") ||
+      stepEl.classList.contains("completed")
+    ) {
+      // Mark previous steps as completed
+      stepEl.classList.remove("active");
+      stepEl.classList.add("completed");
+    }
+  });
+}
+
+/**
+ * Hides the app loading overlay
+ */
+function hideAppLoading() {
+  const overlay = document.getElementById("app-loading-overlay");
+  if (overlay) {
+    // Add a small delay for smooth transition
+    setTimeout(() => {
+      overlay.classList.add("hidden");
+      // Remove loading-active class from body
+      document.body.classList.remove("loading-active");
+      console.log("✅ Loading overlay hidden");
+    }, 500);
+  }
+}
+
+/**
  * Initializes the application.
  */
 async function init() {
   console.log("🚀 Initializing AI Journal with error handling...");
+  startMeasurement("app_initialization");
+
+  // Show loading overlay immediately
+  showAppLoading();
 
   try {
+    // Step 1: Initialize calendar and basic UI
+    updateLoadingProgress("ui", "Setting up interface...", 10);
     view.initCalendar();
 
-    // Initialize database with error handling
+    // Step 2: Initialize database
+    updateLoadingProgress("database", "Setting up database...", 25);
     await withErrorHandling(() => store.initDB(), {
       type: ERROR_TYPES.STORAGE,
       severity: ERROR_SEVERITY.CRITICAL,
       context: { operation: "initDB" },
     });
 
-    // Load notes with error handling
+    // Step 3: Load notes
+    updateLoadingProgress("notes", "Loading your entries...", 50);
     notes = await safeStore.loadNotes();
 
-    // Clear the container before the initial render
+    // Step 4: Render initial bookshelf
+    updateLoadingProgress("notes", "Rendering bookshelf...", 60);
     document.getElementById("bookshelf-container").innerHTML = "";
     await view.renderBookshelf(notes);
 
+    // Step 5: Set up event listeners and AI
+    updateLoadingProgress("ai", "Preparing AI features...", 75);
     setupEventListeners();
-    setupComponentEventListeners(); // New component communication
+    setupComponentEventListeners();
     initAI();
 
-    // Initialize audio service with error handling
+    // Step 6: Initialize audio service
+    updateLoadingProgress("ai", "Initializing audio features...", 85);
     await withErrorHandling(() => initAudioService(), {
       type: ERROR_TYPES.AUDIO,
       severity: ERROR_SEVERITY.MEDIUM,
       context: { operation: "initAudioService" },
     });
 
-    schedulePeelAnimation(); // Start the random animation loop
-    checkForOnThisDayMemories(); // Check for memories on startup
-    await checkGoalsDueToday(); // Check for goals due today
+    // Step 7: Finalize with background tasks
+    updateLoadingProgress("ui", "Finalizing...", 95);
+    schedulePeelAnimation();
+    checkForOnThisDayMemories();
+    await checkGoalsDueToday();
 
     // Auto-start ambient listening if user enabled it previously
     if (getHandsFreeMode()) {
@@ -124,8 +266,19 @@ async function init() {
       });
     }
 
+    // Complete initialization
+    updateLoadingProgress("ui", "Ready!", 100);
     console.log("✅ AI Journal initialized successfully");
+    endMeasurement("app_initialization");
+
+    // Hide loading overlay after a brief moment
+    setTimeout(() => {
+      hideAppLoading();
+    }, 1000);
   } catch (error) {
+    endMeasurement("app_initialization");
+    updateLoadingProgress("ui", "Error during initialization", 0);
+
     errorHandler.handleError({
       type: ERROR_TYPES.UNKNOWN,
       severity: ERROR_SEVERITY.CRITICAL,
@@ -134,6 +287,11 @@ async function init() {
         "Failed to start the application. Please refresh the page and try again.",
       context: { operation: "init" },
     });
+
+    // Hide loading overlay after error
+    setTimeout(() => {
+      hideAppLoading();
+    }, 3000);
   }
 
   console.log("App ready.");
@@ -352,12 +510,12 @@ async function handleAIFinalResult(formattedText) {
       // AI Task 1: Generate a short, creative title for the card.
       const titlePrompt = `Create a short, creative title (1-5 words) for the following journal entry. Entry: "${formattedText}"`;
       const titleResult = await chrome.ai.prompt({ prompt: titlePrompt });
-      const title = titleResult.text.trim().replace(/"/g, "");
+      const title = cleanAIResponse(titleResult.text).replace(/"/g, "");
 
       // AI Task 2: Generate a single, descriptive sentence for the card snippet.
       const oneLinerPrompt = `Generate a single, descriptive sentence summarizing the following journal entry. Be concise. Entry: "${formattedText}"`;
       const oneLinerResult = await chrome.ai.prompt({ prompt: oneLinerPrompt });
-      const oneLiner = oneLinerResult.text.trim();
+      const oneLiner = cleanAIResponse(oneLinerResult.text);
     }
 
     // Save the new note to the database.
@@ -413,66 +571,156 @@ async function handleAIFinalResult(formattedText) {
  */
 async function handleSearchInput() {
   const query = view.searchInputEl.textContent.trim();
-  // If the query is empty, render all notes.
+
+  // If the query is empty, render all notes immediately
   if (query === "") {
     document.getElementById("bookshelf-container").innerHTML = "";
     await view.renderBookshelf(notes);
     return;
   }
-  // Debounce the search to avoid excessive AI calls.
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => filterNotes(query), 300);
-}
 
-/**
- * Uses the AI to filter notes based on a natural language query.
- * @param {string} query - The user's search query.
- */
-async function filterNotes(query) {
-  view.setHeaderListeningState(true);
-
-  // Check if chrome.ai is available
-  if (!chrome?.ai?.prompt) {
-    console.warn(
-      "Chrome AI API not available, falling back to simple text search"
-    );
-    // Fallback to simple text-based filtering
-    const filteredNotes = notes.filter(
-      (note) =>
-        note.summary?.toLowerCase().includes(query.toLowerCase()) ||
-        note.oneLiner?.toLowerCase().includes(query.toLowerCase()) ||
-        note.content?.toLowerCase().includes(query.toLowerCase())
-    );
-
-    if (filteredNotes.length > 0) {
-      await view.renderBookshelf(filteredNotes);
+  // For very short queries, provide instant results if possible
+  if (query.length <= 2) {
+    const results = await performOptimizedTextSearch(query);
+    if (results.length > 0) {
+      await view.renderBookshelf(results);
     } else {
       view.showEmptySearchState(query);
     }
-    view.setHeaderListeningState(false);
     return;
   }
 
-  const promises = notes.map((note) => {
-    const prompt = `Does the user's search query "${query}" relate to a journal entry with the title: "${note.summary}"? Respond with only "YES" or "NO".`;
-    return chrome.ai
-      .prompt({ prompt })
-      .then((result) => {
-        return result.text.trim().toUpperCase() === "YES" ? note : null;
-      })
-      .catch(() => null); // Ignore errors for individual prompts
+  // Debounce longer searches to avoid excessive operations
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => filterNotes(query), 250); // Reduced from 300ms
+}
+
+/**
+ * Optimized search function with efficient fallback and limited AI calls.
+ * @param {string} query - The user's search query.
+ */
+async function filterNotes(query) {
+  // Check cache first for repeated searches
+  const cachedResults = getCachedResult("search", query, {
+    noteCount: notes.length,
+  });
+  if (cachedResults) {
+    console.log(`🔍 Using cached search results for "${query}"`);
+    if (cachedResults.length > 0) {
+      await view.renderBookshelf(cachedResults);
+    } else {
+      view.showEmptySearchState(query);
+    }
+    return;
+  }
+
+  view.setHeaderListeningState(true);
+  startMeasurement("search_operation");
+
+  try {
+    let results = [];
+
+    // Check if chrome.ai is available
+    if (!chrome?.ai?.prompt) {
+      console.warn("Chrome AI API not available, using optimized text search");
+      results = await performOptimizedTextSearch(query);
+    } else {
+      // Use AI search but limit to recent/most relevant notes for performance
+      results = await performOptimizedAISearch(query);
+    }
+
+    // Cache the results
+    setCachedResult("search", query, { noteCount: notes.length }, results);
+
+    // Render results
+    if (results.length > 0) {
+      await view.renderBookshelf(results);
+    } else {
+      view.showEmptySearchState(query);
+    }
+  } catch (error) {
+    console.error("Search error:", error);
+    view.showEmptySearchState(query);
+  } finally {
+    view.setHeaderListeningState(false);
+    endMeasurement("search_operation");
+  }
+}
+
+/**
+ * Optimized text search when AI is not available
+ * @returns {Promise<Array>} Array of matching notes
+ */
+async function performOptimizedTextSearch(query) {
+  const searchTerm = query.toLowerCase().trim();
+
+  if (!searchTerm) {
+    return notes;
+  }
+
+  // Pre-filter notes to reduce processing load
+  const MAX_CONTENT_SEARCH_LENGTH = 500; // Limit content search to first 500 chars
+  const MAX_NOTES_TO_SEARCH = 100; // Limit search to recent 100 notes
+
+  const notesToSearch = notes.slice(0, MAX_NOTES_TO_SEARCH);
+
+  const filteredNotes = notesToSearch.filter((note) => {
+    // Fast title/summary search (always checked)
+    if (note.summary?.toLowerCase().includes(searchTerm)) return true;
+    if (note.oneLiner?.toLowerCase().includes(searchTerm)) return true;
+
+    // Limited content search (expensive operation)
+    if (note.content) {
+      const contentPreview = note.content
+        .replace(/<[^>]*>/g, "") // Strip HTML
+        .substring(0, MAX_CONTENT_SEARCH_LENGTH)
+        .toLowerCase();
+
+      if (contentPreview.includes(searchTerm)) return true;
+    }
+
+    return false;
   });
 
-  const filteredResults = await Promise.all(promises);
-  const matchingNotes = filteredResults.filter((note) => note !== null);
+  return filteredNotes;
+}
 
-  // Update to handle empty state
-  if (matchingNotes.length > 0) {
-    await view.renderBookshelf(matchingNotes);
-  } else {
-    view.showEmptySearchState(query);
+/**
+ * Optimized AI search with limited API calls for performance
+ * @returns {Promise<Array>} Array of matching notes
+ */
+async function performOptimizedAISearch(query) {
+  // Limit AI search to most recent and relevant notes
+  const MAX_AI_SEARCH_NOTES = 20;
+  const notesToSearch = notes.slice(0, MAX_AI_SEARCH_NOTES);
+
+  // If we have very few notes, use them all
+  const searchNotes = notesToSearch.length < 10 ? notesToSearch : notesToSearch;
+
+  // For small collections, use text search instead of AI for better performance
+  if (searchNotes.length <= 5) {
+    return await performOptimizedTextSearch(query);
   }
-  view.setHeaderListeningState(false);
+
+  try {
+    const promises = searchNotes.map((note) => {
+      const prompt = `Does this journal entry relate to the search query "${query}"? Entry title: "${note.summary}". Respond with only "YES" or "NO".`;
+      return chrome.ai
+        .prompt({ prompt })
+        .then((result) => {
+          return result.text.trim().toUpperCase() === "YES" ? note : null;
+        })
+        .catch(() => null); // Ignore errors for individual prompts
+    });
+
+    const filteredResults = await Promise.all(promises);
+    const matchingNotes = filteredResults.filter((note) => note !== null);
+
+    return matchingNotes;
+  } catch (error) {
+    console.warn("AI search failed, falling back to text search:", error);
+    return await performOptimizedTextSearch(query);
+  }
 }
 
 // --- New Edit/Delete Handlers ---
@@ -492,11 +740,14 @@ async function handleSaveClick() {
     if (chrome?.ai?.prompt) {
       const titlePrompt = `Create a short, creative title (1-5 words) for the entry: "${newContent}"`;
       const titleResult = await chrome.ai.prompt({ prompt: titlePrompt });
-      currentOpenNote.summary = titleResult.text.trim().replace(/"/g, "");
+      currentOpenNote.summary = cleanAIResponse(titleResult.text).replace(
+        /"/g,
+        ""
+      );
 
       const oneLinerPrompt = `Generate a single, descriptive sentence for the entry: "${newContent}"`;
       const oneLinerResult = await chrome.ai.prompt({ prompt: oneLinerPrompt });
-      currentOpenNote.oneLiner = oneLinerResult.text.trim();
+      currentOpenNote.oneLiner = cleanAIResponse(oneLinerResult.text);
     } else {
       console.warn(
         "Chrome AI API not available for save operation, using fallback"
@@ -536,75 +787,138 @@ async function handleDeleteClick() {
 
 /**
  * Enhanced "On This Day" - finds thematically related entries, not just same dates
+ * Optimized for performance - runs asynchronously after initialization
  */
 async function checkForOnThisDayMemories() {
   try {
+    // Show loading state immediately but don't block
     view.renderOnThisDay(null, "loading");
+
+    // Use a timeout to prevent blocking initialization
+    setTimeout(async () => {
+      await performOnThisDayCheck();
+    }, 100); // Small delay to let UI become responsive first
+  } catch (error) {
+    console.error("Error checking for 'On This Day' memories:", error);
+    view.renderOnThisDay(null, "empty");
+  }
+}
+
+/**
+ * Performs the actual On This Day memory check (separated for async execution)
+ */
+async function performOnThisDayCheck() {
+  try {
     const today = new Date();
 
-    // First try traditional same-date entries
+    // First try traditional same-date entries - fast database query
     const pastNotes = await store.getNotesByDate(
       today.getMonth(),
       today.getDate()
     );
-    let memoriesToShow = pastNotes;
-    let memoryType = "same_date";
 
-    // If no same-date entries, find thematically related entries from recent entries
-    if (pastNotes.length === 0 && notes.length > 0) {
-      // Get recent entries to find thematic connections
-      const recentEntries = notes.slice(0, Math.min(5, notes.length));
-      if (recentEntries.length > 0) {
-        const thematicConnections = await findThematicConnections(
-          notes,
-          recentEntries[0]
-        );
-        if (thematicConnections.length > 0) {
-          memoriesToShow = thematicConnections.slice(0, 2); // Show top 2 thematic matches
-          memoryType = "thematic";
+    if (pastNotes.length > 0) {
+      // Fast path: show same-date entries immediately
+      await showOnThisDayMemories(pastNotes, "same_date");
+      return;
+    }
+
+    // If no same-date entries, check for thematic connections
+    if (notes.length > 0) {
+      // Limit entries to check for performance (max 10 recent entries)
+      const entriesToCheck = notes.slice(0, Math.min(10, notes.length));
+
+      if (chrome?.ai?.prompt) {
+        // Only use AI if available - otherwise skip thematic search
+        const recentEntries = entriesToCheck.slice(0, 3); // Limit to 3 for AI calls
+        if (recentEntries.length > 0) {
+          try {
+            const thematicConnections = await findThematicConnections(
+              entriesToCheck, // Limit search space
+              recentEntries[0]
+            );
+            if (thematicConnections.length > 0) {
+              await showOnThisDayMemories(
+                thematicConnections.slice(0, 2),
+                "thematic"
+              );
+              return;
+            }
+          } catch (aiError) {
+            console.warn("AI thematic search failed:", aiError);
+          }
         }
       }
     }
 
-    if (memoriesToShow.length > 0) {
-      const combinedContent = memoriesToShow
-        .map((note) => {
-          // Strip HTML for better summarization
-          const tempDiv = document.createElement("div");
-          tempDiv.innerHTML = note.content;
-          return tempDiv.textContent || tempDiv.innerText || "";
-        })
-        .join("\n\n");
-
-      let summaryText = "";
-      if (chrome?.ai?.summarize) {
-        const summaryResult = await chrome.ai.summarize({
-          text: combinedContent,
-        });
-        summaryText = summaryResult.text;
-      } else {
-        console.warn("Chrome AI Summarize API not available, using fallback");
-        // Create a simple summary from the first note's content
-        const firstNoteContent =
-          memoriesToShow[0].content.replace(/<[^>]*>/g, "").substring(0, 100) +
-          "...";
-        summaryText = firstNoteContent;
-      }
-
-      // Add context based on memory type
-      const contextPrefix =
-        memoryType === "same_date"
-          ? `From ${memoriesToShow.length} year(s) ago: `
-          : `Related to your recent thoughts: `;
-
-      view.renderOnThisDay(contextPrefix + summaryText, "success");
-    } else {
-      view.renderOnThisDay(null, "empty");
-    }
+    // No memories found
+    view.renderOnThisDay(null, "empty");
   } catch (error) {
-    console.error("Error checking for 'On This Day' memories:", error);
-    view.renderOnThisDay(null, "empty"); // Hide on error
+    console.error("Error in performOnThisDayCheck:", error);
+    view.renderOnThisDay(null, "empty");
   }
+}
+
+/**
+ * Shows On This Day memories with optimized content processing
+ */
+async function showOnThisDayMemories(memoriesToShow, memoryType) {
+  if (memoriesToShow.length === 0) {
+    view.renderOnThisDay(null, "empty");
+    return;
+  }
+
+  try {
+    const combinedContent = memoriesToShow
+      .map((note) => {
+        // Strip HTML for better summarization
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = note.content;
+        return tempDiv.textContent || tempDiv.innerText || "";
+      })
+      .join("\n\n");
+
+    let summaryText = "";
+
+    // Try AI summarization with timeout
+    if (chrome?.ai?.summarize) {
+      try {
+        const summaryResult = await Promise.race([
+          chrome.ai.summarize({ text: combinedContent }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("AI timeout")), 3000)
+          ),
+        ]);
+        summaryText = cleanAIResponse(summaryResult.text);
+      } catch (aiError) {
+        console.warn("AI summarization failed or timed out, using fallback");
+        summaryText = createFallbackSummary(memoriesToShow[0]);
+      }
+    } else {
+      summaryText = createFallbackSummary(memoriesToShow[0]);
+    }
+
+    // Add context based on memory type
+    const contextPrefix =
+      memoryType === "same_date"
+        ? `From ${memoriesToShow.length} year(s) ago: `
+        : `Related to your recent thoughts: `;
+
+    view.renderOnThisDay(contextPrefix + summaryText, "success");
+  } catch (error) {
+    console.error("Error showing On This Day memories:", error);
+    view.renderOnThisDay(null, "empty");
+  }
+}
+
+/**
+ * Creates a simple fallback summary from note content
+ */
+function createFallbackSummary(note) {
+  const plainText = note.content.replace(/<[^>]*>/g, "");
+  return plainText.length > 100
+    ? plainText.substring(0, 100) + "..."
+    : plainText;
 }
 
 // --- Application Context Manager ---
@@ -732,7 +1046,7 @@ async function handleImageUpload(event) {
           prompt: `Describe this image for a personal journal entry.`,
           image: { data: imageDataUrl },
         });
-        view.insertImage(imageDataUrl, captionResult.text.trim());
+        view.insertImage(imageDataUrl, cleanAIResponse(captionResult.text));
       } else {
         console.warn(
           "Chrome AI API not available for image captioning, using fallback"
@@ -753,7 +1067,14 @@ async function handleImageUpload(event) {
 }
 
 // Start the application once the DOM is loaded.
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("📱 DOM loaded, showing loading overlay...");
+  // Show loading immediately when DOM is ready
+  showAppLoading();
+  console.log("🚀 Starting initialization...");
+  // Then start initialization
+  init();
+});
 
 // --- Prompts System Handlers ---
 

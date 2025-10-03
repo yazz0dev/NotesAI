@@ -209,21 +209,13 @@ export async function renderBookshelf(notes) {
       window.dispatchEvent(new CustomEvent("openBook", { detail: note }));
     });
 
-    // Add enhanced hover effects with JavaScript
+    // Add simple hover feedback
     card.addEventListener("mouseenter", () => {
-      // Add a slight random variation for more organic feel
-      const randomDelay = Math.random() * 200;
-      setTimeout(() => {
-        card.style.animationPlayState = "paused";
-        card.classList.add("hover-active");
-      }, randomDelay);
+      card.style.zIndex = "10";
     });
 
     card.addEventListener("mouseleave", () => {
-      card.style.animationPlayState = "running";
-      card.classList.remove("hover-active");
-      // Reset any inline transforms
-      card.style.transform = "";
+      card.style.zIndex = "";
     });
 
     // Add card to the shelf's cards container
@@ -290,21 +282,13 @@ export async function prependCard(note) {
     );
   });
 
-  // Add enhanced hover effects with JavaScript
+  // Add simple hover feedback
   card.addEventListener("mouseenter", () => {
-    // Add a slight random variation for more organic feel
-    const randomDelay = Math.random() * 200;
-    setTimeout(() => {
-      card.style.animationPlayState = "paused";
-      card.classList.add("hover-active");
-    }, randomDelay);
+    card.style.zIndex = "10";
   });
 
   card.addEventListener("mouseleave", () => {
-    card.style.animationPlayState = "running";
-    card.classList.remove("hover-active");
-    // Reset any inline transforms
-    card.style.transform = "";
+    card.style.zIndex = "";
   });
 
   // Insert at the beginning with animation

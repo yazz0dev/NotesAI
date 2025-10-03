@@ -11,6 +11,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Caveat:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Iconify CDN for icons -->
+    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
   </head>
   <body>
     <header id="app-header" class="app-header">
@@ -45,13 +47,16 @@
       <!-- NEW: Daily Prompts Widget -->
       <div id="daily-prompts-widget" class="daily-prompts-widget hidden">
         <div class="prompts-header">
-          <h3 class="prompts-title">✨ Writing Prompts</h3>
+          <h3 class="prompts-title">
+            <span class="iconify" data-icon="material-symbols:star"></span>
+            Writing Prompts
+          </h3>
           <button
             id="refresh-prompts-btn"
             class="refresh-prompts-btn"
             title="Get new prompts"
           >
-            🔄
+            <span class="iconify" data-icon="material-symbols:refresh"></span>
           </button>
         </div>
         <div id="prompts-container" class="prompts-container">
@@ -80,7 +85,7 @@
       <div class="action-bar">
         <!-- NEW: Settings Icon -->
         <button id="settings-btn" class="settings-btn" title="Settings">
-          ⚙️
+          <span class="iconify" data-icon="material-symbols:settings"></span>
         </button>
         <!-- NEW: Prompts Icon -->
         <button
@@ -88,7 +93,7 @@
           class="prompts-btn"
           title="Get writing inspiration"
         >
-          💡
+          <span class="iconify" data-icon="material-symbols:lightbulb"></span>
         </button>
         <div
           id="search-input"
@@ -170,7 +175,7 @@
         </div>
       </div>
       <button id="close-viewer-btn" class="close-viewer-btn" title="Close book">
-        &times;
+        <span class="iconify" data-icon="material-symbols:close"></span>
       </button>
     </div>
 
@@ -196,6 +201,38 @@
       accept=".json,.txt"
       style="display: none"
     />
+
+    <!-- App Initialization Loading Overlay -->
+    <div id="app-loading-overlay" class="app-loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">
+          <h2>Welcome to AI Journal</h2>
+          <p id="loading-status">Initializing your journal...</p>
+          <div class="loading-progress">
+            <div class="progress-bar" id="loading-progress-bar"></div>
+          </div>
+          <div class="loading-steps" id="loading-steps">
+            <div class="loading-step" data-step="database">
+              <span class="step-indicator"></span>
+              <span class="step-text">Setting up database</span>
+            </div>
+            <div class="loading-step" data-step="notes">
+              <span class="step-indicator"></span>
+              <span class="step-text">Loading your entries</span>
+            </div>
+            <div class="loading-step" data-step="ai">
+              <span class="step-indicator"></span>
+              <span class="step-text">Preparing AI features</span>
+            </div>
+            <div class="loading-step" data-step="ui">
+              <span class="step-indicator"></span>
+              <span class="step-text">Finalizing interface</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Goals Modal -->
     <div id="goals-modal" class="modal-overlay hidden">
@@ -312,7 +349,8 @@
 
         <div class="modal-actions" id="goals-modal-actions">
           <button id="add-new-goal-btn" class="modal-btn modal-btn-confirm">
-            ➕ Add Goal
+            <span class="iconify" data-icon="material-symbols:add"></span> Add
+            Goal
           </button>
           <button id="goals-close-btn" class="modal-btn modal-btn-cancel">
             Close
