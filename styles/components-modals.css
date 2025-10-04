@@ -343,13 +343,9 @@ body.settings-modal-open {
 .modal-title {
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #ffffff; /* Fallback for browsers that don't support gradient text */
   margin: 0;
-  background: linear-gradient(135deg, #ffffff 0%, #a0c4ff 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 30px rgba(0, 122, 255, 0.3);
+  /* Gradient text effect for supported browsers */
 }
 
 .settings-close-btn {

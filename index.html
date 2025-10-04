@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Journal</title>
+    <title>Notes & Tasks</title>
     <link rel="stylesheet" href="styles/main.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,54 +16,6 @@
   </head>
   <body>
     <header id="app-header" class="app-header">
-      <!-- Calendar remains unchanged -->
-      <div id="calendar-widget" class="calendar-widget">
-        <div id="calendar-tomorrow" class="calendar-page">
-          <div class="calendar-top">
-            <span id="calendar-day-name-tomorrow"></span>
-          </div>
-          <div class="calendar-bottom">
-            <span id="calendar-day-number-tomorrow"></span>
-            <div class="calendar-month-year">
-              <span id="calendar-month-tomorrow"></span
-              ><span id="calendar-year-tomorrow"></span>
-            </div>
-          </div>
-        </div>
-        <div id="calendar-today" class="calendar-page">
-          <div class="calendar-top"><span id="calendar-day-name"></span></div>
-          <div class="calendar-bottom">
-            <span id="calendar-day-number"></span>
-            <div class="calendar-month-year">
-              <span id="calendar-month"></span><span id="calendar-year"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- NEW: On This Day Widget -->
-      <div id="on-this-day-widget" class="on-this-day-widget hidden"></div>
-
-      <!-- NEW: Daily Prompts Widget -->
-      <div id="daily-prompts-widget" class="daily-prompts-widget hidden">
-        <div class="prompts-header">
-          <h3 class="prompts-title">
-            <span class="iconify" data-icon="material-symbols:star"></span>
-            Writing Prompts
-          </h3>
-          <button
-            id="refresh-prompts-btn"
-            class="refresh-prompts-btn"
-            title="Get new prompts"
-          >
-            <span class="iconify" data-icon="material-symbols:refresh"></span>
-          </button>
-        </div>
-        <div id="prompts-container" class="prompts-container">
-          <!-- Prompts will be populated by JS -->
-        </div>
-      </div>
-
       <!-- NEW: Recording Indicator -->
       <div id="recording-indicator" class="recording-indicator hidden">
         <div class="recording-dot"></div>
@@ -72,118 +24,330 @@
       </div>
     </header>
 
-    <main id="bookshelf-container" class="bookshelf-container">
-      <!-- This will be populated by JS -->
-      <div
-        id="empty-state-container"
-        class="empty-state-container hidden"
-      ></div>
-    </main>
+    <!-- Modern two-pane layout -->
+    <div id="app-layout" class="app-layout">
+      <!-- Sidebar Navigation -->
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <h1 class="app-title">Notes & Tasks</h1>
+          <button
+            id="sidebar-toggle"
+            class="sidebar-toggle"
+            title="Toggle sidebar"
+            aria-label="Toggle navigation sidebar"
+          >
+            <span
+              class="iconify"
+              data-icon="material-symbols:menu"
+              aria-hidden="true"
+            ></span>
+          </button>
+        </div>
 
-    <footer class="app-footer">
-      <!-- Action bar with settings -->
-      <div class="action-bar">
-        <!-- NEW: Settings Icon -->
-        <button id="settings-btn" class="settings-btn" title="Settings">
-          <span class="iconify" data-icon="material-symbols:settings"></span>
-        </button>
-        <!-- NEW: Prompts Icon -->
-        <button
-          id="prompts-btn"
-          class="prompts-btn"
-          title="Get writing inspiration"
-        >
-          <span class="iconify" data-icon="material-symbols:lightbulb"></span>
-        </button>
-        <div
-          id="search-input"
-          class="search-input"
-          contenteditable="true"
-          role="textbox"
-          aria-multiline="true"
-        ></div>
-        <button id="mic-button" class="mic-button" title="Start Journaling">
-          <img
-            src="assets/mic-icon.svg"
-            class="mic-icon"
-            alt="Microphone Icon"
-          /><img
-            src="assets/stop-icon.svg"
-            class="stop-icon"
-            alt="Stop Icon"
-          /><img
-            src="assets/loader-icon.svg"
-            class="loader-icon"
-            alt="Loading Icon"
-          />
-        </button>
-      </div>
-    </footer>
+        <nav class="sidebar-nav">
+          <div class="nav-section">
+            <div class="nav-item active" data-view="all-notes">
+              <span class="iconify" data-icon="material-symbols:article"></span>
+              <span class="nav-text">All Notes</span>
+              <span class="nav-count" id="all-notes-count">0</span>
+            </div>
+            <div class="nav-item" data-view="favorites">
+              <span class="iconify" data-icon="material-symbols:star"></span>
+              <span class="nav-text">Favorites</span>
+              <span class="nav-count" id="favorites-count">0</span>
+            </div>
+            <div class="nav-item" data-view="recent">
+              <span class="iconify" data-icon="material-symbols:history"></span>
+              <span class="nav-text">Recent</span>
+            </div>
+          </div>
 
-    <!-- Card Template remains unchanged -->
-    <template id="card-template"
-      ><div class="journal-card" role="button" tabindex="0">
-        <h3 class="card-title"></h3>
-        <p class="card-snippet"></p>
-        <time class="card-date"></time></div
-    ></template>
+          <div class="nav-section">
+            <div class="nav-section-title">
+              <span>Notebooks</span>
+              <button class="nav-action-btn" title="Add notebook">
+                <span class="iconify" data-icon="material-symbols:add"></span>
+              </button>
+            </div>
+            <div class="nav-item" data-notebook="personal">
+              <span class="iconify" data-icon="material-symbols:folder"></span>
+              <span class="nav-text">Personal</span>
+            </div>
+            <div class="nav-item" data-notebook="work">
+              <span class="iconify" data-icon="material-symbols:folder"></span>
+              <span class="nav-text">Work</span>
+            </div>
+          </div>
 
-    <!-- Book viewer gets new buttons -->
-    <div id="book-viewer" class="book-viewer-overlay hidden">
-      <div class="book-viewer-content">
-        <div class="book-layout">
-          <div id="page-left" class="book-page">
-            <div class="page-header">
-              <div class="header-text">
-                <h2 id="viewer-title"></h2>
-                <time id="viewer-date"></time>
-              </div>
-              <div class="header-actions">
-                <!-- NEW: Add Image Button -->
-                <button
-                  id="add-image-btn"
-                  class="viewer-btn hidden"
-                  title="Add Image"
-                >
-                  Image
+          <div class="nav-section">
+            <div class="nav-section-title">
+              <span>Tags</span>
+              <button class="nav-action-btn" title="Manage tags">
+                <span
+                  class="iconify"
+                  data-icon="material-symbols:settings"
+                ></span>
+              </button>
+            </div>
+            <div class="tag-list" id="tag-list">
+              <!-- Tags will be populated dynamically -->
+            </div>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button
+            id="new-note-btn"
+            class="new-note-btn"
+            aria-label="Create new note"
+          >
+            <span
+              class="iconify"
+              data-icon="material-symbols:add"
+              aria-hidden="true"
+            ></span>
+            <span>New Note</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main id="main-content" class="main-content" role="main">
+        <!-- Toolbar -->
+        <header class="content-toolbar">
+          <div class="toolbar-left">
+            <div class="search-container">
+              <span class="search-icon">
+                <span
+                  class="iconify"
+                  data-icon="material-symbols:search"
+                ></span>
+              </span>
+              <div
+                id="search-input"
+                class="search-input"
+                contenteditable="true"
+                role="textbox"
+                placeholder="Search notes..."
+              ></div>
+              <div
+                class="search-filters"
+                id="search-filters"
+                style="display: none"
+              >
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="title">Title</button>
+                <button class="filter-btn" data-filter="content">
+                  Content
                 </button>
-                <button id="edit-btn" class="viewer-btn" title="Edit Entry">
-                  Edit
-                </button>
-                <button
-                  id="save-btn"
-                  class="viewer-btn hidden"
-                  title="Save Changes"
-                >
-                  Save
-                </button>
-                <button
-                  id="delete-btn"
-                  class="viewer-btn danger"
-                  title="Delete Entry"
-                >
-                  Delete
-                </button>
+                <button class="filter-btn" data-filter="tags">Tags</button>
               </div>
             </div>
-            <div id="viewer-text-left" class="viewer-text"></div>
           </div>
-          <div class="book-spine"></div>
-          <div id="page-right" class="book-page">
-            <div id="viewer-text-right" class="viewer-text"></div>
+
+          <div class="toolbar-right">
+            <button
+              id="view-toggle"
+              class="view-toggle-btn"
+              title="Toggle view"
+            >
+              <span
+                class="iconify"
+                data-icon="material-symbols:grid-view"
+              ></span>
+            </button>
+            <button id="sort-btn" class="sort-btn" title="Sort notes">
+              <span class="iconify" data-icon="material-symbols:sort"></span>
+              <span class="sort-text">Date Modified</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Notes List Area -->
+        <div id="notes-list-container" class="notes-list-container">
+          <div id="notes-list" class="notes-list">
+            <!-- Notes will be populated by JS -->
+          </div>
+          <div id="empty-state-container" class="empty-state-container hidden">
+            <div class="empty-state-content">
+              <span
+                class="iconify"
+                data-icon="material-symbols:article-outline"
+              ></span>
+              <h2>No notes yet</h2>
+              <p>
+                Start writing your first note or create a task to get organized.
+              </p>
+              <button id="empty-state-new-note" class="empty-state-btn">
+                <span class="iconify" data-icon="material-symbols:add"></span>
+                Create your first note
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      <button id="close-viewer-btn" class="close-viewer-btn" title="Close book">
-        <span class="iconify" data-icon="material-symbols:close"></span>
-      </button>
-    </div>
+      </main>
 
-    <!-- NEW: Settings Modal -->
-    <div id="settings-modal" class="modal-overlay settings-modal hidden">
-      <div class="modal-dialog settings-dialog">
-        <!-- Content will be dynamically generated by settings-view.js -->
-      </div>
+      <!-- Note Editor Panel (appears when note is selected) -->
+      <aside id="note-editor" class="note-editor hidden">
+        <div class="editor-header">
+          <div class="editor-title">
+            <input
+              type="text"
+              id="editor-note-title"
+              placeholder="Note title..."
+              class="note-title-input"
+            />
+            <div class="note-meta">
+              <span class="note-date" id="note-date"></span>
+              <span class="note-word-count" id="note-word-count">0 words</span>
+            </div>
+          </div>
+          <div class="editor-actions">
+            <button id="editor-pin-btn" class="editor-btn" title="Pin note">
+              <span
+                class="iconify"
+                data-icon="material-symbols:push-pin-outline"
+              ></span>
+            </button>
+            <button id="editor-tag-btn" class="editor-btn" title="Add tags">
+              <span
+                class="iconify"
+                data-icon="material-symbols:local-offer"
+              ></span>
+            </button>
+            <button id="editor-share-btn" class="editor-btn" title="Share note">
+              <span class="iconify" data-icon="material-symbols:share"></span>
+            </button>
+            <button
+              id="editor-close-btn"
+              class="editor-btn"
+              title="Close editor"
+            >
+              <span class="iconify" data-icon="material-symbols:close"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-toolbar" id="editor-toolbar">
+          <div class="toolbar-group">
+            <button class="format-btn" data-command="bold" title="Bold">
+              <span
+                class="iconify"
+                data-icon="material-symbols:format-bold"
+              ></span>
+            </button>
+            <button class="format-btn" data-command="italic" title="Italic">
+              <span
+                class="iconify"
+                data-icon="material-symbols:format-italic"
+              ></span>
+            </button>
+            <button
+              class="format-btn"
+              data-command="underline"
+              title="Underline"
+            >
+              <span
+                class="iconify"
+                data-icon="material-symbols:format-underline"
+              ></span>
+            </button>
+          </div>
+
+          <div class="toolbar-group">
+            <button
+              class="format-btn"
+              data-command="insertUnorderedList"
+              title="Bullet List"
+            >
+              <span
+                class="iconify"
+                data-icon="material-symbols:format-list-bulleted"
+              ></span>
+            </button>
+            <button
+              class="format-btn"
+              data-command="insertOrderedList"
+              title="Numbered List"
+            >
+              <span
+                class="iconify"
+                data-icon="material-symbols:format-list-numbered"
+              ></span>
+            </button>
+          </div>
+
+          <div class="toolbar-group">
+            <button
+              class="format-btn"
+              data-command="formatBlock"
+              data-value="h1"
+              title="Heading 1"
+            >
+              H1
+            </button>
+            <button
+              class="format-btn"
+              data-command="formatBlock"
+              data-value="h2"
+              title="Heading 2"
+            >
+              H2
+            </button>
+            <button
+              class="format-btn"
+              data-command="formatBlock"
+              data-value="h3"
+              title="Heading 3"
+            >
+              H3
+            </button>
+          </div>
+
+          <div class="toolbar-group">
+            <button
+              id="insert-image-btn"
+              class="format-btn"
+              title="Insert Image"
+            >
+              <span class="iconify" data-icon="material-symbols:image"></span>
+            </button>
+            <button id="insert-link-btn" class="format-btn" title="Insert Link">
+              <span class="iconify" data-icon="material-symbols:link"></span>
+            </button>
+            <button
+              id="insert-code-btn"
+              class="format-btn"
+              title="Insert Code Block"
+            >
+              <span class="iconify" data-icon="material-symbols:code"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-content">
+          <div
+            id="note-editor-content"
+            class="note-content-editable"
+            contenteditable="true"
+            placeholder="Start writing your note..."
+          ></div>
+        </div>
+
+        <div class="editor-footer">
+          <div class="editor-status">
+            <span id="editor-status" class="status-text">Ready</span>
+          </div>
+          <div class="editor-actions-footer">
+            <button id="editor-save-btn" class="editor-btn primary">
+              Save
+            </button>
+            <button id="editor-cancel-btn" class="editor-btn secondary">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
 
     <!-- Hidden file input for image uploads -->
@@ -202,13 +366,20 @@
       style="display: none"
     />
 
+    <!-- NEW: Settings Modal -->
+    <div id="settings-modal" class="modal-overlay settings-modal hidden">
+      <div class="modal-dialog settings-dialog">
+        <!-- Content will be dynamically generated by settings-view.js -->
+      </div>
+    </div>
+
     <!-- App Initialization Loading Overlay -->
     <div id="app-loading-overlay" class="app-loading-overlay">
       <div class="loading-content">
         <div class="loading-spinner"></div>
         <div class="loading-text">
-          <h2>Welcome to AI Journal</h2>
-          <p id="loading-status">Initializing your journal...</p>
+          <h2>Welcome to Notes & Tasks</h2>
+          <p id="loading-status">Initializing your workspace...</p>
           <div class="loading-progress">
             <div class="progress-bar" id="loading-progress-bar"></div>
           </div>
@@ -219,11 +390,11 @@
             </div>
             <div class="loading-step" data-step="notes">
               <span class="step-indicator"></span>
-              <span class="step-text">Loading your entries</span>
+              <span class="step-text">Loading your notes</span>
             </div>
             <div class="loading-step" data-step="ai">
               <span class="step-indicator"></span>
-              <span class="step-text">Preparing AI features</span>
+              <span class="step-text">Preparing features</span>
             </div>
             <div class="loading-step" data-step="ui">
               <span class="step-indicator"></span>

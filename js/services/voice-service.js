@@ -1,7 +1,7 @@
-// js/audio-service.js
-// Audio recording storage and playback for dictated journal entries
+// js/voice-service.js
+// Audio recording storage and playback for dictated notes
 
-/**
+/** 
  * Audio service for recording, storing, and playing back journal entry audio
  */
 

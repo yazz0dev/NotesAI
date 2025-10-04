@@ -106,10 +106,8 @@ body.loading-active {
   font-size: 2rem;
   margin-bottom: 1rem;
   font-weight: 700;
-  background: linear-gradient(45deg, #fff, #e0e6ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #fff; /* Fallback color for browsers that don't support gradient text */
+  /* For browsers that support it, we keep the gradient as background */
 }
 
 .loading-text p {

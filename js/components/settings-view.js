@@ -7,7 +7,7 @@ import {
   showToast,
   showLoadingOverlay,
 } from "./modals.js";
-import { exportJournal } from "../services/export-service.js";
+import { exportNotes } from "../services/export-service.js";
 import { importFromFile } from "../services/import-service.js";
 import { showGoalsModal } from "./goals-ui.js";
 
@@ -193,8 +193,8 @@ function getSectionHTML(sectionId) {
                         <h3 class="section-title" id="voice-section">${settingsSections.voice.title}</h3>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label for="hands-free-toggle">Hands-Free Mode ("Hey Journal")</label>
-                                <p class="setting-description">Allow the app to listen for the "Hey Journal" hotword to enable full voice control. All processing is done on-device.</p>
+                                <label for="hands-free-toggle">Hands-Free Mode ("Hey Notes")</label>
+                                <p class="setting-description">Allow the app to listen for the "Hey Notes" hotword to enable full voice control. All processing is done on-device.</p>
                             </div>
                             <label class="toggle-switch" aria-label="Toggle hands-free mode">
                                 <input type="checkbox" id="hands-free-toggle" aria-describedby="hands-free-description">
@@ -223,7 +223,7 @@ function getSectionHTML(sectionId) {
                 <div class="settings-section-content" role="tabpanel" aria-labelledby="export-section">
                     <div class="setting-section">
                         <h3 class="section-title" id="export-section">${settingsSections.export.title}</h3>
-                        <p class="section-description">Download your journal entries in different formats</p>
+                        <p class="section-description">Download your notes in different formats</p>
                         <div class="export-buttons" role="group" aria-label="Export format options">
                             <button id="export-json-btn" class="export-btn" data-format="json" aria-describedby="json-description">
                                 <span class="btn-icon" aria-hidden="true">
@@ -256,7 +256,7 @@ function getSectionHTML(sectionId) {
                 <div class="settings-section-content" role="tabpanel" aria-labelledby="import-section">
                     <div class="setting-section">
                         <h3 class="section-title" id="import-section">${settingsSections.import.title}</h3>
-                        <p class="section-description">Restore journal entries from backup files</p>
+                        <p class="section-description">Restore notes from backup files</p>
                         <div class="import-area">
                             <button id="import-file-btn" class="import-btn" aria-describedby="import-description">
                                 <span class="btn-icon" aria-hidden="true">
@@ -495,13 +495,13 @@ function initializeExportSettings() {
       );
 
       try {
-        await exportJournal(format);
+        await exportNotes(format);
         showToast(
-          `Journal exported successfully as ${format.toUpperCase()}`,
+          `Notes exported successfully as ${format.toUpperCase()}`,
           "success"
         );
       } catch (error) {
-        showToast(`Failed to export journal: ${error.message}`, "error");
+        showToast(`Failed to export notes: ${error.message}`, "error");
       } finally {
         loadingOverlay.hide();
       }
@@ -580,13 +580,13 @@ function initializeAdvancedSettings() {
     clearDataBtn.addEventListener("click", async () => {
       const confirmed = await showConfirmation(
         "Clear All Data",
-        "This will permanently delete all your journal entries, goals, and settings. This action cannot be undone."
+        "This will permanently delete all your notes, tasks, and settings. This action cannot be undone."
       );
 
       if (confirmed) {
         try {
           // Clear IndexedDB
-          const databases = ["AI_JournalDB", "AI_JournalAudio"];
+          const databases = ["Notes_DB", "Notes_Audio"];
           for (const dbName of databases) {
             await new Promise((resolve, reject) => {
               const deleteReq = indexedDB.deleteDatabase(dbName);
@@ -599,7 +599,7 @@ function initializeAdvancedSettings() {
           const keys = Object.keys(localStorage);
           keys.forEach((key) => {
             if (
-              key.startsWith("journal_") ||
+              key.startsWith("notes_") ||
               key.startsWith("handsFree") ||
               key.startsWith("voice")
             ) {
@@ -751,7 +751,7 @@ function showImportPreview(importData) {
                 }</p>
             </div>
             <div class="import-warning">
-                <p>⚠️ This will add new entries to your existing journal. Duplicates may occur.</p>
+                <p>⚠️ This will add new entries to your existing notes. Duplicates may occur.</p>
             </div>
         `;
     importStatus.classList.remove("hidden");

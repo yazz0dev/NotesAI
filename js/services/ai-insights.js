@@ -1,10 +1,64 @@
 // js/ai-insights.js
-// AI-powered insights for journal entries including sentiment analysis and topic modeling
+// AI-powered insights for notes including sentiment analysis and topic modeling
 
 import { getCachedResult, setCachedResult } from "../utils/cache.js";
 
-// Track if we've already logged Chrome AI availability warnings
-let chromeAIWarningLogged = false;
+// Persistent session management for improved performance
+let globalAISession = null;
+let sessionCreationPromise = null;
+
+/**
+ * Gets or creates a persistent AI session for better performance
+ * @returns {Promise<Object>} AI session object
+ */
+async function getAISession() {
+  if (globalAISession) {
+    return globalAISession;
+  }
+
+  if (sessionCreationPromise) {
+    return await sessionCreationPromise;
+  }
+
+  sessionCreationPromise = (async () => {
+    try {
+      if (!("LanguageModel" in self)) {
+        throw new Error("LanguageModel not available");
+      }
+
+      globalAISession = await LanguageModel.create({
+        expectedOutputs: [
+          {
+            type: "text",
+            languages: ["en"],
+          },
+        ],
+      });
+
+      return globalAISession;
+    } catch (error) {
+      sessionCreationPromise = null;
+      throw error;
+    }
+  })();
+
+  return await sessionCreationPromise;
+}
+
+/**
+ * Destroys the global AI session
+ */
+function destroyAISession() {
+  if (globalAISession) {
+    try {
+      globalAISession.destroy();
+    } catch (error) {
+      console.warn("Error destroying AI session:", error);
+    }
+    globalAISession = null;
+  }
+  sessionCreationPromise = null;
+}
 
 /**
  * Cleans Chrome AI API response by removing markdown formatting
@@ -28,8 +82,8 @@ function cleanAIResponse(response) {
 }
 
 /**
- * Analyzes the sentiment of a journal entry using Chrome AI
- * @param {string} content - The journal entry content (HTML)
+ * Analyzes the sentiment of a note using Chrome AI
+ * @param {string} content - The note content (HTML)
  * @returns {Promise<Object>} Sentiment analysis result
  */
 export async function analyzeSentiment(content) {
@@ -41,52 +95,63 @@ export async function analyzeSentiment(content) {
       return { sentiment: "neutral", confidence: 0, emoji: "😐" };
     }
 
-    // Check if LanguageModel is available
-    if (!("LanguageModel" in self)) {
-      if (!chromeAIWarningLogged) {
-        console.info(
-          "Chrome LanguageModel API not available - using fallback sentiment analysis"
-        );
-        chromeAIWarningLogged = true;
-      }
-      return { sentiment: "neutral", confidence: 0, emoji: "😐" };
+    // Check cache first for performance
+    const cached = getCachedResult("sentiment", textContent);
+    if (cached) {
+      return cached;
     }
 
-    // Create language model session
-    const session = await LanguageModel.create({
-      expectedOutputs: [
-        {
-          type: "text",
-          languages: ["en"],
-        },
-      ],
-    });
+    // Get persistent session for better performance
+    const session = await getAISession();
 
-    const sentimentPrompt = `
-            Analyze the emotional sentiment of this journal entry and respond with ONLY a JSON object:
-
-            "${textContent}"
-
-            Response format: {"sentiment": "positive|negative|neutral", "confidence": 0.0-1.0, "emoji": "😊|😞|😐", "keywords": ["word1", "word2"]}
-
-            Guidelines:
-            - positive: optimistic, happy, grateful, excited, accomplished
-            - negative: sad, frustrated, worried, angry, disappointed
-            - neutral: factual, routine, balanced, reflective
-            - confidence: how certain you are (0.0-1.0)
-            - emoji: single emoji that best represents the sentiment
-            - keywords: 2-4 key emotional words from the text
-        `;
+    const sentimentPrompt =
+      'Analyze sentiment: "' +
+      textContent +
+      '". JSON: {"sentiment":"positive|negative|neutral","confidence":0.0-1.0,"emoji":"😊|😞|😐","keywords":["word1","word2"]}';
 
     const result = await session.prompt(sentimentPrompt);
     const cleanedResult = cleanAIResponse(result);
-    const analysis = JSON.parse(cleanedResult);
 
-    // Clean up session
-    session.destroy();
+    let analysis;
+    try {
+      analysis = JSON.parse(cleanedResult);
+    } catch (parseError) {
+      console.warn(
+        "Failed to parse AI response as JSON, using fallback:",
+        cleanedResult
+      );
+      // Fallback: try to extract sentiment from text response
+      const text = cleanedResult.toLowerCase();
+      let sentiment = "neutral";
+      if (
+        text.includes("positive") ||
+        text.includes("good") ||
+        text.includes("happy")
+      ) {
+        sentiment = "positive";
+      } else if (
+        text.includes("negative") ||
+        text.includes("bad") ||
+        text.includes("sad")
+      ) {
+        sentiment = "negative";
+      }
+
+      analysis = {
+        sentiment: sentiment,
+        confidence: 0.5,
+        emoji:
+          sentiment === "positive"
+            ? "😊"
+            : sentiment === "negative"
+            ? "😞"
+            : "😐",
+        keywords: [],
+      };
+    }
 
     // Validate and set defaults
-    return {
+    const sentimentResult = {
       sentiment: ["positive", "negative", "neutral"].includes(
         analysis.sentiment
       )
@@ -98,6 +163,11 @@ export async function analyzeSentiment(content) {
         ? analysis.keywords.slice(0, 4)
         : [],
     };
+
+    // Cache the result
+    setCachedResult("sentiment", textContent, {}, sentimentResult);
+
+    return sentimentResult;
   } catch (error) {
     console.error("Error analyzing sentiment:", error);
     return { sentiment: "neutral", confidence: 0, emoji: "😐", keywords: [] };
@@ -105,8 +175,8 @@ export async function analyzeSentiment(content) {
 }
 
 /**
- * Extracts topics and themes from a journal entry
- * @param {string} content - The journal entry content (HTML)
+ * Extracts topics and themes from a note
+ * @param {string} content - The note content (HTML)
  * @returns {Promise<Array>} Array of detected topics/tags
  */
 export async function extractTopics(content) {
@@ -124,58 +194,29 @@ export async function extractTopics(content) {
       return cachedTopics;
     }
 
-    // Check if LanguageModel is available
-    if (!("LanguageModel" in self)) {
-      if (!chromeAIWarningLogged) {
-        console.info(
-          "Chrome LanguageModel API not available - using fallback topic extraction"
-        );
-        chromeAIWarningLogged = true;
-      }
-      return [];
-    }
+    // Get persistent session for better performance
+    const session = await getAISession();
 
-    // Create language model session
-    const session = await LanguageModel.create({
-      expectedOutputs: [
-        {
-          type: "text",
-          languages: ["en"],
-        },
-      ],
-    });
-
-    const topicPrompt = `
-            Analyze this journal entry and extract the main topics/themes. Return ONLY a JSON array of strings:
-
-            "${textContent}"
-
-            Response format: ["topic1", "topic2", "topic3"]
-
-            Guidelines:
-            - Extract 2-5 main topics/themes
-            - Use simple, lowercase terms
-            - Focus on: activities, emotions, people, places, events, goals
-            - Examples: "work", "family", "health", "travel", "learning", "relationships"
-            - Avoid generic terms like "life" or "thoughts"
-        `;
+    const topicPrompt =
+      'Extract 2-5 topics from: "' +
+      textContent +
+      '". JSON array: ["topic1", "topic2"]';
 
     const result = await session.prompt(topicPrompt);
     const cleanedResult = cleanAIResponse(result);
     const topics = JSON.parse(cleanedResult);
 
-    // Cache the result
+    // Cache the result for future use
     setCachedResult("topics", textContent, {}, topics);
 
-    // Clean up session
-    session.destroy();
-
     // Validate and filter
-    return Array.isArray(topics)
+    const validTopics = Array.isArray(topics)
       ? topics
           .filter((topic) => typeof topic === "string" && topic.length > 0)
           .slice(0, 5)
       : [];
+
+    return validTopics;
   } catch (error) {
     console.error("Error extracting topics:", error);
     return [];
@@ -183,163 +224,8 @@ export async function extractTopics(content) {
 }
 
 /**
- * Analyzes multiple entries to find thematic connections
- * @param {Array} entries - Array of journal entries
- * @param {Object} targetEntry - The entry to find connections for
- * @returns {Promise<Array>} Array of related entries
- */
-export async function findThematicConnections(entries, targetEntry) {
-  try {
-    if (!chrome?.ai?.prompt || !entries.length) {
-      return [];
-    }
-
-    // Get target entry topics
-    const targetTopics = await extractTopics(targetEntry.content);
-    if (targetTopics.length === 0) {
-      return [];
-    }
-
-    // Score entries based on topic overlap - limit to first 5 entries for performance
-    const connections = [];
-    const maxEntriesToCheck = Math.min(5, entries.length);
-
-    for (let i = 0; i < maxEntriesToCheck; i++) {
-      const entry = entries[i];
-      if (entry.id === targetEntry.id) continue;
-
-      try {
-        const entryTopics = await extractTopics(entry.content);
-        const commonTopics = targetTopics.filter((topic) =>
-          entryTopics.some(
-            (entryTopic) =>
-              entryTopic.includes(topic) || topic.includes(entryTopic)
-          )
-        );
-
-        if (commonTopics.length > 0) {
-          connections.push({
-            entry,
-            score:
-              commonTopics.length /
-              Math.min(targetTopics.length, entryTopics.length),
-            commonTopics,
-          });
-        }
-      } catch (error) {
-        // Skip entries that fail to process
-        console.warn(
-          "Failed to process entry for thematic connections:",
-          error
-        );
-        continue;
-      }
-    }
-
-    // Sort by relevance score and return top matches
-    return connections
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map((conn) => conn.entry);
-  } catch (error) {
-    console.error("Error finding thematic connections:", error);
-    return [];
-  }
-}
-
-/**
- * Generates mood insights from recent entries
- * @param {Array} recentEntries - Recent journal entries (last 30 days)
- * @returns {Promise<Object>} Mood pattern insights
- */
-export async function generateMoodInsights(recentEntries) {
-  try {
-    if (!("LanguageModel" in self) || recentEntries.length === 0) {
-      return {
-        pattern: "insufficient_data",
-        summary: "Not enough data for mood analysis",
-      };
-    }
-
-    // Analyze sentiment for all recent entries
-    const sentimentPromises = recentEntries.map((entry) =>
-      analyzeSentiment(entry.content).then((sentiment) => ({
-        ...sentiment,
-        date: entry.createdAt,
-      }))
-    );
-
-    const sentiments = await Promise.all(sentimentPromises);
-
-    // Calculate mood distribution
-    const moodCounts = sentiments.reduce((acc, s) => {
-      acc[s.sentiment] = (acc[s.sentiment] || 0) + 1;
-      return acc;
-    }, {});
-
-    const totalEntries = sentiments.length;
-    const positiveRatio = (moodCounts.positive || 0) / totalEntries;
-    const negativeRatio = (moodCounts.negative || 0) / totalEntries;
-
-    // Generate insights
-    let pattern = "balanced";
-    if (positiveRatio > 0.6) pattern = "mostly_positive";
-    else if (negativeRatio > 0.6) pattern = "mostly_negative";
-    else if (positiveRatio > negativeRatio * 1.5) pattern = "leaning_positive";
-    else if (negativeRatio > positiveRatio * 1.5) pattern = "leaning_negative";
-
-    // Create language model session for summary
-    const session = await LanguageModel.create({
-      expectedOutputs: [
-        {
-          type: "text",
-          languages: ["en"],
-        },
-      ],
-    });
-
-    const summaryPrompt = `
-      Based on ${totalEntries} journal entries with ${Math.round(
-      positiveRatio * 100
-    )}% positive, ${Math.round(
-      negativeRatio * 100
-    )}% negative, and ${Math.round(
-      (1 - positiveRatio - negativeRatio) * 100
-    )}% neutral sentiments, write a brief, encouraging insight about the person's recent mood patterns. Keep it under 50 words and be supportive.
-    `;
-
-    const summaryResult = await session.prompt(summaryPrompt);
-
-    // Clean up session
-    session.destroy();
-
-    return {
-      pattern,
-      summary: summaryResult.text.trim(),
-      distribution: moodCounts,
-      totalEntries,
-      dominantEmoji:
-        sentiments.length > 0
-          ? Object.entries(moodCounts).reduce((a, b) =>
-              moodCounts[a[0]] > moodCounts[b[0]] ? a : b
-            )[0] === "positive"
-            ? "😊"
-            : Object.entries(moodCounts).reduce((a, b) =>
-                moodCounts[a[0]] > moodCounts[b[0]] ? a : b
-              )[0] === "negative"
-            ? "😞"
-            : "😐"
-          : "😐",
-    };
-  } catch (error) {
-    console.error("Error generating mood insights:", error);
-    return { pattern: "error", summary: "Unable to analyze mood patterns" };
-  }
-}
-
-/**
- * Extracts the first image from a journal entry's HTML content
- * @param {string} htmlContent - The HTML content of the journal entry
+ * Extracts the first image from a note's HTML content
+ * @param {string} htmlContent - The HTML content of the note
  * @returns {string|null} The src of the first image, or null if no images found
  */
 export function extractFirstImage(htmlContent) {
@@ -353,3 +239,6 @@ export function extractFirstImage(htmlContent) {
     return null;
   }
 }
+
+// Export session management functions for cleanup
+export { destroyAISession };

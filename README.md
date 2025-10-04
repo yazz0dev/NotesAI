@@ -1,87 +1,58 @@
-# AI Journal - An Advanced AI Assistant for Personal Journaling
+# Notes & Tasks - A Modern Note-Taking and Task Management App
 
-**AI Journal** is a sophisticated, privacy-first journaling application that transforms how people capture and interact with their personal thoughts. Built for the Google Chrome Built-in AI Challenge 2025, it showcases the incredible potential of on-device AI to create intelligent, conversational interfaces that feel like having a thoughtful companion.
+**Notes & Tasks** is a powerful, privacy-focused application for capturing thoughts, organizing notes, and managing tasks. Built with modern web technologies and AI assistance, it provides an intuitive interface for personal productivity and knowledge management.
 
-This application leverages Chrome's built-in AI APIs to provide three distinct interaction modes:
+This application leverages modern web APIs to provide intelligent features:
 
-- **Traditional Dictation**: Speak naturally and let AI format your thoughts into beautiful entries
-- **Hands-Free Mode**: Say "Hey Journal" to activate full voice control with ambient listening
-- **Context-Aware Commands**: Natural language commands like "search for my hackathon notes" or "edit this entry"
+- **Voice Commands**: Use "Hey Notes" for hands-free note creation and management
+- **AI-Powered Organization**: Automatic topic extraction and content analysis
+- **Task Management**: Built-in goals and habit tracking system
 
-Every interaction happens **100% on-device**, ensuring complete privacy while delivering a seamless, intelligent experience that adapts to your needs and context.
+All processing happens **100% on-device**, ensuring complete privacy while delivering a seamless, intelligent experience.
 
 **[Link to Live Demo]** - _(You will add this later)_
 **[Link to Video Demo]** - _(You will add this later)_
 
-![AI Journal Screenshot](https://via.placeholder.com/800x450.png?text=AI+Assistant+Journal)
+![Notes & Tasks Screenshot](https://via.placeholder.com/800x450.png?text=Notes+and+Tasks+App)
 _(Replace the placeholder above with a real screenshot of your app)_
 
 ---
 
-## The Problem We're Solving
+## Features Overview
 
-Traditional journaling can feel like a chore, discouraging consistency. Modern AI tools can help, but they often require sending your most private thoughts to a server. AI Journal addresses this by:
+### 📝 **Smart Note Management**
 
-1.  **Lowering the Barrier to Entry:** We eliminate the friction of typing and formatting. Users can simply speak their thoughts, and the on-device AI handles the rest, turning messy speech into a beautifully structured journal entry. This meaningfully improves a common user journey.
-2.  **Guaranteeing Inherent Privacy:** We provide a hyper-personalized AI experience without compromise. By using Chrome's client-side APIs, we ensure that the sanctity of a personal journal is respected, unlocking a new capability previously impractical on the web.
+- **Rich Text Editor**: Full-featured editor with formatting options
+- **Voice-to-Text**: Dictate notes using speech recognition
+- **Image Support**: Upload and embed images in your notes
+- **Search & Organization**: Powerful search with tagging and notebooks
 
-## Showcasing the Chrome AI APIs
+### ✅ **Task & Goals System**
 
-This project demonstrates the full spectrum of Chrome's built-in AI capabilities, creating a sophisticated AI assistant that feels natural and responsive.
+- **Goal Setting**: Create and track personal and professional goals
+- **Habit Tracking**: Monitor daily habits and streaks
+- **Progress Monitoring**: Visual progress indicators and insights
+- **Due Date Management**: Set and track target dates
 
-- **Prompt API (Gemini Nano):** The intelligent core of our application, powering multiple sophisticated features:
+### 🎙️ **Voice Features**
 
-  1.  **Intelligent Text Formatting:** Transforms raw speech into polished journal entries with proper punctuation, capitalization, and paragraph structure
-  2.  **Creative Title Generation:** Creates engaging 1-5 word titles that capture the essence of each entry
-  3.  **Natural Language Command Parsing:** Understands conversational commands like "search for my hackathon notes" and converts them into structured actions
-  4.  **Multimodal Image Captioning:** Analyzes uploaded images and generates contextual descriptions for journal entries
-  5.  **Intent Detection:** Determines user intent from natural speech patterns to enable seamless interaction
+- **Hands-Free Mode**: Say "Hey Notes" to activate voice control
+- **Voice Commands**: Natural language commands for note management
+- **Audio Recording**: Record and attach voice memos to notes
 
-- **Summarizer API:** Powers our "On This Day" time capsule feature:
+### 🏷️ **Organization Tools**
 
-  1.  **Historical Memory Synthesis:** Combines past journal entries from the same date across years into meaningful summaries
-  2.  **Contextual Memory Retrieval:** Extracts and summarizes relevant historical content for nostalgic reflection
+- **Notebooks**: Organize notes into personal and work categories
+- **Tags**: Flexible tagging system for easy categorization
+- **Favorites**: Mark important notes for quick access
+- **Recent Notes**: Quick access to your latest entries
 
-- **Proofreader API:** Provides the foundation for text processing:
+### ⚙️ **Additional Features**
 
-  1.  **Grammar and Spelling Correction:** Cleans up raw speech transcripts before advanced formatting
-  2.  **Quality Assurance:** Ensures all text meets basic linguistic standards before AI enhancement
-
-- **Web Speech API:** Enables the voice-first experience:
-  1.  **Ambient Listening:** Background listening for hotword activation ("Hey Journal")
-  2.  **Real-time Speech Recognition:** Continuous speech capture with intelligent state management
-  3.  **Smart Stop Detection:** Automatically finalizes entries when users pause speaking
-
-## Core Features
-
-### 🤖 **Intelligent AI Assistant**
-
-- **Conversational Voice Control:** Say "Hey Journal" to activate ambient listening, then use natural commands like "search for my hackathon notes" or "edit this entry"
-- **Context-Aware Commands:** The AI understands your current context (bookshelf vs. reader view) and executes commands appropriately
-- **Smart Command Feedback:** Visual feedback shows when commands are understood vs. not understood, with helpful animations
-
-### 📝 **Advanced Journaling Experience**
-
-- **Three Interaction Modes:**
-  - **Traditional Dictation:** Click mic and speak naturally for formatted entries
-  - **Hands-Free Mode:** Enable ambient listening for "Hey Journal" activation
-  - **Context-Aware Commands:** Voice commands that adapt to your current activity
-- **Multimodal Entries:** Upload images with AI-generated captions for richer journal entries
-- **Smart Entry Management:** Edit, save, and delete entries with full CRUD functionality
-
-### 🎨 **Polished User Experience**
-
-- **Visual Command Feedback:** Action bar animations show command processing status
-- **"On This Day" Time Capsule:** AI summarizes past entries from the same date for nostalgic reflection
-- **Responsive Design:** Beautiful, animated UI that works across all screen sizes
-- **Privacy-First Architecture:** 100% on-device processing ensures complete data privacy
-
-### ⚡ **Technical Excellence**
-
-- **Network Independence:** Works perfectly offline with local AI models
-- **Graceful Degradation:** Fallback functionality when AI APIs aren't available
-- **Performance Optimized:** Efficient state management and DOM updates
-- **Future-Ready:** Architecture prepared for upcoming Chrome AI features
+- **Import/Export**: Backup and restore your data in multiple formats
+- **Dark Mode Ready**: Modern, responsive design
+- **Offline Support**: Works without internet connection
+- **Privacy First**: All data stored locally on your device
 
 ## How to Run the Project
 
@@ -89,18 +60,18 @@ This project is built with vanilla HTML, CSS, and JavaScript and requires no com
 
 **Prerequisites:**
 
-- A browser that supports the Chrome Built-in AI APIs (e.g., Chrome with the appropriate feature flags enabled).
+- Modern web browser (Chrome recommended for full AI features)
 - [Node.js](https://nodejs.org/) and npm installed (for the development server).
 
 **Instructions:**
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/your-username/ai-journal.git
+    git clone https://github.com/your-username/notes-tasks.git
     ```
 2.  Navigate to the project directory:
     ```bash
-    cd ai-journal
+    cd notes-tasks
     ```
 3.  Install the development server (if you don't have one globally):
     ```bash
@@ -114,36 +85,32 @@ This project is built with vanilla HTML, CSS, and JavaScript and requires no com
 
 ---
 
-## Technical Architecture & Innovation
+## Technical Features
 
-### **State Machine Design**
+### **Modern Architecture**
 
-The application uses a sophisticated state machine architecture for voice interaction:
+- **Vanilla JavaScript**: No frameworks, pure web technologies
+- **Modular Design**: Organized component-based architecture
+- **State Management**: Efficient state handling with error recovery
+- **Performance Optimized**: Fast loading and smooth interactions
 
-- **IDLE**: Default state when not actively listening
-- **AMBIENT_LISTENING**: Background listening for "Hey Journal" hotword
-- **COMMAND_MODE**: After hotword detection, ready for natural language commands
-- **DICTATION_MODE**: After "create entry" command, capturing journal content
+### **AI Integration**
 
-### **Command Processing Pipeline**
+- **Content Analysis**: Automatic topic extraction from notes
+- **Smart Organization**: AI-powered categorization and search
+- **Voice Processing**: Speech recognition and command parsing
+- **Image Captioning**: AI-generated descriptions for uploaded images
 
-1. **Hotword Detection**: "Hey Journal" activates command mode
-2. **Intent Analysis**: AI determines if speech indicates a journaling action
-3. **Command Parsing**: Natural language converted to structured JSON actions
-4. **Context-Aware Execution**: Commands adapt based on current view state
-5. **Visual Feedback**: Real-time status updates and error handling
+### **Data Management**
 
-### **Privacy & Performance Optimizations**
+- **Local Storage**: All data stored securely in your browser
+- **Import/Export**: Multiple format support (JSON, TXT)
+- **Backup & Restore**: Easy data portability
+- **Error Handling**: Robust error management and recovery
 
-- **Zero-Trust Architecture**: No data ever leaves the device
-- **Graceful API Degradation**: Fallback functionality when AI services unavailable
-- **Efficient State Management**: Minimal re-renders and optimized DOM updates
-- **Progressive Enhancement**: Core features work without AI APIs
+### **User Experience**
 
-### **Beyond Original Scope**
-
-✅ **Full Voice Command System** - Natural language commands with context awareness
-✅ **Ambient Listening Mode** - "Hey Journal" hotword activation
-✅ **Multimodal Image Support** - Upload images with AI-generated captions
-✅ **Advanced Visual Feedback** - Command processing animations and error states
-✅ **"On This Day" Memories** - AI-powered historical content summarization
+- **Responsive Design**: Works on desktop and mobile devices
+- **Accessibility**: WCAG-compliant interface design
+- **Keyboard Shortcuts**: Power user productivity features
+- **Visual Feedback**: Clear status indicators and animations

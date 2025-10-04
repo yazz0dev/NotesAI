@@ -3,6 +3,48 @@
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
+// Persistent session management for improved performance
+let globalAISession = null;
+let sessionCreationPromise = null;
+
+/**
+ * Gets or creates a persistent AI session for better performance
+ * @returns {Promise<Object>} AI session object
+ */
+async function getAISession() {
+  if (globalAISession) {
+    return globalAISession;
+  }
+
+  if (sessionCreationPromise) {
+    return await sessionCreationPromise;
+  }
+
+  sessionCreationPromise = (async () => {
+    try {
+      if (!("LanguageModel" in self)) {
+        throw new Error("LanguageModel not available");
+      }
+
+      globalAISession = await LanguageModel.create({
+        expectedOutputs: [
+          {
+            type: "text",
+            languages: ["en"],
+          },
+        ],
+      });
+
+      return globalAISession;
+    } catch (error) {
+      sessionCreationPromise = null;
+      throw error;
+    }
+  })();
+
+  return await sessionCreationPromise;
+}
+
 /**
  * Cleans Chrome AI API response by removing markdown formatting
  * @param {string} response - Raw response from Chrome AI API
@@ -86,7 +128,7 @@ async function handleRecognitionResult(event) {
 
   switch (voiceState) {
     case "AMBIENT_LISTENING":
-      if (finalTranscriptSegment.toLowerCase().trim().includes("hey journal")) {
+      if (finalTranscriptSegment.toLowerCase().trim().includes("hey notes")) {
         console.log("Hotword detected!");
         setVoiceState("COMMAND_MODE");
         // If user pauses after hotword, go back to ambient
@@ -114,44 +156,27 @@ async function parseAndExecuteCommand(transcript) {
   const commandPrompt = `
         Analyze the user's command: "${transcript}".
         Convert it into a JSON object with "action" and "params".
-        Possible actions: 'create_entry', 'search_notes', 'delete_current', 'edit_current', 'add_image', 'go_back', 'stop_listening'.
+        Possible actions: 'create_note', 'search_notes', 'delete_current', 'edit_current', 'add_image', 'go_back', 'stop_listening'.
         - For 'search_notes', extract the 'query'.
-        - If the command is to start a new entry, use 'create_entry'.
-        Respond with only the JSON object. Example: {"action": "search_notes", "params": {"query": "hackathon"}}`;
+        - If the command is to start a new note, use 'create_note'.
+        Respond with only the JSON object. Example: {"action": "search_notes", "params": {"query": "project"}}`;
 
   try {
-    // Check if LanguageModel is available
-    if (!("LanguageModel" in self)) {
-      console.warn(
-        "Chrome LanguageModel API not available for command parsing"
-      );
-      onCommandReceived({ action: "unknown", error: "AI API not available" });
-      return;
-    }
-
-    // Create language model session
-    const session = await LanguageModel.create({
-      expectedOutputs: [
-        {
-          type: "text",
-          languages: ["en"],
-        },
-      ],
-    });
+    // Get or create persistent session for better performance
+    const session = await getAISession();
 
     const result = await session.prompt(commandPrompt);
     const cleanedResult = cleanAIResponse(result);
     const command = JSON.parse(cleanedResult);
     console.log("Parsed command:", command);
 
-    if (command.action === "create_entry") {
+    if (command.action === "create_note") {
       setVoiceState("DICTATION_MODE");
     } else {
       onCommandReceived(command);
     }
 
-    // Clean up session
-    session.destroy();
+    // Don't destroy session - keep it for reuse
   } catch (error) {
     console.error("Could not parse command:", error);
     // Send unknown command for UI feedback
