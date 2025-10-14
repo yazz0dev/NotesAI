@@ -1,11 +1,12 @@
 // js/components/index.js
 // Main components export file
 
-// Re-export all component functions for easy importing
-export * from "./header.js";
-export * from "./modals.js";
+// Note: Re-exports will be handled via global window object for Vue.js compatibility
 
 // Initialize all components
-export function initComponents() {
-  import("./modals.js").then(({ initModals }) => initModals());
+function initComponents() {
+  // Components are now initialized directly via their window functions
 }
+
+// Make function available globally for Vue.js compatibility
+window.initComponents = initComponents;

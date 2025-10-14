@@ -1,6 +1,6 @@
 # Notes & Tasks - A Modern Note-Taking and Task Management App
 
-**Notes & Tasks** is a powerful, privacy-focused application for capturing thoughts, organizing notes, and managing tasks. Built with modern web technologies and AI assistance, it provides an intuitive interface for personal productivity and knowledge management.
+**Notes & Tasks** is a powerful, privacy-focused application for capturing thoughts, organizing notes, and managing tasks. Built with modern web technologies, Bootstrap 5.3.2 for responsive design, and AI assistance, it provides an intuitive interface for personal productivity and knowledge management.
 
 This application leverages modern web APIs to provide intelligent features:
 
@@ -90,6 +90,7 @@ This project is built with vanilla HTML, CSS, and JavaScript and requires no com
 ### **Modern Architecture**
 
 - **Vanilla JavaScript**: No frameworks, pure web technologies
+- **Bootstrap 5.3.2**: Modern responsive UI framework for consistent design
 - **Modular Design**: Organized component-based architecture
 - **State Management**: Efficient state handling with error recovery
 - **Performance Optimized**: Fast loading and smooth interactions
@@ -110,7 +111,8 @@ This project is built with vanilla HTML, CSS, and JavaScript and requires no com
 
 ### **User Experience**
 
-- **Responsive Design**: Works on desktop and mobile devices
+- **Responsive Design**: Bootstrap-powered responsive layout that works on desktop and mobile devices
+- **Modern UI Components**: Bootstrap 5 components for consistent, accessible design
 - **Accessibility**: WCAG-compliant interface design
 - **Keyboard Shortcuts**: Power user productivity features
 - **Visual Feedback**: Clear status indicators and animations

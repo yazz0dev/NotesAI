@@ -1,26 +1,10 @@
 // js/error-aware-services.js
 // Error-aware wrappers for existing services
 
-import errorHandler, {
-  withErrorHandling,
-  ERROR_TYPES,
-  ERROR_SEVERITY,
-} from "./error-handler.js";
-import * as store from "./store.js";
-import { analyzeSentiment, extractTopics } from "../services/ai-insights.js";
-import { exportNotes } from "../services/export-service.js";
-import { importFromFile } from "../services/import-service.js";
-import {
-  getAllGoals,
-  createGoal,
-  recordProgress,
-} from "../services/goals-service.js";
-import { startRecording, stopRecording } from "../services/voice-service.js";
-
 /**
  * Error-aware store operations
  */
-export const safeStore = {
+const safeStore = {
   /**
    * Safely saves a note with error handling and retry logic
    */
@@ -142,7 +126,7 @@ export const safeStore = {
 /**
  * Error-aware AI services
  */
-export const safeAI = {
+const safeAI = {
   /**
    * Safely analyzes sentiment with fallback
    */
@@ -196,7 +180,7 @@ export const safeAI = {
 /**
  * Error-aware export/import services
  */
-export const safeExportImport = {
+const safeExportImport = {
   /**
    * Safely exports notes with progress tracking
    */
@@ -229,7 +213,7 @@ export const safeExportImport = {
 /**
  * Error-aware goals services
  */
-export const safeGoals = {
+const safeGoals = {
   /**
    * Safely loads all goals
    */
@@ -271,7 +255,7 @@ export const safeGoals = {
 /**
  * Error-aware audio services
  */
-export const safeAudio = {
+const safeAudio = {
   /**
    * Safely starts audio recording with permission handling
    */
@@ -300,7 +284,7 @@ export const safeAudio = {
 /**
  * Network-aware operations
  */
-export const networkAware = {
+const networkAware = {
   /**
    * Checks if operation should proceed based on network status
    */
@@ -339,7 +323,7 @@ export const networkAware = {
 /**
  * Permission-aware operations
  */
-export const permissionAware = {
+const permissionAware = {
   /**
    * Safely requests permissions with user-friendly messaging
    */
@@ -372,7 +356,7 @@ export const permissionAware = {
 /**
  * Validation helpers with error handling
  */
-export const safeValidation = {
+const safeValidation = {
   /**
    * Validates required fields with user-friendly messages
    */
@@ -452,5 +436,13 @@ export const safeValidation = {
   },
 };
 
-// Export error handler for direct access
-export { errorHandler };
+// Make functions available globally for Vue.js compatibility
+window.safeStore = safeStore;
+window.safeAI = safeAI;
+window.safeExportImport = safeExportImport;
+window.safeGoals = safeGoals;
+window.safeAudio = safeAudio;
+window.networkAware = networkAware;
+window.permissionAware = permissionAware;
+window.safeValidation = safeValidation;
+window.errorHandler = errorHandler;

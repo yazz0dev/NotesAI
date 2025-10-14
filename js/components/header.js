@@ -2,15 +2,15 @@
 // Header controls and UI state management
 
 // --- DOM Element Selectors (lazy loading) ---
-export const headerEl = () => document.getElementById("app-header");
-export const searchInputEl = () => document.getElementById("search-input");
-export const micButtonEl = () => document.getElementById("mic-button");
+const headerEl = () => document.getElementById("app-header");
+const searchInputEl = () => document.getElementById("search-input");
+const micButtonEl = () => document.getElementById("mic-button");
 
 /**
  * Sets the header listening state with visual feedback.
  * @param {boolean} isListening - Whether the app is actively listening
  */
-export function setHeaderListeningState(isListening) {
+function setHeaderListeningState(isListening) {
   const header = headerEl();
   if (header) {
     header.classList.toggle("listening", isListening);
@@ -21,7 +21,7 @@ export function setHeaderListeningState(isListening) {
  * Sets the ambient indicator state for voice control feedback.
  * @param {string} state - The current voice state (IDLE, AMBIENT_LISTENING, etc.)
  */
-export function setAmbientIndicatorState(state) {
+function setAmbientIndicatorState(state) {
   const indicator = document.getElementById("ambient-indicator");
   if (!indicator) return;
 
@@ -37,7 +37,7 @@ export function setAmbientIndicatorState(state) {
  * Sets the microphone button state with visual feedback.
  * @param {string} state - Button state ('idle', 'listening', 'capturing', 'processing')
  */
-export function setMicButtonState(state) {
+function setMicButtonState(state) {
   const micButton = micButtonEl();
   if (!micButton) return;
 
@@ -58,14 +58,15 @@ export function setMicButtonState(state) {
  * Shows command understood feedback with a message.
  * @param {string} message - The confirmation message to display
  */
-export function showCommandUnderstood(message) {
+function showCommandUnderstood(message) {
   const header = headerEl();
   if (!header) return;
 
   const feedback = document.createElement("div");
-  feedback.className = "voice-feedback understood";
+  feedback.className =
+    "voice-feedback understood d-flex align-items-center gap-2";
   feedback.innerHTML = `
-        <div class="feedback-icon"><span class="iconify" data-icon="material-symbols:check-circle"></span></div>
+        <div class="feedback-icon"><i class="bi bi-check-circle-fill text-success"></i></div>
         <div class="feedback-message">${message}</div>
     `;
 
@@ -80,14 +81,15 @@ export function showCommandUnderstood(message) {
 /**
  * Shows command not understood feedback.
  */
-export function showCommandNotUnderstood() {
+function showCommandNotUnderstood() {
   const header = headerEl();
   if (!header) return;
 
   const feedback = document.createElement("div");
-  feedback.className = "voice-feedback not-understood";
+  feedback.className =
+    "voice-feedback not-understood d-flex align-items-center gap-2";
   feedback.innerHTML = `
-        <div class="feedback-icon"><span class="iconify" data-icon="material-symbols:help"></span></div>
+        <div class="feedback-icon"><i class="bi bi-question-circle-fill text-warning"></i></div>
         <div class="feedback-message">I didn't catch that. Try saying "Hey Notes" to start.</div>
     `;
 
@@ -104,7 +106,7 @@ export function showCommandNotUnderstood() {
  * @param {string} imageDataUrl - The base64 data URL of the image
  * @param {string} caption - Optional caption for the image
  */
-export function insertImage(imageDataUrl, caption) {
+function insertImage(imageDataUrl, caption) {
   const searchInput = searchInputEl();
   if (!searchInput) return;
 
@@ -130,3 +132,14 @@ export function insertImage(imageDataUrl, caption) {
     searchInput.innerHTML += imageHtml;
   }
 }
+
+// Make functions available globally for Vue.js compatibility
+window.headerEl = headerEl;
+window.searchInputEl = searchInputEl;
+window.micButtonEl = micButtonEl;
+window.setHeaderListeningState = setHeaderListeningState;
+window.setAmbientIndicatorState = setAmbientIndicatorState;
+window.setMicButtonState = setMicButtonState;
+window.showCommandUnderstood = showCommandUnderstood;
+window.showCommandNotUnderstood = showCommandNotUnderstood;
+window.insertImage = insertImage;

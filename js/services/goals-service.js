@@ -1,8 +1,7 @@
 // js/goals-service.js
 // Goals and habits tracking system with AI-powered insights
 
-import * as store from "../core/store.js";
-import { generateId } from "../utils/utils.js";
+// Note: Using global window object for Vue.js compatibility instead of ES6 imports
 
 /**
  * Cleans Chrome AI API response by removing markdown formatting
@@ -30,14 +29,14 @@ function cleanAIResponse(response) {
  */
 
 // Goal types
-export const GOAL_TYPES = {
+const GOAL_TYPES = {
   HABIT: "habit",
   PROJECT: "project",
   MILESTONE: "milestone",
 };
 
 // Goal statuses
-export const GOAL_STATUS = {
+const GOAL_STATUS = {
   ACTIVE: "active",
   COMPLETED: "completed",
   PAUSED: "paused",
@@ -45,7 +44,7 @@ export const GOAL_STATUS = {
 };
 
 // Habit frequencies
-export const HABIT_FREQUENCIES = {
+const HABIT_FREQUENCIES = {
   DAILY: "daily",
   WEEKLY: "weekly",
   MONTHLY: "monthly",
@@ -56,14 +55,14 @@ export const HABIT_FREQUENCIES = {
  * @param {Object} goalData - Goal data object
  * @returns {Promise<Object>} Created goal
  */
-export async function createGoal(goalData) {
+async function createGoal(goalData) {
   try {
     if (!goalData.title || !goalData.type) {
       throw new Error("Goal title and type are required");
     }
 
     const goal = {
-      id: generateId(),
+      id: window.generateId(),
       title: goalData.title.trim(),
       description: goalData.description?.trim() || "",
       type: goalData.type,
@@ -98,7 +97,7 @@ export async function createGoal(goalData) {
  * @param {string} note - Optional note about the progress
  * @returns {Promise<Object>} Updated goal
  */
-export async function recordProgress(goalId, value = 1, note = "") {
+async function recordProgress(goalId, value = 1, note = "") {
   try {
     const goal = await getGoal(goalId);
     if (!goal) {
@@ -110,7 +109,7 @@ export async function recordProgress(goalId, value = 1, note = "") {
 
     // Create check-in record
     const checkIn = {
-      id: generateId(),
+      id: window.generateId(),
       date: today,
       timestamp: now,
       value: value,
@@ -187,7 +186,7 @@ function updateHabitStreak(goal, today) {
  * Gets all active goals and habits
  * @returns {Promise<Array>} Array of goals
  */
-export async function getAllGoals() {
+async function getAllGoals() {
   try {
     const request = indexedDB.open("AI_JournalGoals", 1);
 
@@ -206,14 +205,35 @@ export async function getAllGoals() {
         const transaction = db.transaction(["goals"], "readonly");
         const store = transaction.objectStore("goals");
 
-        const getRequest = store.getAll();
-        getRequest.onsuccess = () => {
-          const goals = getRequest.result || [];
-          // Sort by updatedAt descending
-          goals.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-          resolve(goals);
-        };
-        getRequest.onerror = () => resolve([]);
+        // Check if getAll is available (modern browsers)
+        if (store.getAll) {
+          const getRequest = store.getAll();
+          getRequest.onsuccess = () => {
+            const goals = getRequest.result || [];
+            // Sort by updatedAt descending
+            goals.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            resolve(goals);
+          };
+          getRequest.onerror = () => resolve([]);
+        } else {
+          // Fallback for older browsers that don't support getAll
+          const getRequest = store.openCursor();
+          const results = [];
+          getRequest.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+              results.push(cursor.value);
+              cursor.continue();
+            } else {
+              // Sort by updatedAt descending
+              results.sort(
+                (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+              );
+              resolve(results);
+            }
+          };
+          getRequest.onerror = () => resolve([]);
+        }
       };
     });
   } catch (error) {
@@ -227,7 +247,7 @@ export async function getAllGoals() {
  * @param {string} goalId - Goal ID
  * @returns {Promise<Object|null>} Goal object or null
  */
-export async function getGoal(goalId) {
+async function getGoal(goalId) {
   try {
     const request = indexedDB.open("AI_JournalGoals", 1);
 
@@ -291,7 +311,7 @@ async function storeGoal(goal) {
  * @param {Object} updates - Updates to apply
  * @returns {Promise<Object>} Updated goal
  */
-export async function updateGoal(goalId, updates) {
+async function updateGoal(goalId, updates) {
   try {
     const goal = await getGoal(goalId);
     if (!goal) {
@@ -316,7 +336,7 @@ export async function updateGoal(goalId, updates) {
  * @param {string} goalId - Goal ID
  * @returns {Promise<boolean>} Success status
  */
-export async function deleteGoal(goalId) {
+async function deleteGoal(goalId) {
   try {
     const request = indexedDB.open("AI_JournalGoals", 1);
 
@@ -342,7 +362,7 @@ export async function deleteGoal(goalId) {
  * Gets goals due today for reminders
  * @returns {Promise<Array>} Goals due today
  */
-export async function getGoalsDueToday() {
+async function getGoalsDueToday() {
   try {
     const allGoals = await getAllGoals();
     const today = new Date().toISOString().split("T")[0];
@@ -391,7 +411,7 @@ export async function getGoalsDueToday() {
  * @param {Array} recentEntries - Recent journal entries for context
  * @returns {Promise<Object>} Insights object
  */
-export async function generateGoalInsights(goals, recentEntries = []) {
+async function generateGoalInsights(goals, recentEntries = []) {
   try {
     if (!chrome?.ai?.prompt || goals.length === 0) {
       return getFallbackInsights(goals);
@@ -500,7 +520,7 @@ function getFallbackInsights(goals) {
  * @param {number} days - Number of days to analyze (default 30)
  * @returns {Promise<Array>} Array of daily completion data
  */
-export async function getHabitCompletionData(goalId, days = 30) {
+async function getHabitCompletionData(goalId, days = 30) {
   try {
     const goal = await getGoal(goalId);
     if (!goal || goal.type !== GOAL_TYPES.HABIT) {
@@ -531,3 +551,15 @@ export async function getHabitCompletionData(goalId, days = 30) {
     return [];
   }
 }
+
+// Make functions available globally for Vue.js compatibility
+window.cleanAIResponse = cleanAIResponse;
+window.createGoal = createGoal;
+window.recordProgress = recordProgress;
+window.getAllGoals = getAllGoals;
+window.getGoal = getGoal;
+window.updateGoal = updateGoal;
+window.deleteGoal = deleteGoal;
+window.getGoalsDueToday = getGoalsDueToday;
+window.generateGoalInsights = generateGoalInsights;
+window.getHabitCompletionData = getHabitCompletionData;

@@ -10,7 +10,7 @@
  * @param {Array} notes - Array of notes
  * @returns {string} JSON string
  */
-export function exportToJSON(notes) {
+function exportToJSON(notes) {
   const exportData = {
     version: "1.0",
     exportDate: new Date().toISOString(),
@@ -36,7 +36,7 @@ export function exportToJSON(notes) {
  * @param {Array} notes - Array of notes
  * @returns {string} Formatted text
  */
-export function exportToText(notes) {
+function exportToText(notes) {
   const exportDate = new Date().toLocaleDateString();
   let textContent = `Notes & Tasks Export - ${exportDate}\n`;
   textContent += `Total Entries: ${notes.length}\n`;
@@ -81,7 +81,7 @@ export function exportToText(notes) {
  * @param {Array} notes - Array of notes
  * @returns {Promise<void>}
  */
-export async function exportToPDF(notes) {
+async function exportToPDF(notes) {
   try {
     // Create a new window for PDF generation
     const printWindow = window.open("", "_blank");
@@ -282,7 +282,7 @@ export async function exportToPDF(notes) {
  * @param {string} filename - Name of the file
  * @param {string} mimeType - MIME type of the file
  */
-export function downloadFile(content, filename, mimeType = "text/plain") {
+function downloadFile(content, filename, mimeType = "text/plain") {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
 
@@ -304,18 +304,18 @@ export function downloadFile(content, filename, mimeType = "text/plain") {
  * @param {string} format - Export format (json, txt, pdf)
  * @returns {string} Generated filename
  */
-export function generateExportFilename(format) {
+function generateExportFilename(format) {
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
   return `notes-export-${dateStr}.${format}`;
 }
 
 /**
- * Main export function that handles all formats
+ * Main function that handles all formats
  * @param {Array} notes - Array of notes
  * @param {string} format - Export format ('json', 'txt', 'pdf')
  */
-export async function exportNotes(notes, format) {
+async function exportNotes(notes, format) {
   try {
     const filename = generateExportFilename(format);
 
@@ -344,3 +344,11 @@ export async function exportNotes(notes, format) {
     return { success: false, error: error.message };
   }
 }
+
+// Make functions available globally for Vue.js compatibility
+window.exportToJSON = exportToJSON;
+window.exportToText = exportToText;
+window.exportToPDF = exportToPDF;
+window.downloadFile = downloadFile;
+window.generateExportFilename = generateExportFilename;
+window.exportNotes = exportNotes;

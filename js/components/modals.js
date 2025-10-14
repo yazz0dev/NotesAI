@@ -9,6 +9,9 @@ const modalMessageEl = document.getElementById("modal-message");
 const modalConfirmBtn = document.getElementById("modal-confirm-btn");
 const modalCancelBtn = document.getElementById("modal-cancel-btn");
 
+// Bootstrap modal instance
+let confirmationModal = null;
+
 // --- Modal Functions ---
 
 /**
@@ -17,21 +20,28 @@ const modalCancelBtn = document.getElementById("modal-cancel-btn");
  * @param {string} message - The dialog message
  * @returns {Promise<boolean>} Promise that resolves to true if confirmed, false if cancelled
  */
-export function showConfirmation(title, message) {
+function showConfirmation(title, message) {
   return new Promise((resolve) => {
+    // Initialize Bootstrap modal if not already done
+    if (!confirmationModal) {
+      confirmationModal = new bootstrap.Modal(modalEl);
+    }
+
     modalTitleEl.textContent = title;
     modalMessageEl.textContent = message;
-    modalEl.classList.remove("hidden");
+
+    // Show modal
+    confirmationModal.show();
 
     const handleConfirm = () => {
-      modalEl.classList.add("hidden");
+      confirmationModal.hide();
       modalConfirmBtn.removeEventListener("click", handleConfirm);
       modalCancelBtn.removeEventListener("click", handleCancel);
       resolve(true);
     };
 
     const handleCancel = () => {
-      modalEl.classList.add("hidden");
+      confirmationModal.hide();
       modalConfirmBtn.removeEventListener("click", handleConfirm);
       modalCancelBtn.removeEventListener("click", handleCancel);
       resolve(false);
@@ -40,14 +50,15 @@ export function showConfirmation(title, message) {
     modalConfirmBtn.addEventListener("click", handleConfirm);
     modalCancelBtn.addEventListener("click", handleCancel);
 
-    // Handle escape key
-    const handleEscape = (e) => {
-      if (e.key === "Escape") {
-        document.removeEventListener("keydown", handleEscape);
-        handleCancel();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
+    // Handle modal hidden event
+    modalEl.addEventListener(
+      "hidden.bs.modal",
+      () => {
+        modalConfirmBtn.removeEventListener("click", handleConfirm);
+        modalCancelBtn.removeEventListener("click", handleCancel);
+      },
+      { once: true }
+    );
   });
 }
 
@@ -57,32 +68,41 @@ export function showConfirmation(title, message) {
  * @param {string} message - The dialog message
  * @returns {Promise<void>} Promise that resolves when dialog is closed
  */
-export function showAlert(title, message) {
+function showAlert(title, message) {
   return new Promise((resolve) => {
+    // Initialize Bootstrap modal if not already done
+    if (!confirmationModal) {
+      confirmationModal = new bootstrap.Modal(modalEl);
+    }
+
     modalTitleEl.textContent = title;
     modalMessageEl.textContent = message;
     modalConfirmBtn.textContent = "OK";
-    modalCancelBtn.classList.add("hidden");
-    modalEl.classList.remove("hidden");
+    modalCancelBtn.style.display = "none";
+
+    // Show modal
+    confirmationModal.show();
 
     const handleOk = () => {
-      modalEl.classList.add("hidden");
+      confirmationModal.hide();
       modalConfirmBtn.textContent = "Delete"; // Reset default text
-      modalCancelBtn.classList.remove("hidden");
+      modalCancelBtn.style.display = "";
       modalConfirmBtn.removeEventListener("click", handleOk);
       resolve();
     };
 
     modalConfirmBtn.addEventListener("click", handleOk);
 
-    // Handle escape key
-    const handleEscape = (e) => {
-      if (e.key === "Escape") {
-        document.removeEventListener("keydown", handleEscape);
-        handleOk();
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
+    // Handle modal hidden event
+    modalEl.addEventListener(
+      "hidden.bs.modal",
+      () => {
+        modalConfirmBtn.textContent = "Delete"; // Reset default text
+        modalCancelBtn.style.display = "";
+        modalConfirmBtn.removeEventListener("click", handleOk);
+      },
+      { once: true }
+    );
   });
 }
 
@@ -91,7 +111,7 @@ export function showAlert(title, message) {
  * @param {string} message - Optional loading message
  * @returns {Object} Object with hide() method to dismiss the overlay
  */
-export function showLoadingOverlay(message = "Loading...") {
+function showLoadingOverlay(message = "Loading...") {
   const overlay = document.createElement("div");
   overlay.className = "loading-overlay";
   overlay.innerHTML = `
@@ -132,7 +152,7 @@ export function showLoadingOverlay(message = "Loading...") {
  * @param {string} type - The notification type ('success', 'error', 'info', 'warning')
  * @param {number} duration - How long to show the toast (in milliseconds)
  */
-export function showToast(message, type = "info", duration = 3000) {
+function showToast(message, type = "info", duration = 3000) {
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
 
@@ -194,13 +214,19 @@ export function showToast(message, type = "info", duration = 3000) {
  * Initializes modal event listeners.
  * Note: Settings modal initialization is handled by settings-view.js
  */
-export function initModals() {
-  // Close confirmation modal when clicking outside
-  if (modalEl) {
-    modalEl.addEventListener("click", (e) => {
-      if (e.target === modalEl) {
-        modalEl.classList.add("hidden");
-      }
-    });
+function initModals() {
+  // Initialize Bootstrap modal if not already done
+  if (modalEl && !confirmationModal) {
+    confirmationModal = new bootstrap.Modal(modalEl);
   }
+
+  // Bootstrap modals handle outside clicks automatically
+  // No additional event listeners needed
 }
+
+// Make functions available globally for Vue.js compatibility
+window.showConfirmation = showConfirmation;
+window.showAlert = showAlert;
+window.showLoadingOverlay = showLoadingOverlay;
+window.showToast = showToast;
+window.initModals = initModals;

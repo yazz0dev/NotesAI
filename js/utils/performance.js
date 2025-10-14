@@ -9,7 +9,7 @@ const performanceMarks = new Map();
  * Starts a performance measurement
  * @param {string} name - Name of the operation to measure
  */
-export function startMeasurement(name) {
+function startMeasurement(name) {
   performanceMarks.set(name, {
     start: performance.now(),
     name,
@@ -22,7 +22,7 @@ export function startMeasurement(name) {
  * @param {boolean} log - Whether to log the result to console
  * @returns {number} Duration in milliseconds
  */
-export function endMeasurement(name, log = true) {
+function endMeasurement(name, log = true) {
   const mark = performanceMarks.get(name);
   if (!mark) {
     console.warn(`Performance mark "${name}" not found`);
@@ -45,7 +45,7 @@ export function endMeasurement(name, log = true) {
  * @param {Function} fn - Async function to measure
  * @returns {Promise<any>} Result of the function
  */
-export async function measureAsync(name, fn) {
+async function measureAsync(name, fn) {
   startMeasurement(name);
   try {
     const result = await fn();
@@ -61,7 +61,7 @@ export async function measureAsync(name, fn) {
  * Gets performance statistics
  * @returns {Object} Performance data
  */
-export function getPerformanceStats() {
+function getPerformanceStats() {
   return {
     activeMarks: Array.from(performanceMarks.keys()),
     markCount: performanceMarks.size,
@@ -73,7 +73,7 @@ export function getPerformanceStats() {
  * @param {string} operationName - Name to use for performance tracking
  * @returns {Function} Decorator function
  */
-export function withPerformanceMonitoring(operationName) {
+function withPerformanceMonitoring(operationName) {
   return function (target, propertyKey, descriptor) {
     const originalMethod = descriptor.value;
 
@@ -94,3 +94,10 @@ export function withPerformanceMonitoring(operationName) {
     return descriptor;
   };
 }
+
+// Make functions available globally for Vue.js compatibility
+window.startMeasurement = startMeasurement;
+window.endMeasurement = endMeasurement;
+window.measureAsync = measureAsync;
+window.getPerformanceStats = getPerformanceStats;
+window.withPerformanceMonitoring = withPerformanceMonitoring;

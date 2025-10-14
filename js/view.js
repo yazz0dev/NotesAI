@@ -1,49 +1,13 @@
 // js/view.js
 // Refactored view module using component architecture
 
-// Import all component functions
-import {
-  // Header
-  setHeaderListeningState,
-  setAmbientIndicatorState,
-  setMicButtonState,
-  showCommandUnderstood,
-  showCommandNotUnderstood,
-  insertImage,
-  headerEl,
-  searchInputEl,
-  micButtonEl,
-
-  // Note Management
-  prependCard,
-  showEmptySearchState,
-
-  // General Modals (not settings)
-  showConfirmation,
-  showAlert,
-  showLoadingOverlay,
-  showToast,
-
-  // Component initialization
-  initComponents,
-} from "./components/index.js";
-
-// Import settings functions from settings-view
-import {
-  showSettingsModal,
-  getHandsFreeMode,
-  setHandsFreeMode,
-} from "./components/settings-view.js";
-
-// Import required services
-import { getAudioData, formatDuration } from "./services/voice-service.js";
-import { analyzeSentiment, extractTopics } from "./services/ai-insights.js";
+// Note: Imports will be handled via global window object for Vue.js compatibility
 
 // --- DOM Element Selectors ---
 // headerEl, searchInputEl, micButtonEl are imported from components
 
 // Re-export all imported functions and elements so main.js can access them
-export {
+const viewExports = {
   // Header
   setHeaderListeningState,
   setAmbientIndicatorState,
@@ -164,6 +128,11 @@ function createAudioPlayer(audioDataUrl, duration) {
 
   return playerContainer;
 }
+
+// Make all view functions available globally for Vue.js compatibility
+Object.keys(viewExports).forEach((key) => {
+  window[key] = viewExports[key];
+});
 
 // Enable hot module replacement for development
 if (import.meta.hot) {

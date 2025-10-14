@@ -1,7 +1,7 @@
 // js/voice-service.js
 // Audio recording storage and playback for dictated notes
 
-/** 
+/**
  * Audio service for recording, storing, and playing back journal entry audio
  */
 
@@ -14,7 +14,7 @@ let isRecording = false;
  * Initializes the audio recording service
  * @returns {Promise<boolean>} Success status
  */
-export async function initAudioService() {
+async function initAudioService() {
   try {
     // Check for MediaRecorder support
     if (!window.MediaRecorder) {
@@ -104,7 +104,7 @@ function setupRecorderEvents() {
  * Starts audio recording
  * @returns {Promise<boolean>} Success status
  */
-export async function startRecording() {
+async function startRecording() {
   try {
     if (isRecording) {
       console.warn("Recording already in progress");
@@ -141,7 +141,7 @@ export async function startRecording() {
  * Stops audio recording and returns the recorded audio
  * @returns {Promise<Object|null>} Audio data object or null
  */
-export async function stopRecording() {
+async function stopRecording() {
   return new Promise((resolve) => {
     if (!audioRecorder || !isRecording) {
       resolve(null);
@@ -188,7 +188,7 @@ export async function stopRecording() {
  * @param {string} audioDataUrl - Audio data URL
  * @returns {Promise<HTMLAudioElement>} Audio element
  */
-export async function playAudio(audioDataUrl) {
+async function playAudio(audioDataUrl) {
   try {
     const audio = new Audio(audioDataUrl);
     audio.preload = "metadata";
@@ -215,7 +215,7 @@ export async function playAudio(audioDataUrl) {
  * @param {string} audioDataUrl - Audio data URL
  * @returns {Promise<number>} Duration in seconds
  */
-export async function getAudioDuration(audioDataUrl) {
+async function getAudioDuration(audioDataUrl) {
   return new Promise((resolve) => {
     const audio = new Audio(audioDataUrl);
     audio.onloadedmetadata = () => {
@@ -230,7 +230,7 @@ export async function getAudioDuration(audioDataUrl) {
  * @param {number} seconds - Duration in seconds
  * @returns {string} Formatted duration (e.g., "1:23")
  */
-export function formatDuration(seconds) {
+function formatDuration(seconds) {
   if (!seconds || seconds === 0) return "0:00";
 
   const minutes = Math.floor(seconds / 60);
@@ -245,7 +245,7 @@ export function formatDuration(seconds) {
  * @param {number} quality - Compression quality (0.1 to 1.0)
  * @returns {Promise<string>} Compressed audio data URL
  */
-export async function compressAudio(audioDataUrl, quality = 0.7) {
+async function compressAudio(audioDataUrl, quality = 0.7) {
   try {
     // For now, return original data URL
     // In a production app, you might use Web Audio API for compression
@@ -261,7 +261,7 @@ export async function compressAudio(audioDataUrl, quality = 0.7) {
  * @param {string} audioDataUrl - Audio data URL
  * @returns {number} Estimated size in bytes
  */
-export function getAudioSize(audioDataUrl) {
+function getAudioSize(audioDataUrl) {
   try {
     // Base64 encoded data is ~33% larger than binary
     const base64Data = audioDataUrl.split(",")[1];
@@ -275,7 +275,7 @@ export function getAudioSize(audioDataUrl) {
  * Checks if audio recording is currently in progress
  * @returns {boolean} Recording status
  */
-export function isCurrentlyRecording() {
+function isCurrentlyRecording() {
   return isRecording;
 }
 
@@ -283,7 +283,7 @@ export function isCurrentlyRecording() {
  * Gets current recording duration if recording is in progress
  * @returns {number} Duration in milliseconds
  */
-export function getCurrentRecordingDuration() {
+function getCurrentRecordingDuration() {
   if (!isRecording || !recordingStartTime) return 0;
   return Date.now() - recordingStartTime;
 }
@@ -294,23 +294,23 @@ export function getCurrentRecordingDuration() {
  * @param {number} duration - Audio duration in seconds
  * @returns {HTMLElement} Audio player element
  */
-export function createAudioPlayer(audioDataUrl, duration = 0) {
+function createAudioPlayer(audioDataUrl, duration = 0) {
   const playerContainer = document.createElement("div");
   playerContainer.className = "audio-player";
 
   const durationText = formatDuration(duration);
 
   playerContainer.innerHTML = `
-        <button class="audio-play-btn" title="Play recording">
-            <span class="play-icon"><span class="iconify" data-icon="material-symbols:play-arrow"></span></span>
-            <span class="pause-icon" style="display: none;"><span class="iconify" data-icon="material-symbols:pause"></span></span>
+        <button class="audio-play-btn btn btn-outline-primary btn-sm" title="Play recording">
+            <span class="play-icon"><i class="bi bi-play-fill"></i></span>
+            <span class="pause-icon" style="display: none;"><i class="bi bi-pause-fill"></i></span>
         </button>
         <div class="audio-info">
-            <div class="audio-waveform"><span class="iconify" data-icon="material-symbols:music-note"></span> Voice Recording</div>
+            <div class="audio-waveform"><i class="bi bi-music-note"></i> Voice Recording</div>
             <div class="audio-duration">${durationText}</div>
         </div>
-        <button class="audio-download-btn" title="Download recording">
-            <span class="iconify" data-icon="material-symbols:download"></span>
+        <button class="audio-download-btn btn btn-outline-secondary btn-sm" title="Download recording">
+            <i class="bi bi-download"></i>
         </button>
     `;
 
@@ -366,7 +366,7 @@ export function createAudioPlayer(audioDataUrl, duration = 0) {
  * @param {Object} audioData - Audio data object
  * @returns {Promise<boolean>} Success status
  */
-export async function storeAudioData(entryId, audioData) {
+async function storeAudioData(entryId, audioData) {
   try {
     // Open IndexedDB for audio storage
     const request = indexedDB.open("AI_JournalAudio", 1);
@@ -411,7 +411,7 @@ export async function storeAudioData(entryId, audioData) {
  * @param {string} entryId - Journal entry ID
  * @returns {Promise<Object|null>} Audio data or null
  */
-export async function getAudioData(entryId) {
+async function getAudioData(entryId) {
   try {
     const request = indexedDB.open("AI_JournalAudio", 1);
 
@@ -447,3 +447,18 @@ export async function getAudioData(entryId) {
     return null;
   }
 }
+
+// Make functions available globally for Vue.js compatibility
+window.initAudioService = initAudioService;
+window.startRecording = startRecording;
+window.stopRecording = stopRecording;
+window.playAudio = playAudio;
+window.getAudioDuration = getAudioDuration;
+window.formatDuration = formatDuration;
+window.compressAudio = compressAudio;
+window.getAudioSize = getAudioSize;
+window.isCurrentlyRecording = isCurrentlyRecording;
+window.getCurrentRecordingDuration = getCurrentRecordingDuration;
+window.createAudioPlayer = createAudioPlayer;
+window.storeAudioData = storeAudioData;
+window.getAudioData = getAudioData;

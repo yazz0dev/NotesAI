@@ -1,15 +1,8 @@
 // js/store.js
 
-import { DB_NAME, DB_VERSION, NOTES_STORE } from "../utils/config.js";
-import { generateId } from "../utils/utils.js";
-import {
-  notebookService,
-  tagService,
-} from "../services/organization-service.js";
-
 let db;
 
-export function initDB() {
+function initDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onerror = (event) => {
@@ -55,7 +48,7 @@ export function initDB() {
   });
 }
 
-export function getNotes() {
+function getNotes() {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([NOTES_STORE], "readonly");
     const store = transaction.objectStore(NOTES_STORE);
@@ -144,7 +137,7 @@ async function addMockDataIfNeeded() {
   }
 }
 
-export function addNote(content, summary = "", oneLiner = "", options = {}) {
+function addNote(content, summary = "", oneLiner = "", options = {}) {
   return new Promise((resolve, reject) => {
     if (!db) return reject("Database not initialized");
     const now = new Date().toISOString();
@@ -174,7 +167,7 @@ export function addNote(content, summary = "", oneLiner = "", options = {}) {
  * @param {Object} updatedNote - The complete note object with updated fields.
  * @returns {Promise<Object>} A promise that resolves with the updated note object.
  */
-export function updateNote(updatedNote) {
+function updateNote(updatedNote) {
   return new Promise((resolve, reject) => {
     if (!db) return reject("Database not initialized");
     const transaction = db.transaction([NOTES_STORE], "readwrite");
@@ -190,7 +183,7 @@ export function updateNote(updatedNote) {
   });
 }
 
-export function deleteNote(noteId) {
+function deleteNote(noteId) {
   return new Promise((resolve, reject) => {
     if (!db) return reject("Database not initialized");
     const transaction = db.transaction([NOTES_STORE], "readwrite");
@@ -208,7 +201,7 @@ export function deleteNote(noteId) {
  * @param {number} day - The day to match (1-31).
  * @returns {Promise<Array>} A promise that resolves with an array of matching notes.
  */
-export async function getNotesByDate(month, day) {
+async function getNotesByDate(month, day) {
   const allNotes = await getNotes();
   const currentYear = new Date().getFullYear();
 
@@ -223,11 +216,11 @@ export async function getNotesByDate(month, day) {
 }
 
 // Notebook functions
-export async function getNotebooks() {
+async function getNotebooks() {
   return await notebookService.getAllNotebooks();
 }
 
-export async function createNotebook(
+async function createNotebook(
   name,
   description = "",
   color = "#007aff"
@@ -235,47 +228,47 @@ export async function createNotebook(
   return await notebookService.createNotebook(name, description, color);
 }
 
-export async function updateNotebook(id, updates) {
+async function updateNotebook(id, updates) {
   return await notebookService.updateNotebook(id, updates);
 }
 
-export async function deleteNotebook(id) {
+async function deleteNotebook(id) {
   return await notebookService.deleteNotebook(id);
 }
 
 // Tag functions
-export async function getTags() {
+async function getTags() {
   return await tagService.getAllTags();
 }
 
-export async function createTag(name, color = "#666") {
+async function createTag(name, color = "#666") {
   return await tagService.createTag(name, color);
 }
 
-export async function updateTag(id, updates) {
+async function updateTag(id, updates) {
   return await tagService.updateTag(id, updates);
 }
 
-export async function deleteTag(id) {
+async function deleteTag(id) {
   return await tagService.deleteTag(id);
 }
 
 // Note organization functions
-export async function getNotesByNotebook(notebookId) {
+async function getNotesByNotebook(notebookId) {
   const transaction = db.transaction([NOTES_STORE], "readonly");
   const store = transaction.objectStore(NOTES_STORE);
   const index = store.index("notebookId");
   return await index.getAll(notebookId);
 }
 
-export async function getFavoriteNotes() {
+async function getFavoriteNotes() {
   const transaction = db.transaction([NOTES_STORE], "readonly");
   const store = transaction.objectStore(NOTES_STORE);
   const index = store.index("isFavorite");
   return await index.getAll(true);
 }
 
-export async function getArchivedNotes() {
+async function getArchivedNotes() {
   const transaction = db.transaction([NOTES_STORE], "readonly");
   const store = transaction.objectStore(NOTES_STORE);
   const request = store.getAll();
@@ -289,7 +282,7 @@ export async function getArchivedNotes() {
   });
 }
 
-export async function toggleFavoriteNote(noteId) {
+async function toggleFavoriteNote(noteId) {
   const note = await getNote(noteId);
   if (!note) throw new Error("Note not found");
 
@@ -299,7 +292,7 @@ export async function toggleFavoriteNote(noteId) {
   return await updateNote(note);
 }
 
-export async function archiveNote(noteId) {
+async function archiveNote(noteId) {
   const note = await getNote(noteId);
   if (!note) throw new Error("Note not found");
 
@@ -309,7 +302,7 @@ export async function archiveNote(noteId) {
   return await updateNote(note);
 }
 
-export async function unarchiveNote(noteId) {
+async function unarchiveNote(noteId) {
   const note = await getNote(noteId);
   if (!note) throw new Error("Note not found");
 
@@ -319,13 +312,13 @@ export async function unarchiveNote(noteId) {
   return await updateNote(note);
 }
 
-export async function getNote(noteId) {
+async function getNote(noteId) {
   const transaction = db.transaction([NOTES_STORE], "readonly");
   const store = transaction.objectStore(NOTES_STORE);
   return await store.get(noteId);
 }
 
-export async function addTagsToNote(noteId, tagIds) {
+async function addTagsToNote(noteId, tagIds) {
   const note = await getNote(noteId);
   if (!note) throw new Error("Note not found");
 
@@ -336,7 +329,7 @@ export async function addTagsToNote(noteId, tagIds) {
   return await updateNote(note);
 }
 
-export async function removeTagFromNote(noteId, tagId) {
+async function removeTagFromNote(noteId, tagId) {
   const note = await getNote(noteId);
   if (!note) throw new Error("Note not found");
 
@@ -348,3 +341,30 @@ export async function removeTagFromNote(noteId, tagId) {
 
   return note;
 }
+
+// Make functions available globally for Vue.js compatibility
+window.store = {
+  initDB,
+  getNotes,
+  addNote,
+  updateNote,
+  deleteNote,
+  getNotesByDate,
+  getNotebooks,
+  createNotebook,
+  updateNotebook,
+  deleteNotebook,
+  getTags,
+  createTag,
+  updateTag,
+  deleteTag,
+  getNotesByNotebook,
+  getFavoriteNotes,
+  getArchivedNotes,
+  toggleFavoriteNote,
+  archiveNote,
+  unarchiveNote,
+  getNote,
+  addTagsToNote,
+  removeTagFromNote,
+};

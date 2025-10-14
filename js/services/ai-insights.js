@@ -1,7 +1,7 @@
 // js/ai-insights.js
 // AI-powered insights for notes including sentiment analysis and topic modeling
 
-import { getCachedResult, setCachedResult } from "../utils/cache.js";
+// Note: Using global window object for Vue.js compatibility instead of ES6 imports
 
 // Persistent session management for improved performance
 let globalAISession = null;
@@ -86,7 +86,7 @@ function cleanAIResponse(response) {
  * @param {string} content - The note content (HTML)
  * @returns {Promise<Object>} Sentiment analysis result
  */
-export async function analyzeSentiment(content) {
+async function analyzeSentiment(content) {
   try {
     // Strip HTML tags for better analysis
     const textContent = content.replace(/<[^>]*>/g, "").trim();
@@ -96,7 +96,7 @@ export async function analyzeSentiment(content) {
     }
 
     // Check cache first for performance
-    const cached = getCachedResult("sentiment", textContent);
+    const cached = window.getCachedResult("sentiment", textContent);
     if (cached) {
       return cached;
     }
@@ -165,7 +165,7 @@ export async function analyzeSentiment(content) {
     };
 
     // Cache the result
-    setCachedResult("sentiment", textContent, {}, sentimentResult);
+    window.setCachedResult("sentiment", textContent, {}, sentimentResult);
 
     return sentimentResult;
   } catch (error) {
@@ -179,7 +179,7 @@ export async function analyzeSentiment(content) {
  * @param {string} content - The note content (HTML)
  * @returns {Promise<Array>} Array of detected topics/tags
  */
-export async function extractTopics(content) {
+async function extractTopics(content) {
   try {
     // Strip HTML tags for better analysis
     const textContent = content.replace(/<[^>]*>/g, "").trim();
@@ -189,7 +189,7 @@ export async function extractTopics(content) {
     }
 
     // Check cache first
-    const cachedTopics = getCachedResult("topics", textContent);
+    const cachedTopics = window.getCachedResult("topics", textContent);
     if (cachedTopics) {
       return cachedTopics;
     }
@@ -207,7 +207,7 @@ export async function extractTopics(content) {
     const topics = JSON.parse(cleanedResult);
 
     // Cache the result for future use
-    setCachedResult("topics", textContent, {}, topics);
+    window.setCachedResult("topics", textContent, {}, topics);
 
     // Validate and filter
     const validTopics = Array.isArray(topics)
@@ -228,7 +228,7 @@ export async function extractTopics(content) {
  * @param {string} htmlContent - The HTML content of the note
  * @returns {string|null} The src of the first image, or null if no images found
  */
-export function extractFirstImage(htmlContent) {
+function extractFirstImage(htmlContent) {
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, "text/html");
@@ -241,4 +241,4 @@ export function extractFirstImage(htmlContent) {
 }
 
 // Export session management functions for cleanup
-export { destroyAISession };
+window.destroyAISession = destroyAISession;

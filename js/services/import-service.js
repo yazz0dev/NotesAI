@@ -1,15 +1,14 @@
 // js/import-service.js
 // Import functionality for notes from various formats
 
-import * as store from "../core/store.js";
-import { generateId } from "../utils/utils.js";
+// Note: Using global window object for Vue.js compatibility instead of ES6 imports
 
 /**
  * Validates and imports note data from JSON
  * @param {string} jsonString - JSON data to import
  * @returns {Promise<Object>} Import result with success status and details
  */
-export async function importFromJSON(jsonString) {
+async function importFromJSON(jsonString) {
   try {
     const data = JSON.parse(jsonString);
 
@@ -41,7 +40,7 @@ export async function importFromJSON(jsonString) {
     const importedEntries = [];
     for (const entry of validEntries) {
       try {
-        const savedEntry = await store.addNote(
+        const savedEntry = await window.store.addNote(
           entry.content,
           entry.title,
           entry.oneLiner
@@ -51,7 +50,7 @@ export async function importFromJSON(jsonString) {
         if (entry.createdAt || entry.updatedAt) {
           savedEntry.createdAt = entry.createdAt || savedEntry.createdAt;
           savedEntry.updatedAt = entry.updatedAt || savedEntry.updatedAt;
-          await store.updateNote(savedEntry);
+          await window.store.updateNote(savedEntry);
         }
 
         importedEntries.push(savedEntry);
@@ -82,7 +81,7 @@ export async function importFromJSON(jsonString) {
  * @param {string} textContent - Text data to import
  * @returns {Promise<Object>} Import result
  */
-export async function importFromText(textContent) {
+async function importFromText(textContent) {
   try {
     // Parse text format entries
     const entries = parseTextFormat(textContent);
@@ -96,7 +95,7 @@ export async function importFromText(textContent) {
 
     for (const entry of entries) {
       try {
-        const savedEntry = await store.addNote(
+        const savedEntry = await window.store.addNote(
           `<p>${entry.content.replace(/\n/g, "</p><p>")}</p>`,
           entry.title || "Text Import",
           entry.summary || "Imported from text file"
@@ -105,7 +104,7 @@ export async function importFromText(textContent) {
         if (entry.date) {
           savedEntry.createdAt = entry.date;
           savedEntry.updatedAt = entry.date;
-          await store.updateNote(savedEntry);
+          await window.store.updateNote(savedEntry);
         }
 
         importedEntries.push(savedEntry);
@@ -151,7 +150,7 @@ function validateAndNormalizeEntry(entry, index) {
 
   // Normalize entry
   const normalized = {
-    id: entry.id || generateId(),
+    id: entry.id || window.generateId(),
     title: entry.title || entry.summary || `Imported Entry ${index + 1}`,
     content: entry.content.trim(),
     oneLiner: entry.oneLiner || entry.summary || "Imported note",
@@ -249,7 +248,7 @@ function parseTextFormat(textContent) {
  * @param {File} file - File to import
  * @returns {Promise<Object>} Import result
  */
-export async function importFromFile(file) {
+async function importFromFile(file) {
   try {
     if (!file) {
       throw new Error("No file provided");
@@ -322,7 +321,7 @@ function readFileContent(file) {
  * @param {Object} data - Data to validate
  * @returns {Object} Validation result
  */
-export function validateImportData(data) {
+function validateImportData(data) {
   const validation = {
     isValid: false,
     format: "unknown",
@@ -373,7 +372,7 @@ export function validateImportData(data) {
  * @param {Array} currentNotes - Current notes to backup
  * @returns {Promise<string>} Backup filename
  */
-export async function createPreImportBackup(currentNotes) {
+async function createPreImportBackup(currentNotes) {
   try {
     const { exportToJSON, downloadFile, generateExportFilename } = await import(
       "./export-service.js"
@@ -393,3 +392,15 @@ export async function createPreImportBackup(currentNotes) {
     throw new Error("Could not create backup before import");
   }
 }
+
+// Make functions available globally for Vue.js compatibility
+window.importFromJSON = importFromJSON;
+window.importFromText = importFromText;
+window.validateImportData = validateImportData;
+window.createPreImportBackup = createPreImportBackup;
+window.importFromFile = importFromFile;
+window.readFileContent = readFileContent;
+window.validateImportData = validateImportData;
+window.createPreImportBackup = createPreImportBackup;
+window.importFromFile = importFromFile;
+window.readFileContent = readFileContent;

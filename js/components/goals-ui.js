@@ -1,15 +1,6 @@
 // js/goals-ui.js
 // Goals and habits UI management functions
 
-import {
-  getAllGoals,
-  createGoal,
-  recordProgress,
-  getGoalsDueToday,
-  generateGoalInsights,
-  GOAL_TYPES,
-  GOAL_STATUS,
-} from "../services/goals-service.js";
 
 let currentEditingGoal = null;
 
@@ -22,7 +13,7 @@ let shouldCloseAfterSubmission = false;
  * @param {boolean} fromSettings - Whether called from settings (removes add goal button from dashboard)
  * @param {boolean} closeAfterSubmit - Whether to close modal after form submission
  */
-export async function showGoalsModal(
+async function showGoalsModal(
   showForm = false,
   fromSettings = false,
   closeAfterSubmit = false
@@ -61,7 +52,7 @@ export async function showGoalsModal(
 /**
  * Hides the goals modal
  */
-export function hideGoalsModal() {
+function hideGoalsModal() {
   const modal = document.getElementById("goals-modal");
   const modalTitle = modal.querySelector(".modal-title");
   const modalActions = document.getElementById("goals-modal-actions");
@@ -88,7 +79,7 @@ export function hideGoalsModal() {
 /**
  * Shows the goal form for adding/editing
  */
-export function showGoalForm(goal = null) {
+function showGoalForm(goal = null) {
   const form = document.getElementById("goal-form");
   const dashboard = document.getElementById("goals-dashboard");
   const actions = document.getElementById("goals-modal-actions");
@@ -112,7 +103,7 @@ export function showGoalForm(goal = null) {
 /**
  * Hides the goal form
  */
-export function hideGoalForm() {
+function hideGoalForm() {
   const form = document.getElementById("goal-form");
   const dashboard = document.getElementById("goals-dashboard");
   const actions = document.getElementById("goals-modal-actions");
@@ -157,7 +148,7 @@ function resetGoalForm() {
 /**
  * Handles goal type selection changes
  */
-export function handleGoalTypeChange() {
+function handleGoalTypeChange() {
   const type = document.getElementById("goal-type-select").value;
   const habitOptions = document.getElementById("habit-options");
   const targetDateGroup = document.getElementById("target-date-group");
@@ -174,7 +165,7 @@ export function handleGoalTypeChange() {
 /**
  * Handles goal form submission
  */
-export async function handleGoalFormSubmit(event, notes = []) {
+async function handleGoalFormSubmit(event, notes = []) {
   event.preventDefault();
 
   const saveBtn = document.getElementById("save-goal-btn");
@@ -220,7 +211,7 @@ export async function handleGoalFormSubmit(event, notes = []) {
 /**
  * Loads and displays the goals dashboard
  */
-export async function loadGoalsDashboard(notes = []) {
+async function loadGoalsDashboard(notes = []) {
   try {
     const goals = await getAllGoals();
 
@@ -391,7 +382,7 @@ function createGoalItemHTML(goal) {
 /**
  * Handles goal progress recording
  */
-export async function handleGoalProgress(goalId, notes = []) {
+async function handleGoalProgress(goalId, notes = []) {
   try {
     await recordProgress(goalId, 1, "");
     await loadGoalsDashboard(notes);
@@ -412,7 +403,7 @@ export async function handleGoalProgress(goalId, notes = []) {
 /**
  * Checks for goals due today and shows reminders
  */
-export async function checkGoalsDueToday() {
+async function checkGoalsDueToday() {
   try {
     const goalsDue = await getGoalsDueToday();
     const goalsToday = document.getElementById("goals-today");
@@ -458,3 +449,14 @@ export async function checkGoalsDueToday() {
     console.error("Error checking goals due today:", error);
   }
 }
+
+// Make functions available globally for Vue.js compatibility
+window.showGoalsModal = showGoalsModal;
+window.hideGoalsModal = hideGoalsModal;
+window.showGoalForm = showGoalForm;
+window.hideGoalForm = hideGoalForm;
+window.handleGoalTypeChange = handleGoalTypeChange;
+window.handleGoalFormSubmit = handleGoalFormSubmit;
+window.loadGoalsDashboard = loadGoalsDashboard;
+window.handleGoalProgress = handleGoalProgress;
+window.checkGoalsDueToday = checkGoalsDueToday;

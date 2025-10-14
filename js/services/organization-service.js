@@ -3,7 +3,7 @@
 /**
  * Notebook Management Service
  */
-export class NotebookService {
+class NotebookService {
   constructor() {
     this.db = null;
   }
@@ -116,7 +116,7 @@ export class NotebookService {
 /**
  * Tag Management Service
  */
-export class TagService {
+class TagService {
   constructor() {
     this.db = null;
   }
@@ -237,5 +237,9 @@ export class TagService {
 }
 
 // Initialize services
-export const notebookService = new NotebookService();
-export const tagService = new TagService();
+const notebookService = new NotebookService();
+const tagService = new TagService();
+
+// Make services available globally for Vue.js compatibility
+window.notebookService = notebookService;
+window.tagService = tagService;

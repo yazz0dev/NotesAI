@@ -3,724 +3,667 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Journal - Chrome Built-in AI Test</title>
+    <title>AI Notes - Chrome Built-in AI Test</title>
+
+    <!-- Vue.js and Bootstrap Vue -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js"></script>
+
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css"
+    />
+
+    <!-- Custom styles for animations -->
     <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          sans-serif;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 2rem;
-        line-height: 1.6;
-        background: #f5f5f5;
-      }
-      .test-section {
-        background: white;
-        margin: 2rem 0;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-      .test-result {
-        margin: 1rem 0;
-        padding: 1rem;
-        border-radius: 4px;
-        font-family: monospace;
-        white-space: pre-wrap;
-      }
-      .success {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-      }
-      .error {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
-      }
-      .warning {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        color: #856404;
-      }
-      button {
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 4px;
-        cursor: pointer;
-        margin: 0.5rem 0.5rem 0.5rem 0;
-      }
-      button:hover {
-        background: #0056b3;
-      }
-      button:disabled {
-        background: #6c757d;
-        cursor: not-allowed;
-      }
-      textarea,
-      input {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        margin: 0.5rem 0;
-        font-family: inherit;
-      }
       .status-indicator {
         display: inline-block;
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        margin-right: 0.5rem;
+        margin-right: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
       .status-available {
-        background: #28a745;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        animation: pulse 2s infinite;
       }
       .status-unavailable {
-        background: #dc3545;
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
       }
       .status-checking {
-        background: #ffc107;
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .test-result {
+        font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
+          "Courier New", monospace;
+        white-space: pre-wrap;
+        overflow-x: auto;
+      }
+      .gradient-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .performance-metrics {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      }
+      .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #667eea;
+      }
+      .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
     </style>
   </head>
   <body>
-    <h1>🤖 AI Journal - Chrome Built-in AI Test</h1>
-    <p>
-      This page tests the Chrome AI APIs used by the AI Journal application.
-      Ensure you have the required flags enabled in
-      <code>chrome://flags</code> and are serving this file from a local server
-      (e.g., <code>localhost</code>).
-    </p>
-
-    <!-- Chrome AI Availability Check -->
-    <div class="test-section">
-      <h2>
-        🔍 Chrome AI Availability
-        <span id="chromeAIStatus" class="status-indicator status-checking"></span>
-      </h2>
-      <p>Check if Chrome's built-in AI features are available and properly configured.</p>
-      <button id="checkAvailabilityBtn">Check Chrome AI Availability</button>
-      <div id="availabilityResult" class="test-result" style="display: none"></div>
-    </div>
-
-    <!-- Performance Metrics -->
-    <div class="test-section">
-      <h2>⚡ Performance Metrics</h2>
-      <p>Monitor AI operation performance and session efficiency.</p>
-      <button id="showMetricsBtn">Show Performance Metrics</button>
-      <button id="resetMetricsBtn">Reset Metrics</button>
-      <div id="metricsResult" class="test-result" style="display: none"></div>
-    </div>
-    <div class="test-section">
-      <h2>🎤 Command Parsing Test</h2>
-      <p>
-        Test the voice command parsing functionality used for "Hey Journal"
-        commands.
-      </p>
-      <input
-        type="text"
-        id="commandInput"
-        placeholder="Enter a voice command (e.g., 'create a new entry')"
-        value="create a new entry"
-      />
-      <button id="testCommandBtn">Parse Command</button>
-      <div id="commandResult" class="test-result" style="display: none"></div>
-    </div>
-
-    <!-- Sentiment Analysis Test -->
-    <div class="test-section">
-      <h2>😊 Sentiment Analysis Test</h2>
-      <p>Test the sentiment analysis used for journal entry mood detection.</p>
-      <textarea
-        id="sentimentInput"
-        rows="4"
-        placeholder="Enter journal text to analyze sentiment..."
-      >
-Today was an amazing day! I accomplished so much and felt really productive. Everything went smoothly and I'm excited about tomorrow.</textarea
-      >
-      <button id="testSentimentBtn">Analyze Sentiment</button>
-      <div id="sentimentResult" class="test-result" style="display: none"></div>
-    </div>
-
-    <!-- Topic Extraction Test -->
-    <div class="test-section">
-      <h2>🏷️ Topic Extraction Test</h2>
-      <p>Test the topic extraction used for tagging journal entries.</p>
-      <textarea
-        id="topicInput"
-        rows="4"
-        placeholder="Enter journal text to extract topics..."
-      >
-I had a great workout at the gym today. Then I met with Sarah for coffee and we discussed our upcoming vacation to Japan. I also finished reading that book about productivity.</textarea
-      >
-      <button id="testTopicBtn">Extract Topics</button>
-      <div id="topicResult" class="test-result" style="display: none"></div>
-    </div>
-
-    <!-- Mood Insights Test -->
-    <div class="test-section">
-      <h2>📊 Mood Insights Test</h2>
-      <p>Test the mood pattern analysis across multiple journal entries.</p>
-      <div id="moodEntries">
-        <div class="entry">
-          <input
-            type="text"
-            class="entry-title"
-            placeholder="Entry title"
-            value="Great Day"
-          />
-          <textarea class="entry-content" rows="2" placeholder="Entry content">
-Today was fantastic! I achieved all my goals and felt really accomplished.</textarea
-          >
-        </div>
-        <div class="entry">
-          <input
-            type="text"
-            class="entry-title"
-            placeholder="Entry title"
-            value="Challenging Day"
-          />
-          <textarea class="entry-content" rows="2" placeholder="Entry content">
-Work was stressful today. I felt overwhelmed and frustrated with the deadlines.</textarea
-          >
-        </div>
-        <div class="entry">
-          <input
-            type="text"
-            class="entry-title"
-            placeholder="Entry title"
-            value="Normal Day"
-          />
-          <textarea class="entry-content" rows="2" placeholder="Entry content">
-Had a regular day at work. Nothing special happened, just the usual routine.</textarea
-          >
+    <div id="app">
+      <!-- Header Section -->
+      <div class="jumbotron gradient-header text-white mb-4">
+        <div class="container">
+          <h1 class="display-4">🤖 AI Notes - Chrome Built-in AI Test Suite</h1>
+          <p class="lead">
+            Comprehensive testing environment for Chrome's AI APIs with enhanced
+            performance monitoring and optimized session management.
+          </p>
+          <p class="mb-0">
+            <strong>Status:</strong>
+            <span class="badge" :class="initStatusClass"
+              >{{ initStatusText }}</span
+            >
+          </p>
         </div>
       </div>
-      <button id="addEntryBtn">Add Entry</button>
-      <button id="testMoodBtn">Generate Mood Insights</button>
-      <div id="moodResult" class="test-result" style="display: none"></div>
+
+      <div class="container-fluid">
+        <!-- Chrome AI Availability Check -->
+        <b-card
+          class="mb-4"
+          border-variant="primary"
+          header-bg-variant="primary"
+          header-text-variant="white"
+        >
+          <template #header>
+            <div class="d-flex align-items-center">
+              <span class="status-indicator" :class="chromeAIStatus"></span>
+              <h5 class="mb-0">Chrome AI Availability</h5>
+            </div>
+          </template>
+          <p>
+            Check if Chrome's built-in AI features are available and properly
+            configured.
+          </p>
+          <b-button
+            variant="primary"
+            :disabled="isCheckingAvailability"
+            @click="checkChromeAIAvailability"
+          >
+            {{ isCheckingAvailability ? 'Checking...' : 'Check Chrome AI
+            Availability' }}
+          </b-button>
+          <b-alert
+            :show="showAvailabilityResult"
+            class="mt-3 test-result"
+            :variant="availabilityResultType"
+          >
+            {{ availabilityResult }}
+          </b-alert>
+        </b-card>
+
+        <!-- Performance Metrics -->
+        <b-card
+          class="mb-4"
+          header-bg-variant="info"
+          header-text-variant="white"
+        >
+          <template #header>
+            <h5 class="mb-0">⚡ Performance Metrics</h5>
+          </template>
+          <p>
+            Monitor AI operation performance and session efficiency with
+            real-time tracking.
+          </p>
+          <div class="performance-metrics p-3 rounded mb-3">
+            <h6>Real-time Performance Dashboard</h6>
+            <b-row class="metrics-grid">
+              <b-col md="3" sm="6" class="mb-3">
+                <div class="text-center">
+                  <div class="metric-value">{{ sessionStatus }}</div>
+                  <div class="metric-label">Session Status</div>
+                </div>
+              </b-col>
+              <b-col md="3" sm="6" class="mb-3">
+                <div class="text-center">
+                  <div class="metric-value">{{ operationCount }}</div>
+                  <div class="metric-label">Operations</div>
+                </div>
+              </b-col>
+              <b-col md="3" sm="6" class="mb-3">
+                <div class="text-center">
+                  <div class="metric-value">{{ avgLatency }}</div>
+                  <div class="metric-label">Avg Latency</div>
+                </div>
+              </b-col>
+              <b-col md="3" sm="6" class="mb-3">
+                <div class="text-center">
+                  <div class="metric-value">{{ uptime }}</div>
+                  <div class="metric-label">Uptime</div>
+                </div>
+              </b-col>
+            </b-row>
+          </div>
+          <b-button variant="info" @click="showPerformanceMetrics"
+            >Update Metrics</b-button
+          >
+          <b-button
+            variant="outline-info"
+            @click="resetPerformanceMetrics"
+            class="ml-2"
+            >Reset Metrics</b-button
+          >
+          <b-alert
+            :show="showMetricsResult"
+            class="mt-3 test-result"
+            variant="success"
+          >
+            {{ metricsResult }}
+          </b-alert>
+        </b-card>
+
+        <!-- Command Parsing Test -->
+        <b-card
+          class="mb-4"
+          header-bg-variant="success"
+          header-text-variant="white"
+        >
+          <template #header>
+            <h5 class="mb-0">🎤 Command Parsing Test</h5>
+          </template>
+          <p>
+            Test the voice command parsing functionality used for "Hey Notes"
+            commands with enhanced error handling.
+          </p>
+          <b-form-input
+            v-model="commandInput"
+            placeholder="Enter a voice command (e.g., 'create a new note')"
+            class="mb-3"
+          ></b-form-input>
+          <b-button
+            variant="success"
+            :disabled="isParsingCommand"
+            @click="testCommandParsing"
+          >
+            {{ isParsingCommand ? 'Parsing...' : 'Parse Command' }}
+          </b-button>
+          <b-alert
+            :show="showCommandResult"
+            class="mt-3 test-result"
+            :variant="commandResultType"
+          >
+            {{ commandResult }}
+          </b-alert>
+        </b-card>
+
+        <!-- Sentiment Analysis Test -->
+        <b-card
+          class="mb-4"
+          header-bg-variant="warning"
+          header-text-variant="dark"
+        >
+          <template #header>
+            <h5 class="mb-0">😊 Sentiment Analysis Test</h5>
+          </template>
+          <p>
+            Test the sentiment analysis used for note mood detection with
+            improved accuracy.
+          </p>
+          <b-form-textarea
+            v-model="sentimentInput"
+            rows="4"
+            placeholder="Enter note text to analyze sentiment..."
+            class="mb-3"
+          ></b-form-textarea>
+          <b-button
+            variant="warning"
+            :disabled="isAnalyzingSentiment"
+            @click="testSentimentAnalysis"
+          >
+            {{ isAnalyzingSentiment ? 'Analyzing...' : 'Analyze Sentiment' }}
+          </b-button>
+          <b-alert
+            :show="showSentimentResult"
+            class="mt-3 test-result"
+            :variant="sentimentResultType"
+          >
+            {{ sentimentResult }}
+          </b-alert>
+        </b-card>
+
+        <!-- Topic Extraction Test -->
+        <b-card
+          class="mb-4"
+          header-bg-variant="danger"
+          header-text-variant="white"
+        >
+          <template #header>
+            <h5 class="mb-0">🏷️ Topic Extraction Test</h5>
+          </template>
+          <p>
+            Test the topic extraction used for tagging notes with smart
+            filtering.
+          </p>
+          <b-form-textarea
+            v-model="topicInput"
+            rows="4"
+            placeholder="Enter note text to extract topics..."
+            class="mb-3"
+          ></b-form-textarea>
+          <b-button
+            variant="danger"
+            :disabled="isExtractingTopics"
+            @click="testTopicExtraction"
+          >
+            {{ isExtractingTopics ? 'Extracting...' : 'Extract Topics' }}
+          </b-button>
+          <b-alert
+            :show="showTopicResult"
+            class="mt-3 test-result"
+            :variant="topicResultType"
+          >
+            {{ topicResult }}
+          </b-alert>
+        </b-card>
+
+        <!-- Mood Insights Test -->
+        <b-card
+          class="mb-4"
+          header-bg-variant="secondary"
+          header-text-variant="white"
+        >
+          <template #header>
+            <h5 class="mb-0">📊 Mood Insights Test</h5>
+          </template>
+          <p>
+            Test the mood pattern analysis across multiple notes with advanced
+            analytics.
+          </p>
+
+          <div id="moodEntries">
+            <b-card
+              v-for="(entry, index) in moodEntries"
+              :key="index"
+              class="mb-3"
+              bg-variant="light"
+            >
+              <b-form-input
+                v-model="entry.title"
+                placeholder="Entry title"
+                class="mb-2"
+              ></b-form-input>
+              <b-form-textarea
+                v-model="entry.content"
+                rows="2"
+                placeholder="Entry content"
+              ></b-form-textarea>
+            </b-card>
+          </div>
+
+          <b-button variant="secondary" @click="addMoodEntry" class="mr-2"
+            >Add Note</b-button
+          >
+          <b-button
+            variant="outline-secondary"
+            :disabled="isAnalyzingMood"
+            @click="testMoodInsights"
+          >
+            {{ isAnalyzingMood ? 'Analyzing...' : 'Generate Mood Insights' }}
+          </b-button>
+          <b-alert
+            :show="showMoodResult"
+            class="mt-3 test-result"
+            :variant="moodResultType"
+          >
+            {{ moodResult }}
+          </b-alert>
+        </b-card>
+      </div>
     </div>
 
+    <!-- Vue.js Application -->
     <script>
-      // AI Journal Chrome AI Test Suite - Optimized Version
-      (async () => {
-        // Persistent AI session for better performance
-        let globalAISession = null;
-        let sessionCreationPromise = null;
+      // Import Bootstrap Vue icons (optional)
+      Vue.use(BootstrapVue);
+      Vue.use(BootstrapVueIcons);
 
-        /**
-         * Enhanced performance-aware session getter
-         */
-        async function getAISession() {
-          if (globalAISession) {
-            return globalAISession;
-          }
-          
-          if (sessionCreationPromise) {
-            return await sessionCreationPromise;
-          }
-          
-          sessionCreationPromise = (async () => {
-            try {
-              if (!("LanguageModel" in self)) {
-                throw new Error("LanguageModel not available");
-              }
-              
-              const sessionStart = performance.now();
-              globalAISession = await LanguageModel.create({
-                expectedOutputs: [
-                  {
-                    type: "text",
-                    languages: ["en"],
-                  },
-                ],
-              });
-              sessionCreationTime = performance.now() - sessionStart;
-              
-              return globalAISession;
-            } catch (error) {
-              sessionCreationPromise = null;
-              throw error;
-            }
-          })();
-          
-          return await sessionCreationPromise;
-        }
+      new Vue({
+        el: "#app",
+        data: {
+          // Initialization
+          initialized: false,
 
-        /**
-         * Performance-aware AI operation wrapper
-         */
-        async function performAIOperation(prompt) {
-          const opStart = performance.now();
-          const session = await getAISession();
-          const result = await session.prompt(prompt);
-          const latency = performance.now() - opStart;
-          
-          operationCount++;
-          totalLatency += latency;
-          
-          return result;
-        }
+          // Chrome AI Status
+          chromeAIStatus: "status-checking",
 
-        /**
-         * Destroys the global AI session
-         */
-        function destroyAISession() {
-          if (globalAISession) {
-            try {
-              globalAISession.destroy();
-            } catch (error) {
-              console.warn("Error destroying AI session:", error);
-            }
-            globalAISession = null;
-          }
-          sessionCreationPromise = null;
-        }
-        // DOM Elements
-        const chromeAIStatus = document.getElementById("chromeAIStatus");
-        const checkAvailabilityBtn = document.getElementById("checkAvailabilityBtn");
-        const availabilityResult = document.getElementById("availabilityResult");
+          // Performance Metrics
+          sessionStatus: "Loading...",
+          operationCount: 0,
+          avgLatency: "0ms",
+          uptime: "0.0s",
 
-        const showMetricsBtn = document.getElementById("showMetricsBtn");
-        const resetMetricsBtn = document.getElementById("resetMetricsBtn");
-        const metricsResult = document.getElementById("metricsResult");
+          // Form inputs
+          commandInput: "create a new note",
+          sentimentInput:
+            "Today was an amazing day! I accomplished so much and felt really productive. Everything went smoothly and I'm excited about tomorrow.",
+          topicInput:
+            "I had a great workout at the gym today. Then I met with Sarah for coffee and we discussed our upcoming vacation to Japan. I also finished reading that book about productivity.",
 
-        const commandInput = document.getElementById("commandInput");
-        const testCommandBtn = document.getElementById("testCommandBtn");
-        const commandResult = document.getElementById("commandResult");
+          // Mood entries
+          moodEntries: [
+            {
+              title: "Meeting Notes",
+              content:
+                "Meeting with Sarah at 3 PM to discuss project timeline and deliverables.",
+            },
+            {
+              title: "Work Tasks",
+              content:
+                "Need to finish the quarterly report by Friday. Prioritize tasks and delegate where possible.",
+            },
+            {
+              title: "Personal Reminders",
+              content:
+                "Remember to call mom this weekend and check on the garden plants.",
+            },
+          ],
 
-        const sentimentInput = document.getElementById("sentimentInput");
-        const testSentimentBtn = document.getElementById("testSentimentBtn");
-        const sentimentResult = document.getElementById("sentimentResult");
+          // Loading states
+          isCheckingAvailability: false,
+          isParsingCommand: false,
+          isAnalyzingSentiment: false,
+          isExtractingTopics: false,
+          isAnalyzingMood: false,
 
-        const topicInput = document.getElementById("topicInput");
-        const testTopicBtn = document.getElementById("testTopicBtn");
-        const topicResult = document.getElementById("topicResult");
+          // Results and visibility
+          availabilityResult: "",
+          showAvailabilityResult: false,
+          availabilityResultType: "success",
 
-        const moodEntries = document.getElementById("moodEntries");
-        const addEntryBtn = document.getElementById("addEntryBtn");
-        const testMoodBtn = document.getElementById("testMoodBtn");
-        const moodResult = document.getElementById("moodResult");
+          commandResult: "",
+          showCommandResult: false,
+          commandResultType: "success",
 
-        // Performance tracking
-        let operationCount = 0;
-        let totalLatency = 0;
-        let sessionCreationTime = 0;
-        const startTime = Date.now();
+          sentimentResult: "",
+          showSentimentResult: false,
+          sentimentResultType: "success",
 
-        // Utility functions
-        function showResult(element, content, type = "success") {
-          element.textContent = content;
-          element.className = `test-result ${type}`;
-          element.style.display = "block";
-        }
+          topicResult: "",
+          showTopicResult: false,
+          topicResultType: "success",
 
-        function setStatusIndicator(status) {
-          chromeAIStatus.className = `status-indicator status-${status}`;
-          chromeAIStatus.textContent =
-            status === "available"
-              ? "Available"
-              : status === "unavailable"
-              ? "Unavailable"
-              : "Checking...";
-        }
+          moodResult: "",
+          showMoodResult: false,
+          moodResultType: "success",
 
-        // === API Availability Check ===
-        async function checkChromeAIAvailability() {
-          checkAvailabilityBtn.disabled = true;
-          checkAvailabilityBtn.textContent = "Checking...";
+          metricsResult: "",
+          showMetricsResult: false,
 
+          // Computed properties for status
+          initStatusText: "Initializing...",
+          initStatusClass: "badge-secondary",
+        },
+
+        computed: {
+          // Dynamic status indicator classes
+          chromeAIStatusClass() {
+            return `status-indicator status-${this.chromeAIStatus}`;
+          },
+        },
+
+        async created() {
           try {
-            if ("LanguageModel" in self) {
-              setStatusIndicator("available");
-              showResult(
-                availabilityResult,
-                `✅ Chrome LanguageModel API is available!\n\nOptimized features:\n- Persistent session management\n- Performance monitoring\n- Reduced latency\n- Enhanced caching\n\nAvailable methods:\n- LanguageModel.create()\n- session.prompt()\n- session.destroy()`,
-                "success"
-              );
+            this.initialized = await this.initTestSuite();
+            this.updateInitStatus();
+            this.updatePerformanceDisplay();
+          } catch (error) {
+            console.error("Initialization error:", error);
+            this.initStatusText = "Error";
+            this.initStatusClass = "badge-danger";
+          }
+        },
+
+        mounted() {
+          // Auto-update performance metrics every 5 seconds
+          this.performanceInterval = setInterval(() => {
+            this.updatePerformanceDisplay();
+          }, 5000);
+        },
+
+        beforeDestroy() {
+          if (this.performanceInterval) {
+            clearInterval(this.performanceInterval);
+          }
+          this.cleanupTestSuite();
+        },
+
+        methods: {
+          updateInitStatus() {
+            if (this.initialized) {
+              this.initStatusText = "Ready";
+              this.initStatusClass = "badge-success";
             } else {
-              setStatusIndicator("unavailable");
-              showResult(
-                availabilityResult,
-                `❌ Chrome LanguageModel API is not available.\n\nTo enable:\n1. Go to chrome://flags\n2. Enable "Experimental Web Platform features"\n3. Enable "Prompt API for Gemini Nano"\n4. Restart Chrome\n5. Serve this page from localhost`,
-                "error"
-              );
+              this.initStatusText = "AI Unavailable";
+              this.initStatusClass = "badge-danger";
             }
-          } catch (error) {
-            setStatusIndicator("unavailable");
-            showResult(
-              availabilityResult,
-              `❌ Error checking Chrome AI: ${error.message}`,
-              "error"
-            );
-          }
+          },
 
-          checkAvailabilityBtn.disabled = false;
-          checkAvailabilityBtn.textContent = "Check Chrome AI Availability";
-        }
-
-        // === Performance Metrics ===
-        function showPerformanceMetrics() {
-          const avgLatency = operationCount > 0 ? (totalLatency / operationCount).toFixed(2) : 0;
-          const uptime = ((Date.now() - startTime) / 1000).toFixed(1);
-          const sessionStatus = globalAISession ? "Active (reused)" : "Not created";
-          
-          showResult(
-            metricsResult,
-            `📊 Performance Metrics\n\n` +
-            `Session Status: ${sessionStatus}\n` +
-            `Session Creation Time: ${sessionCreationTime.toFixed(2)}ms\n` +
-            `Total Operations: ${operationCount}\n` +
-            `Average Latency: ${avgLatency}ms\n` +
-            `Total Test Time: ${uptime}s\n\n` +
-            `Performance Benefits:\n` +
-            `• Session reuse eliminates ${sessionCreationTime.toFixed(0)}ms overhead per call\n` +
-            `• Optimized prompts reduce processing time\n` +
-            `• Persistent connections improve responsiveness`,
-            "success"
-          );
-        }
-
-        function resetPerformanceMetrics() {
-          operationCount = 0;
-          totalLatency = 0;
-          sessionCreationTime = 0;
-          showResult(metricsResult, "✅ Performance metrics reset", "success");
-        }
-
-        /**
-         * Cleans Chrome AI API response by removing markdown formatting
-         * @param {string} response - Raw response from Chrome AI API
-         * @returns {string} Clean JSON string
-         */
-        function cleanAIResponse(response) {
-          if (!response) return "";
-
-          // Remove markdown code block markers and extra whitespace
-          let cleaned = response
-            .replace(/```json\s*/gi, "") // Remove ```json (case insensitive)
-            .replace(/```\s*/g, "") // Remove ```
-            .replace(/`+/g, "") // Remove any remaining backticks
-            .trim();
-
-          // Remove any leading/trailing whitespace and newlines
-          cleaned = cleaned.replace(/^\s+|\s+$/g, "");
-
-          return cleaned;
-        }
-
-        // === Command Parsing Test ===
-        async function testCommandParsing() {
-          const command = commandInput.value.trim();
-          if (!command) {
-            showResult(
-              commandResult,
-              "❌ Please enter a command to test",
-              "error"
-            );
-            return;
-          }
-
-          testCommandBtn.disabled = true;
-          testCommandBtn.textContent = "Parsing...";
-
-          try {
-            // Use performance-aware AI operation
-            const commandPrompt = `Analyze: "${command}". JSON: {"action":"create_entry|search_notes|delete_current|edit_current|add_image|go_back|stop_listening","params":{"query":"text"}}`;
-
-            const result = await performAIOperation(commandPrompt);
-            const cleanedResult = cleanAIResponse(result);
-            const parsedCommand = JSON.parse(cleanedResult);
-
-            // Don't destroy session - keep it for reuse
-
-            showResult(
-              commandResult,
-              `✅ Command parsed successfully!\n\nInput: "${command}"\n\nOutput: ${JSON.stringify(
-                parsedCommand,
-                null,
-                2
-              )}`,
-              "success"
-            );
-          } catch (error) {
-            showResult(
-              commandResult,
-              `❌ Error parsing command: ${error.message}`,
-              "error"
-            );
-          }
-
-          testCommandBtn.disabled = false;
-          testCommandBtn.textContent = "Parse Command";
-        }
-
-        // === Sentiment Analysis Test ===
-        async function testSentimentAnalysis() {
-          const text = sentimentInput.value.trim();
-          if (!text) {
-            showResult(
-              sentimentResult,
-              "❌ Please enter text to analyze",
-              "error"
-            );
-            return;
-          }
-
-          testSentimentBtn.disabled = true;
-          testSentimentBtn.textContent = "Analyzing...";
-
-          try {
-            // Use performance-aware AI operation
-            const textContent = text.replace(/<[^>]*>/g, "").trim();
-            const sentimentPrompt = `Sentiment: "${textContent}". JSON: {"sentiment":"positive|negative|neutral","confidence":0.0-1.0,"emoji":"😊|😞|😐","keywords":["word1","word2"]}`;
-
-            const result = await performAIOperation(sentimentPrompt);
-            const cleanedResult = cleanAIResponse(result);
-            console.log("Raw AI response:", result);
-            console.log("Cleaned AI response:", cleanedResult);
-            const analysis = JSON.parse(cleanedResult);
-
-            // Don't destroy session - keep it for reuse
-
-            const sentiment = ["positive", "negative", "neutral"].includes(
-              analysis.sentiment
-            )
-              ? analysis.sentiment
-              : "neutral";
-            const confidence = Math.max(
-              0,
-              Math.min(1, analysis.confidence || 0.5)
-            );
-            const emoji = analysis.emoji || "😐";
-            const keywords = Array.isArray(analysis.keywords)
-              ? analysis.keywords.slice(0, 4)
-              : [];
-
-            showResult(
-              sentimentResult,
-              `✅ Sentiment analysis completed!\n\nText: "${text.substring(
-                0,
-                100
-              )}${
-                text.length > 100 ? "..." : ""
-              }"\n\nResult: ${sentiment} ${emoji}\nConfidence: ${Math.round(
-                confidence * 100
-              )}%\nKeywords: ${keywords.join(", ") || "none"}`,
-              "success"
-            );
-          } catch (error) {
-            showResult(
-              sentimentResult,
-              `❌ Error analyzing sentiment: ${error.message}`,
-              "error"
-            );
-          }
-
-          testSentimentBtn.disabled = false;
-          testSentimentBtn.textContent = "Analyze Sentiment";
-        }
-
-        // === Topic Extraction Test ===
-        async function testTopicExtraction() {
-          const text = topicInput.value.trim();
-          if (!text) {
-            showResult(topicResult, "❌ Please enter text to analyze", "error");
-            return;
-          }
-
-          testTopicBtn.disabled = true;
-          testTopicBtn.textContent = "Extracting...";
-
-          try {
-            // Use performance-aware AI operation
-            const textContent = text.replace(/<[^>]*>/g, "").trim();
-            const topicPrompt = `Extract 2-5 topics from: "${textContent}". JSON array: ["topic1","topic2"]`;
-
-            const result = await performAIOperation(topicPrompt);
-            const cleanedResult = cleanAIResponse(result);
-            console.log("Raw AI response:", result);
-            console.log("Cleaned AI response:", cleanedResult);
-            const topics = JSON.parse(cleanedResult);
-
-            // Don't destroy session - keep it for reuse
-
-            const validTopics = Array.isArray(topics)
-              ? topics
-                  .filter(
-                    (topic) => typeof topic === "string" && topic.length > 0
-                  )
-                  .slice(0, 5)
-              : [];
-
-            showResult(
-              topicResult,
-              `✅ Topics extracted successfully!\n\nText: "${text.substring(
-                0,
-                100
-              )}${text.length > 100 ? "..." : ""}"\n\nTopics: ${
-                validTopics.length > 0
-                  ? validTopics.map((t) => `"${t}"`).join(", ")
-                  : "none found"
-              }`,
-              "success"
-            );
-          } catch (error) {
-            showResult(
-              topicResult,
-              `❌ Error extracting topics: ${error.message}`,
-              "error"
-            );
-          }
-
-          testTopicBtn.disabled = false;
-          testTopicBtn.textContent = "Extract Topics";
-        }
-
-        // === Mood Insights Test ===
-        function addMoodEntry() {
-          const entryDiv = document.createElement("div");
-          entryDiv.className = "entry";
-          entryDiv.innerHTML = `
-                    <input type="text" class="entry-title" placeholder="Entry title" value="New Entry">
-                    <textarea class="entry-content" rows="2" placeholder="Entry content">Enter journal content here...</textarea>
-                `;
-          moodEntries.appendChild(entryDiv);
-        }
-
-        async function testMoodInsights() {
-          const entries = Array.from(moodEntries.querySelectorAll(".entry"))
-            .map((entry) => ({
-              title: entry.querySelector(".entry-title").value,
-              content: entry.querySelector(".entry-content").value,
-            }))
-            .filter((entry) => entry.content.trim());
-
-          if (entries.length === 0) {
-            showResult(
-              moodResult,
-              "❌ Please add at least one entry with content",
-              "error"
-            );
-            return;
-          }
-
-          testMoodBtn.disabled = true;
-          testMoodBtn.textContent = "Analyzing...";
-
-          try {
-            // Use performance-aware AI operation for batch processing
-            const sentimentPromises = entries.map(async (entry) => {
-              const textContent = entry.content.replace(/<[^>]*>/g, "").trim();
-              const sentimentPrompt = `Sentiment: "${textContent}". JSON: {"sentiment":"positive|negative|neutral","confidence":0.0-1.0,"emoji":"😊|😞|😐","keywords":["word1","word2"]}`;
-
-              const result = await performAIOperation(sentimentPrompt);
-              const cleanedResult = cleanAIResponse(result);
-              console.log("Raw AI response for", entry.title, ":", result);
-              console.log("Cleaned AI response:", cleanedResult);
-              const analysis = JSON.parse(cleanedResult);
-
-              return {
-                sentiment: ["positive", "negative", "neutral"].includes(
-                  analysis.sentiment
-                )
-                  ? analysis.sentiment
-                  : "neutral",
-                confidence: Math.max(
-                  0,
-                  Math.min(1, analysis.confidence || 0.5)
-                ),
-                emoji: analysis.emoji || "😐",
-                keywords: Array.isArray(analysis.keywords)
-                  ? analysis.keywords.slice(0, 4)
-                  : [],
-                title: entry.title,
-              };
-            });
-
-            const sentiments = await Promise.all(sentimentPromises);
-
-            // Don't destroy session - keep it for reuse
-
-            // Calculate mood distribution
-            const moodCounts = sentiments.reduce((acc, s) => {
-              acc[s.sentiment] = (acc[s.sentiment] || 0) + 1;
-              return acc;
-            }, {});
-
-            const totalEntries = sentiments.length;
-            const positiveRatio = (moodCounts.positive || 0) / totalEntries;
-            const negativeRatio = (moodCounts.negative || 0) / totalEntries;
-
-            let pattern = "balanced";
-            if (positiveRatio > 0.6) pattern = "mostly_positive";
-            else if (negativeRatio > 0.6) pattern = "mostly_negative";
-            else if (positiveRatio > negativeRatio * 1.5)
-              pattern = "leaning_positive";
-            else if (negativeRatio > positiveRatio * 1.5)
-              pattern = "leaning_negative";
-
-            showResult(
-              moodResult,
-              `✅ Mood insights generated!\n\nAnalyzed ${totalEntries} entries:\n` +
-                `• Positive: ${moodCounts.positive || 0} (${Math.round(
-                  positiveRatio * 100
-                )}%)\n` +
-                `• Negative: ${moodCounts.negative || 0} (${Math.round(
-                  negativeRatio * 100
-                )}%)\n` +
-                `• Neutral: ${moodCounts.neutral || 0} (${Math.round(
-                  (1 - positiveRatio - negativeRatio) * 100
-                )}%)\n\n` +
-                `Pattern: ${pattern.replace("_", " ")}\n\n` +
-                `Individual results:\n${sentiments
-                  .map((s) => `• "${s.title}": ${s.sentiment} ${s.emoji}`)
-                  .join("\n")}`,
-              "success"
-            );
-          } catch (error) {
-            showResult(
-              moodResult,
-              `❌ Error generating mood insights: ${error.message}`,
-              "error"
-            );
-          }
-
-          testMoodBtn.disabled = false;
-          testMoodBtn.textContent = "Generate Mood Insights";
-        }
-
-        // Event Listeners
-        checkAvailabilityBtn.addEventListener("click", checkChromeAIAvailability);
-        showMetricsBtn.addEventListener("click", showPerformanceMetrics);
-        resetMetricsBtn.addEventListener("click", resetPerformanceMetrics);
-        testCommandBtn.addEventListener("click", testCommandParsing);
-        testSentimentBtn.addEventListener("click", testSentimentAnalysis);
-        testTopicBtn.addEventListener("click", testTopicExtraction);
-        addEntryBtn.addEventListener("click", addMoodEntry);
-        testMoodBtn.addEventListener("click", testMoodInsights);
-
-        // Initialize with availability check and session prewarming
-        checkChromeAIAvailability();
-        
-        // Prewarm AI session for better first-call performance
-        if (window.requestIdleCallback) {
-          requestIdleCallback(async () => {
+          async initTestSuite() {
+            // Import and initialize test suite functions
             try {
-              await getAISession();
-              console.log("AI session prewarmed in background");
+              const module = await import("./js/test-suite.js");
+              return await module.initTestSuite();
             } catch (error) {
-              console.log("Session prewarm failed (normal if AI not available)");
+              console.error("Failed to load test suite:", error);
+              return false;
             }
-          });
-        }
+          },
 
-        // Cleanup session on page unload
-        window.addEventListener("beforeunload", destroyAISession);
-      })();
+          cleanupTestSuite() {
+            try {
+              if (window.cleanupTestSuite) {
+                window.cleanupTestSuite();
+              }
+            } catch (error) {
+              console.warn("Cleanup error:", error);
+            }
+          },
+
+          updatePerformanceDisplay() {
+            try {
+              const module = window.testSuiteModule;
+              if (module && module.getPerformanceMetrics) {
+                const metrics = module.getPerformanceMetrics();
+                this.sessionStatus = metrics.sessionStatus;
+                this.operationCount = metrics.operationCount;
+                this.avgLatency = `${metrics.avgLatency}ms`;
+                this.uptime = `${metrics.uptime}s`;
+              }
+            } catch (error) {
+              console.warn("Performance update error:", error);
+            }
+          },
+
+          async checkChromeAIAvailability() {
+            this.isCheckingAvailability = true;
+
+            try {
+              const module = await import("./js/test-suite.js");
+              const result = await module.checkChromeAIAvailability();
+
+              this.chromeAIStatus = result.available
+                ? "available"
+                : "unavailable";
+              this.availabilityResult = result.message;
+              this.showAvailabilityResult = true;
+              this.availabilityResultType = result.available
+                ? "success"
+                : "danger";
+            } catch (error) {
+              this.chromeAIStatus = "unavailable";
+              this.availabilityResult = `❌ Error: ${error.message}`;
+              this.showAvailabilityResult = true;
+              this.availabilityResultType = "danger";
+            }
+
+            this.isCheckingAvailability = false;
+          },
+
+          async testCommandParsing() {
+            this.isParsingCommand = true;
+
+            try {
+              const module = await import("./js/test-suite.js");
+              const testResult = await module.testCommandParsing(
+                this.commandInput
+              );
+
+              this.commandResult = testResult.message;
+              this.showCommandResult = true;
+              this.commandResultType = testResult.success
+                ? "success"
+                : "danger";
+            } catch (error) {
+              this.commandResult = `❌ Error: ${error.message}`;
+              this.showCommandResult = true;
+              this.commandResultType = "danger";
+            }
+
+            this.isParsingCommand = false;
+          },
+
+          async testSentimentAnalysis() {
+            this.isAnalyzingSentiment = true;
+
+            try {
+              const module = await import("./js/test-suite.js");
+              const testResult = await module.testSentimentAnalysis(
+                this.sentimentInput
+              );
+
+              this.sentimentResult = testResult.message;
+              this.showSentimentResult = true;
+              this.sentimentResultType = testResult.success
+                ? "success"
+                : "danger";
+            } catch (error) {
+              this.sentimentResult = `❌ Error: ${error.message}`;
+              this.showSentimentResult = true;
+              this.sentimentResultType = "danger";
+            }
+
+            this.isAnalyzingSentiment = false;
+          },
+
+          async testTopicExtraction() {
+            this.isExtractingTopics = true;
+
+            try {
+              const module = await import("./js/test-suite.js");
+              const testResult = await module.testTopicExtraction(
+                this.topicInput
+              );
+
+              this.topicResult = testResult.message;
+              this.showTopicResult = true;
+              this.topicResultType = testResult.success ? "success" : "danger";
+            } catch (error) {
+              this.topicResult = `❌ Error: ${error.message}`;
+              this.showTopicResult = true;
+              this.topicResultType = "danger";
+            }
+
+            this.isExtractingTopics = false;
+          },
+
+          addMoodEntry() {
+            this.moodEntries.push({
+              title: "New Note",
+              content: "Enter note content here...",
+            });
+          },
+
+          async testMoodInsights() {
+            this.isAnalyzingMood = true;
+
+            try {
+              const module = await import("./js/test-suite.js");
+              const testResult = await module.testMoodInsights(
+                this.moodEntries
+              );
+
+              this.moodResult = testResult.message;
+              this.showMoodResult = true;
+              this.moodResultType = testResult.success ? "success" : "danger";
+            } catch (error) {
+              this.moodResult = `❌ Error: ${error.message}`;
+              this.showMoodResult = true;
+              this.moodResultType = "danger";
+            }
+
+            this.isAnalyzingMood = false;
+          },
+
+          showPerformanceMetrics() {
+            this.updatePerformanceDisplay();
+
+            try {
+              const module = window.testSuiteModule;
+              if (module && module.getPerformanceMetrics) {
+                const metrics = module.getPerformanceMetrics();
+                this.metricsResult = `📊 Performance Metrics\n\nSession Status: ${metrics.sessionStatus}\nTotal Operations: ${metrics.operationCount}\nAverage Latency: ${metrics.avgLatency}ms\nTotal Test Time: ${metrics.uptime}s`;
+                this.showMetricsResult = true;
+              }
+            } catch (error) {
+              this.metricsResult = `❌ Error getting metrics: ${error.message}`;
+              this.showMetricsResult = true;
+            }
+          },
+
+          resetPerformanceMetrics() {
+            try {
+              const module = window.testSuiteModule;
+              if (module && module.resetPerformanceMetrics) {
+                module.resetPerformanceMetrics();
+                this.updatePerformanceDisplay();
+                this.metricsResult = "✅ Performance metrics reset";
+                this.showMetricsResult = true;
+              }
+            } catch (error) {
+              this.metricsResult = `❌ Error resetting metrics: ${error.message}`;
+              this.showMetricsResult = true;
+            }
+          },
+        },
+      });
     </script>
   </body>
 </html>

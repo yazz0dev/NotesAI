@@ -32,7 +32,7 @@ function generateCacheKey(operation, content, options = {}) {
  * @param {Object} options - Additional options
  * @returns {any|null} Cached result or null if not found/expired
  */
-export function getCachedResult(operation, content, options = {}) {
+function getCachedResult(operation, content, options = {}) {
   const key = generateCacheKey(operation, content, options);
   const cached = cache.get(key);
 
@@ -61,7 +61,7 @@ export function getCachedResult(operation, content, options = {}) {
  * @param {Object} options - Additional options
  * @param {any} result - The result to cache
  */
-export function setCachedResult(operation, content, options, result) {
+function setCachedResult(operation, content, options, result) {
   const key = generateCacheKey(operation, content, options);
   
   // Manage cache size to prevent memory bloat
@@ -93,7 +93,7 @@ function evictOldestEntries(count) {
 /**
  * Clears all cached results
  */
-export function clearCache() {
+function clearCache() {
   cache.clear();
 }
 
@@ -101,7 +101,7 @@ export function clearCache() {
  * Gets enhanced cache statistics including performance metrics
  * @returns {Object} Cache info with performance data
  */
-export function getCacheStats() {
+function getCacheStats() {
   const totalRequests = cacheHits + cacheMisses;
   return {
     size: cache.size,
@@ -117,7 +117,15 @@ export function getCacheStats() {
 /**
  * Clears cache performance metrics
  */
-export function resetCacheMetrics() {
+function resetCacheMetrics() {
   cacheHits = 0;
   cacheMisses = 0;
 }
+
+// Make functions available globally for Vue.js compatibility
+window.generateCacheKey = generateCacheKey;
+window.getCachedResult = getCachedResult;
+window.setCachedResult = setCachedResult;
+window.clearCache = clearCache;
+window.getCacheStats = getCacheStats;
+window.resetCacheMetrics = resetCacheMetrics;

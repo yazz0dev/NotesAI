@@ -1,15 +1,6 @@
 // js/components/settings-view.js
 // Dedicated settings view component with mobile-first responsive design
 
-import {
-  showConfirmation,
-  showAlert,
-  showToast,
-  showLoadingOverlay,
-} from "./modals.js";
-import { exportNotes } from "../services/export-service.js";
-import { importFromFile } from "../services/import-service.js";
-import { showGoalsModal } from "./goals-ui.js";
 
 // --- Settings View State ---
 let isSettingsOpen = false;
@@ -40,16 +31,16 @@ const cancelImportBtn = document.getElementById("cancel-import-btn");
 const viewGoalsBtn = document.getElementById("view-goals-btn");
 const addGoalBtn = document.getElementById("add-goal-btn");
 
-// --- Icon Mapping for Iconify ---
-function getIconifyIcon(iconName) {
+// --- Icon Mapping for Bootstrap Icons ---
+function getBootstrapIcon(iconName) {
   const iconMap = {
-    mic: "material-symbols:mic",
-    export: "material-symbols:download",
-    import: "material-symbols:upload",
-    goals: "material-symbols:flag",
-    settings: "material-symbols:settings",
+    mic: "bi-mic",
+    export: "bi-download",
+    import: "bi-upload",
+    goals: "bi-flag",
+    settings: "bi-gear",
   };
-  return iconMap[iconName] || "material-symbols:help";
+  return iconMap[iconName] || "bi-question-circle";
 }
 
 // --- Settings Sections Configuration ---
@@ -85,7 +76,7 @@ const settingsSections = {
  * Shows or hides the settings modal with mobile optimizations
  * @param {boolean} show - Whether to show the modal
  */
-export function showSettingsModal(show) {
+function showSettingsModal(show) {
   isSettingsOpen = show;
   settingsModal.classList.toggle("hidden", !show);
 
@@ -123,7 +114,7 @@ export function showSettingsModal(show) {
  * Switches to a specific settings section with proper ARIA updates
  * @param {string} sectionId - The section to switch to
  */
-export function switchToSection(sectionId) {
+function switchToSection(sectionId) {
   if (!settingsSections[sectionId]) return;
 
   currentSection = sectionId;
@@ -225,26 +216,26 @@ function getSectionHTML(sectionId) {
                         <h3 class="section-title" id="export-section">${settingsSections.export.title}</h3>
                         <p class="section-description">Download your notes in different formats</p>
                         <div class="export-buttons" role="group" aria-label="Export format options">
-                            <button id="export-json-btn" class="export-btn" data-format="json" aria-describedby="json-description">
-                                <span class="btn-icon" aria-hidden="true">
-                                  <span class="iconify" data-icon="material-symbols:data-object"></span>
-                                </span>
-                                <span class="btn-text">JSON Format</span>
-                                <span class="btn-description" id="json-description">Complete data with metadata</span>
+                            <button id="export-json-btn" class="export-btn btn btn-outline-secondary d-flex align-items-center gap-2" data-format="json" aria-describedby="json-description">
+                                <i class="bi bi-code-slash" aria-hidden="true"></i>
+                                <div>
+                                  <span class="btn-text">JSON Format</span>
+                                  <span class="btn-description d-block small text-muted" id="json-description">Complete data with metadata</span>
+                                </div>
                             </button>
-                            <button id="export-txt-btn" class="export-btn" data-format="txt" aria-describedby="txt-description">
-                                <span class="btn-icon" aria-hidden="true">
-                                  <span class="iconify" data-icon="material-symbols:description"></span>
-                                </span>
-                                <span class="btn-text">Text Format</span>
-                                <span class="btn-description" id="txt-description">Simple text for reading</span>
+                            <button id="export-txt-btn" class="export-btn btn btn-outline-secondary d-flex align-items-center gap-2" data-format="txt" aria-describedby="txt-description">
+                                <i class="bi bi-file-text" aria-hidden="true"></i>
+                                <div>
+                                  <span class="btn-text">Text Format</span>
+                                  <span class="btn-description d-block small text-muted" id="txt-description">Simple text for reading</span>
+                                </div>
                             </button>
-                            <button id="export-pdf-btn" class="export-btn" data-format="pdf" aria-describedby="pdf-description">
-                                <span class="btn-icon" aria-hidden="true">
-                                  <span class="iconify" data-icon="material-symbols:picture-as-pdf"></span>
-                                </span>
-                                <span class="btn-text">PDF Format</span>
-                                <span class="btn-description" id="pdf-description">Formatted for printing</span>
+                            <button id="export-pdf-btn" class="export-btn btn btn-outline-secondary d-flex align-items-center gap-2" data-format="pdf" aria-describedby="pdf-description">
+                                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+                                <div>
+                                  <span class="btn-text">PDF Format</span>
+                                  <span class="btn-description d-block small text-muted" id="pdf-description">Formatted for printing</span>
+                                </div>
                             </button>
                         </div>
                     </div>
@@ -258,22 +249,22 @@ function getSectionHTML(sectionId) {
                         <h3 class="section-title" id="import-section">${settingsSections.import.title}</h3>
                         <p class="section-description">Restore notes from backup files</p>
                         <div class="import-area">
-                            <button id="import-file-btn" class="import-btn" aria-describedby="import-description">
-                                <span class="btn-icon" aria-hidden="true">
-                                  <span class="iconify" data-icon="material-symbols:upload-file"></span>
-                                </span>
-                                <span class="btn-text">Choose File</span>
-                                <span class="btn-description" id="import-description">JSON or TXT format</span>
+                            <button id="import-file-btn" class="import-btn btn btn-outline-secondary d-flex align-items-center gap-2" aria-describedby="import-description">
+                                <i class="bi bi-upload" aria-hidden="true"></i>
+                                <div>
+                                  <span class="btn-text">Choose File</span>
+                                  <span class="btn-description d-block small text-muted" id="import-description">JSON or TXT format</span>
+                                </div>
                             </button>
                             <input type="file" id="import-file-input" accept=".json,.txt" aria-label="Select import file" style="display: none">
-                            <div id="import-status" class="import-status hidden" role="region" aria-live="polite" aria-label="Import preview">
+                            <div id="import-status" class="import-status d-none" role="region" aria-live="polite" aria-label="Import preview">
                                 <div class="import-preview" role="status"></div>
-                                <div class="import-actions" role="group" aria-label="Import actions">
-                                    <button id="confirm-import-btn" class="import-confirm-btn" aria-describedby="confirm-description">
-                                      <span class="iconify" data-icon="material-symbols:check-circle"></span> Import
+                                <div class="import-actions d-flex gap-2" role="group" aria-label="Import actions">
+                                    <button id="confirm-import-btn" class="import-confirm-btn btn btn-success" aria-describedby="confirm-description">
+                                      <i class="bi bi-check-circle me-1"></i> Import
                                     </button>
-                                    <button id="cancel-import-btn" class="import-cancel-btn" aria-describedby="cancel-description">
-                                      <span class="iconify" data-icon="material-symbols:cancel"></span> Cancel
+                                    <button id="cancel-import-btn" class="import-cancel-btn btn btn-outline-secondary" aria-describedby="cancel-description">
+                                      <i class="bi bi-x-lg me-1"></i> Cancel
                                     </button>
                                 </div>
                             </div>
@@ -289,19 +280,19 @@ function getSectionHTML(sectionId) {
                         <h3 class="section-title" id="goals-section">${settingsSections.goals.title}</h3>
                         <p class="section-description">Track your personal development journey with AI-powered insights</p>
                         <div class="goals-actions-grid" role="group" aria-label="Goals actions">
-                            <button id="view-goals-btn" class="goals-action-btn primary" aria-describedby="view-goals-description">
-                                <span class="btn-icon" aria-hidden="true">
-                                  <span class="iconify" data-icon="material-symbols:dashboard"></span>
-                                </span>
-                                <span class="btn-text">View Dashboard</span>
-                                <span class="btn-description" id="view-goals-description">See progress, streaks, and insights</span>
+                            <button id="view-goals-btn" class="goals-action-btn primary btn btn-primary d-flex align-items-center gap-2" aria-describedby="view-goals-description">
+                                <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                                <div>
+                                  <span class="btn-text">View Dashboard</span>
+                                  <span class="btn-description d-block small" id="view-goals-description">See progress, streaks, and insights</span>
+                                </div>
                             </button>
-                            <button id="add-goal-btn" class="goals-action-btn" aria-describedby="add-goal-description">
-                                <span class="btn-icon" aria-hidden="true">
-                                  <span class="iconify" data-icon="material-symbols:add-task"></span>
-                                </span>
-                                <span class="btn-text">Create Goal</span>
-                                <span class="btn-description" id="add-goal-description">Set a new goal or habit</span>
+                            <button id="add-goal-btn" class="goals-action-btn btn btn-outline-primary d-flex align-items-center gap-2" aria-describedby="add-goal-description">
+                                <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                <div>
+                                  <span class="btn-text">Create Goal</span>
+                                  <span class="btn-description d-block small" id="add-goal-description">Set a new goal or habit</span>
+                                </div>
                             </button>
                         </div>
                         <div id="goals-today" class="goals-today-section hidden" role="region" aria-label="Today's goals">
@@ -351,8 +342,8 @@ function initializeSettingsContent() {
   modalDialog.innerHTML = `
         <div class="settings-header">
             <h2 class="modal-title">Settings</h2>
-            <button id="settings-close-btn" class="settings-close-btn" aria-label="Close settings">
-              <span class="iconify" data-icon="material-symbols:close"></span>
+            <button id="settings-close-btn" class="settings-close-btn btn btn-outline-secondary btn-sm" aria-label="Close settings">
+              <i class="bi bi-x-lg"></i>
             </button>
         </div>
 
@@ -372,9 +363,9 @@ function initializeSettingsContent() {
                                 id="${id}-tab"
                                 aria-label="${section.title}">
                             <span class="nav-icon" aria-hidden="true">
-                              <span class="iconify" data-icon="${getIconifyIcon(
+                              <i class="bi ${getBootstrapIcon(
                                 section.icon
-                              )}"></span>
+                              )}"></i>
                             </span>
                             <span class="nav-text">${section.title}</span>
                         </button>
@@ -495,7 +486,8 @@ function initializeExportSettings() {
       );
 
       try {
-        await exportNotes(format);
+        const notes = await getNotes(); // Fetch notes before exporting
+        await exportNotes(notes, format); // Pass notes and format
         showToast(
           `Notes exported successfully as ${format.toUpperCase()}`,
           "success"
@@ -788,7 +780,7 @@ async function confirmImport() {
  * Gets the current hands-free mode setting
  * @returns {boolean} Whether hands-free mode is enabled
  */
-export function getHandsFreeMode() {
+function getHandsFreeMode() {
   return localStorage.getItem("handsFreeMode") === "true";
 }
 
@@ -796,7 +788,7 @@ export function getHandsFreeMode() {
  * Sets the hands-free mode toggle state
  * @param {boolean} enabled - Whether to enable hands-free mode
  */
-export function setHandsFreeMode(enabled) {
+function setHandsFreeMode(enabled) {
   localStorage.setItem("handsFreeMode", enabled.toString());
   const toggle = document.getElementById("hands-free-toggle");
   if (toggle) {
@@ -807,7 +799,7 @@ export function setHandsFreeMode(enabled) {
 /**
  * Initializes the settings view
  */
-export function initSettingsView() {
+function initSettingsView() {
   // Check for deep linking
   const hash = window.location.hash;
   if (hash.startsWith("#settings-")) {
@@ -819,3 +811,10 @@ export function initSettingsView() {
 
   console.log("Settings view initialized");
 }
+
+// Make functions available globally for Vue.js compatibility
+window.showSettingsModal = showSettingsModal;
+window.switchToSection = switchToSection;
+window.getHandsFreeMode = getHandsFreeMode;
+window.setHandsFreeMode = setHandsFreeMode;
+window.initSettingsView = initSettingsView;

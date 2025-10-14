@@ -1,11 +1,7 @@
 // js/state-manager.js
 // Centralized state management system for the AI Journal
 
-import {
-  withErrorHandling,
-  ERROR_TYPES,
-  ERROR_SEVERITY,
-} from "./error-handler.js";
+// Note: Imports will be handled via global window object for Vue.js compatibility
 
 /**
  * State management system with reactive updates and persistence
@@ -549,16 +545,20 @@ class StateManager {
 const stateManager = new StateManager();
 
 // Create and export actions
-export const actions = stateManager.createActions();
+const actions = stateManager.createActions();
 
 // Export main functions
-export const getState = (path) => stateManager.getState(path);
-export const setState = (update, options) =>
-  stateManager.setState(update, options);
-export const subscribe = (paths, callback, options) =>
+const getState = (path) => stateManager.getState(path);
+const setState = (update, options) => stateManager.setState(update, options);
+const subscribe = (paths, callback, options) =>
   stateManager.subscribe(paths, callback, options);
-export const addMiddleware = (middleware) =>
-  stateManager.addMiddleware(middleware);
+const addMiddleware = (middleware) => stateManager.addMiddleware(middleware);
 
 // Export state manager instance
-export default stateManager;
+window.stateManager = stateManager;
+window.getState = getState;
+window.setState = setState;
+window.subscribe = subscribe;
+window.addMiddleware = addMiddleware;
+window.actions = actions;
+window.default = stateManager;
