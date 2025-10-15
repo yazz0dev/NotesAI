@@ -1,233 +1,164 @@
-// js/ai-service.js
-
-// Guard against multiple loads
-if (typeof window.voiceState !== "undefined") {
-  console.warn("ai-service.js is being loaded multiple times, skipping...");
-} else {
-  // Initialize voiceState on window for other modules to check
-  window.voiceState = "IDLE";
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  // Persistent session management for improved performance
-  let globalAISession = null;
-  let sessionCreationPromise = null;
-
-  /**
-   * Gets or creates a persistent AI session for better performance
-   * @returns {Promise<Object>} AI session object
-   */
-  async function getAISession() {
-    if (globalAISession) {
-      return globalAISession;
+class AIService {
+    constructor() {
+      this.ambientRecognition = null;
+      this.dictationRecognition = null;
+      this.mediaRecorder = null;
+      this.audioChunks = [];
+      this.isAmbientListening = false;
+      this.isDictating = false;
     }
-
-    if (sessionCreationPromise) {
-      return await sessionCreationPromise;
+  
+    init() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn("Speech Recognition not supported.");
+        this.dispatchAIEvent("ai-status-update", { status: "disabled", message: "Speech not supported" });
+        return;
+      }
+      this.setupAmbientRecognition(SpeechRecognition);
     }
-
-    sessionCreationPromise = (async () => {
+  
+    // --- AMBIENT LISTENING FOR "HEY NOTES" ---
+    setupAmbientRecognition(SpeechRecognition) {
+      this.ambientRecognition = new SpeechRecognition();
+      this.ambientRecognition.continuous = true;
+      this.ambientRecognition.interimResults = false; // We only care about the final result for commands
+  
+      this.ambientRecognition.onstart = () => {
+          this.isAmbientListening = true;
+          this.dispatchAIEvent("ai-status-update", { status: "listening", message: "Listening for 'Hey Notes'..." });
+      };
+      this.ambientRecognition.onend = () => {
+        this.isAmbientListening = false;
+        // If handsFreeMode is on and we are not in a dictation session, restart.
+        if (localStorage.getItem("handsFreeMode") === "true" && !this.isDictating) {
+          setTimeout(() => this.startAmbientListening(), 500);
+        }
+      };
+      this.ambientRecognition.onerror = (e) => console.error("Ambient recognition error:", e.error);
+      this.ambientRecognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+        if (transcript.includes("hey notes")) {
+          this.processCommand(transcript);
+        }
+      };
+    }
+  
+    processCommand(transcript) {
+      this.dispatchAIEvent("ai-status-update", { status: "active", message: `Command received...` });
+      if (transcript.includes("new note") || transcript.includes("create note")) {
+        const content = transcript.replace(/.*(new note|create note)/, "").trim();
+        this.dispatchAIEvent("ai-create-note", { content });
+      } else if (transcript.includes("search for")) {
+        const query = transcript.replace(/.*search for/, "").trim();
+        this.dispatchAIEvent("ai-search", { query });
+      }
+    }
+  
+    startAmbientListening() {
+      if (this.ambientRecognition && !this.isAmbientListening) {
+        try {
+          this.ambientRecognition.start();
+        } catch (e) { /* Ignore errors if already started */ }
+      }
+    }
+  
+    stopAmbientListening() {
+      if (this.ambientRecognition && this.isAmbientListening) {
+        this.ambientRecognition.stop();
+      }
+    }
+  
+    // --- ACTIVE DICTATION & RECORDING ---
+    async startDictation() {
+      if (this.isDictating) return;
+      
+      // CRITICAL FIX: Ensure ambient listening is stopped before starting dictation.
+      this.stopAmbientListening(); 
+  
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+  
       try {
-        if (!("LanguageModel" in self)) {
-          throw new Error("LanguageModel not available");
-        }
-
-        globalAISession = await LanguageModel.create({
-          expectedOutputs: [
-            {
-              type: "text",
-              languages: ["en"],
-            },
-          ],
-        });
-
-        return globalAISession;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaRecorder = new MediaRecorder(stream);
+        this.dictationRecognition = new SpeechRecognition();
+        this.audioChunks = [];
+  
+        this.mediaRecorder.ondataavailable = (e) => this.audioChunks.push(e.data);
+        this.mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(this.audioChunks, { type: "audio/webm" });
+          const audioDataUrl = await this.blobToDataURL(audioBlob);
+          this.dispatchAIEvent("ai-dictation-finished", { audioUrl: audioDataUrl });
+          stream.getTracks().forEach((track) => track.stop());
+        };
+  
+        this.dictationRecognition.continuous = true;
+        this.dictationRecognition.interimResults = true;
+        this.dictationRecognition.onresult = (e) => {
+          let transcript = "";
+          for (let i = e.resultIndex; i < e.results.length; ++i) {
+            transcript += e.results[i][0].transcript;
+          }
+          this.dispatchAIEvent("ai-dictation-update", { transcript });
+        };
+        this.dictationRecognition.onend = () => this.stopDictation(); // Auto-stop everything together
+  
+        this.mediaRecorder.start();
+        this.dictationRecognition.start();
+        this.isDictating = true;
+        this.dispatchAIEvent("ai-dictation-started");
+        this.dispatchAIEvent("ai-status-update", { status: "recording", message: "Dictating..." });
       } catch (error) {
-        sessionCreationPromise = null;
-        throw error;
-      }
-    })();
-
-    return await sessionCreationPromise;
-  }
-
-  async function getCurrentAISession() {
-    return globalAISession;
-  }
-
-  /**
-   * Cleans Chrome AI API response by removing markdown formatting
-   * @param {string} response - Raw response from Chrome AI API
-   * @returns {string} Clean JSON string
-   */
-  function cleanAIResponse(response) {
-    if (!response) return "";
-
-    // Remove markdown code block markers and extra whitespace
-    let cleaned = response
-      .replace(/```json\s*/gi, "") // Remove ```json (case insensitive)
-      .replace(/```\s*/g, "") // Remove ```
-      .replace(/`+/g, "") // Remove any remaining backticks
-      .trim();
-
-    // Remove any leading/trailing whitespace and newlines
-    cleaned = cleaned.replace(/^\s+|\s+$/g, "");
-
-    return cleaned;
-  }
-  if (!SpeechRecognition)
-    console.error("Speech Recognition API not supported.");
-  const recognition = SpeechRecognition ? new SpeechRecognition() : null;
-
-  // --- State Management ---
-  let voiceState = "IDLE"; // IDLE, AMBIENT_LISTENING, COMMAND_MODE, DICTATION_MODE
-  let fullTranscript = "";
-  let endOfSpeechTimer = null; // For Smart Stop in dictation
-  let commandResetTimer = null; // Timer to return to ambient from command mode
-
-  // --- Callbacks ---
-  let onStateChange = () => {};
-  let onCommandReceived = () => {};
-  let onTranscriptUpdate = () => {};
-  let onFinalResult = () => {};
-
-  // --- Core Logic ---
-
-  function setVoiceState(newState) {
-    if (voiceState === newState) return;
-    console.log(`Voice state changing from ${voiceState} to ${newState}`);
-    voiceState = newState;
-    onStateChange(newState); // Notify main.js to update UI
-  }
-
-  function setupRecognition() {
-    if (!recognition) return;
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognition.onresult = handleRecognitionResult;
-    recognition.onerror = (event) => {
-      console.error("Speech error:", event.error);
-      setVoiceState("IDLE");
-    };
-    recognition.onend = () => {
-      setVoiceState("IDLE");
-    };
-
-    // Smart Stop for dictation mode
-    recognition.onspeechend = () => {
-      if (voiceState === "DICTATION_MODE") {
-        clearTimeout(endOfSpeechTimer);
-        endOfSpeechTimer = setTimeout(finalizeEntry, 3500);
-      }
-    };
-  }
-
-  async function handleRecognitionResult(event) {
-    if (voiceState === "DICTATION_MODE") clearTimeout(endOfSpeechTimer);
-
-    let finalTranscriptSegment = "";
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscriptSegment += event.results[i][0].transcript;
-      } else if (voiceState === "DICTATION_MODE") {
-        onTranscriptUpdate(fullTranscript + event.results[i][0].transcript);
+        console.error("Dictation failed to start:", error);
+        this.dispatchAIEvent("ai-status-update", { status: "error", message: "Mic access denied" });
+        this.startAmbientListening(); // Restart ambient if dictation fails
       }
     }
-
-    if (!finalTranscriptSegment) return;
-
-    switch (voiceState) {
-      case "AMBIENT_LISTENING":
-        if (finalTranscriptSegment.toLowerCase().trim().includes("hey notes")) {
-          console.log("Hotword detected!");
-          setVoiceState("COMMAND_MODE");
-          // If user pauses after hotword, go back to ambient
-          commandResetTimer = setTimeout(
-            () => setVoiceState("AMBIENT_LISTENING"),
-            5000
-          );
-        }
-        break;
-
-      case "COMMAND_MODE":
-        clearTimeout(commandResetTimer);
-        await parseAndExecuteCommand(finalTranscriptSegment);
-        setVoiceState("AMBIENT_LISTENING");
-        break;
-
-      case "DICTATION_MODE":
-        fullTranscript += finalTranscriptSegment;
-        onTranscriptUpdate(fullTranscript);
-        break;
+  
+    stopDictation() {
+      if (!this.isDictating) return;
+      if (this.dictationRecognition) this.dictationRecognition.stop();
+      if (this.mediaRecorder && this.mediaRecorder.state === "recording") this.mediaRecorder.stop();
+      this.isDictating = false;
+  
+      // CRITICAL FIX: Restart ambient listening after dictation is finished.
+      this.startAmbientListening();
     }
-  }
-
-  async function parseAndExecuteCommand(transcript) {
-    const commandPrompt = `
-        Analyze the user's command: "${transcript}".
-        Convert it into a JSON object with "action" and "params".
-        Possible actions: 'create_note', 'search_notes', 'delete_current', 'edit_current', 'add_image', 'go_back', 'stop_listening'.
-        - For 'search_notes', extract the 'query'.
-        - If the command is to start a new note, use 'create_note'.
-        Respond with only the JSON object. Example: {"action": "search_notes", "params": {"query": "project"}}`;
-
-    try {
-      // Get or create persistent session for better performance
-      const session = await getAISession();
-
-      const result = await session.prompt(commandPrompt);
-      const cleanedResult = cleanAIResponse(result);
-      const command = JSON.parse(cleanedResult);
-      console.log("Parsed command:", command);
-
-      if (command.action === "create_note") {
-        setVoiceState("DICTATION_MODE");
-      } else {
-        onCommandReceived(command);
+  
+    // --- ON-DEVICE AI ANALYSIS ---
+    async analyzeNote(content) {
+      if (!content || !chrome.ai) {
+        return { topics: [], sentiment: "neutral" };
       }
-
-      // Don't destroy session - keep it for reuse
-    } catch (error) {
-      console.error("Could not parse command:", error);
-      // Send unknown command for UI feedback
-      onCommandReceived({ action: "unknown", error: error.message });
+      this.dispatchAIEvent("ai-status-update", { status: "processing", message: "Analyzing note..." });
+      try {
+        const session = await chrome.ai.createTextSession();
+        const prompt = `Analyze this text. Extract up to 3 topics as a JSON array of strings, and determine the sentiment (positive, negative, or neutral). Respond ONLY with a valid JSON object like {"topics": [...], "sentiment": "..."}. Text: "${content.substring(0, 1500)}"`;
+        let response = await session.prompt(prompt);
+        response = response.replace(/```json/g, "").replace(/```/g, "").trim();
+        const result = JSON.parse(response);
+        return { topics: result.topics || [], sentiment: result.sentiment || "neutral" };
+      } catch (error) {
+        console.error("AI analysis failed:", error);
+        this.dispatchAIEvent("ai-status-update", { status: "error", message: "AI analysis failed." });
+        return { topics: [], sentiment: "neutral" };
+      }
+    }
+  
+    // --- HELPERS ---
+    dispatchAIEvent(name, detail) {
+      window.dispatchEvent(new CustomEvent(name, { detail }));
+    }
+    blobToDataURL(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
     }
   }
-
-  function finalizeEntry() {
-    if (voiceState !== "DICTATION_MODE") return;
-    console.log("Finalizing entry via Smart Stop");
-    onFinalResult(fullTranscript);
-    fullTranscript = "";
-    setVoiceState("AMBIENT_LISTENING");
-  }
-
-  // --- Public API ---
-  function initAIService(callbacks) {
-    if (!recognition) return;
-    onStateChange = callbacks.onStateChange;
-    onCommandReceived = callbacks.onCommandReceived;
-    onTranscriptUpdate = callbacks.onTranscriptUpdate;
-    onFinalResult = callbacks.onFinalResult;
-    setupRecognition();
-  }
-
-  function startAmbientListening() {
-    if (!recognition || voiceState !== "IDLE") return;
-    recognition.start();
-    setVoiceState("AMBIENT_LISTENING");
-  }
-
-  function stopAmbientListening() {
-    if (!recognition || voiceState === "IDLE") return;
-    recognition.stop();
-    setVoiceState("IDLE");
-  }
-
-  // Make functions available globally for Vue.js compatibility
-  window.getAISession = getAISession;
-  window.initAIService = initAIService;
-  window.startAmbientListening = startAmbientListening;
-  window.stopAmbientListening = stopAmbientListening;
-}
+  
+  const aiService = new AIService();
+  export default aiService;

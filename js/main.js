@@ -1,817 +1,544 @@
-// js/main.js - Vue.js Version
-// Note: Using direct script loading instead of ES6 imports for CDN compatibility
+import store from "./services/store.js";
+import aiService from "./services/ai-service.js";
+import { alertService } from "./services/alert-service.js";
+import AppHeader from "./components/AppHeader.js";
+import AppSidebar from "./components/AppSidebar.js";
+import NotesList from "./components/NotesList.js";
+import NoteEditor from "./components/NoteEditor.js";
+import SettingsModal from "./components/SettingsModal.js";
+import SkeletonLoader from "./components/SkeletonLoader.js";
+import AlertModal from "./components/AlertModal.js";
+import TagSelectionModal from "./components/TagSelectionModal.js";
 
-// Define error handling constants and functions locally for Vue.js compatibility
-const ERROR_TYPES = {
-  NETWORK: "network",
-  STORAGE: "storage",
-  AI_SERVICE: "ai_service",
-  AUDIO: "audio",
-  VALIDATION: "validation",
-  PERMISSION: "permission",
-  UNKNOWN: "unknown",
-};
-
-const ERROR_SEVERITY = {
-  LOW: "low",
-  MEDIUM: "medium",
-  HIGH: "high",
-  CRITICAL: "critical",
-};
-
-// Simple error handling function for Vue.js compatibility
-function withErrorHandling(operation, options = {}) {
-  try {
-    return operation();
-  } catch (error) {
-    console.error("Error in operation:", error);
-    if (options.fallback) {
-      return options.fallback();
-    }
-    throw error;
-  }
-}
-
-// Create Vue app
 const { createApp } = Vue;
 
 const app = createApp({
+  components: {
+    AppHeader, AppSidebar, NotesList, NoteEditor, SettingsModal, SkeletonLoader, AlertModal, TagSelectionModal
+  },
   data() {
     return {
-      // App state - progressive loading
-      isLoading: true,
-      loadingMessage: "Loading your data...",
-      isSidebarLoading: true,
-      isNotesLoading: true,
-      isHeaderLoading: true,
-
-      // Navigation state
-      currentView: "all-notes",
-      currentSort: "dateModified",
-
-      // Notes data
-      notes: [],
-      selectedNote: null,
-
-      // Organization data
-      notebooks: [],
-      tags: [],
-
-      // UI state
-      sidebarState: "expanded", // 'expanded', 'collapsed', 'hidden'
-      searchQuery: "",
-
-      // Recording state
-      isRecording: false,
-      recordingTime: "0:00",
-
-      // Goals data
-      goals: [],
-      activeGoalsCount: 0,
-      completedGoalsCount: 0,
-      totalStreakCount: 0,
-
-      // Editor state
-      editorVisible: false,
-      editingNote: null,
-      editorTitle: "",
-      editorContent: "",
-
-      // Modal states
-      showSettingsModal: false,
-      showGoalsModal: false,
-      showConfirmationModal: false,
-      showNotebookModal: false,
-      showTagModal: false,
-      showTagSelectionModal: false,
-      showGoalSelectionModal: false,
-
-      // Confirmation modal state
-      confirmMessage: "Are you sure you want to proceed?",
+      notes: [], allTags: [], noteToTag: null, currentView: "all-notes", editingNote: null,
+      isLoading: true, searchQuery: "",
+      isSidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
+      handsFreeMode: localStorage.getItem("handsFreeMode") === "true",
+      currentTheme: localStorage.getItem("theme") || "auto",
+      aiStatus: { status: "disabled", message: "Initializing..." }, isDictating: false,
+      contentBeforeDictation: "", isSettingsModalVisible: false, currentSort: "updatedAt-desc",
+      currentLayout: "grid", saveStatus: 'idle', newTagName: "", isResizing: false,
     };
   },
-
   computed: {
-    // Filter notes based on current view and search
     filteredNotes() {
-      let filtered = this.notes;
+      let notesToFilter;
+      // 1. Filter by View
+      if (this.currentView === "favorites") notesToFilter = this.notes.filter((n) => n.isFavorite && !n.isArchived);
+      else if (this.currentView === "archived") notesToFilter = this.notes.filter((n) => n.isArchived);
+      else if (this.currentView.startsWith("tag:")) {
+        const tagId = this.currentView.split(':')[1];
+        const filteredNotes = this.notes.filter(n => !n.isArchived && n.tags && n.tags.includes(tagId));
+        notesToFilter = filteredNotes;
+      } 
+      else notesToFilter = this.notes.filter((n) => !n.isArchived);
 
-      // Filter by view
-      switch (this.currentView) {
-        case "favorites":
-          filtered = filtered.filter((note) => note.isFavorite);
-          break;
-        case "recent":
-          filtered = filtered.filter((note) => {
-            const noteDate = new Date(note.updatedAt);
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            return noteDate > weekAgo;
-          });
-          break;
-        case "archived":
-          filtered = filtered.filter((note) => note.isArchived);
-          break;
+      // 2. Filter by Search Query
+      if (this.searchQuery.trim()) {
+        const searchKeywords = this.searchQuery.toLowerCase().split(' ').filter(Boolean);
+        notesToFilter = notesToFilter.filter(note => {
+          const noteText = (note.summary + ' ' + (note.content || '')).toLowerCase().replace(/<[^>]*>/g, "");
+          return searchKeywords.every(keyword => noteText.includes(keyword));
+        });
       }
 
-      // Filter by search query
-      if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase();
-        filtered = filtered.filter(
-          (note) =>
-            note.summary.toLowerCase().includes(query) ||
-            note.content.toLowerCase().includes(query) ||
-            (note.tags &&
-              note.tags.some((tag) => tag.name.toLowerCase().includes(query)))
-        );
-      }
+      // 3. Sort
+      const [sortKey, sortDir] = this.currentSort.split('-');
+      notesToFilter.sort((a, b) => {
+        let valA = a[sortKey], valB = b[sortKey];
+        if (sortKey.includes('At')) { valA = new Date(valA); valB = new Date(valB); }
+        if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+        return 0;
+      });
 
-      // Sort notes
-      return this.sortNotes(filtered);
-    },
-
-    // Get counts for sidebar
-    allNotesCount() {
-      return this.notes.length;
-    },
-
-    favoritesCount() {
-      return this.notes.filter((note) => note.isFavorite).length;
-    },
-
-    archivedCount() {
-      return this.notes.filter((note) => note.isArchived).length;
-    },
-
-    // Sidebar visibility for mobile (hidden state)
-    isSidebarVisible() {
-      return this.sidebarState !== "hidden";
+      return notesToFilter;
     },
   },
-
   methods: {
-    // Initialize the app with progressive loading
-    async init() {
-      console.log("🚀 Initializing Notes & Tasks Vue App...");
-      window.startMeasurement("app_initialization");
-
-      try {
-        // Step 1: Initialize database first (critical)
-        await withErrorHandling(() => window.store.initDB(), {
-          type: ERROR_TYPES.STORAGE,
-          severity: ERROR_SEVERITY.CRITICAL,
-          context: { operation: "initDB" },
-        });
-
-        // Step 2: Load organization data first (sidebar)
-        this.loadingMessage = "Loading organization data...";
-        await this.loadOrganizationData();
-        this.isSidebarLoading = false;
-
-        // Step 3: Load notes data (main content)
-        this.loadingMessage = "Loading your notes...";
-        await this.loadNotes();
-        this.isNotesLoading = false;
-
-        // Step 4: Initialize services (can run in background)
-        this.loadingMessage = "Initializing services...";
-        window.initAI();
-        await withErrorHandling(() => window.initAudioService(), {
-          type: ERROR_TYPES.AUDIO,
-          severity: ERROR_SEVERITY.MEDIUM,
-          context: { operation: "initAudioService" },
-        });
-
-        // Step 5: Setup background tasks
-        await window.checkGoalsDueToday();
-
-        if (window.getHandsFreeMode()) {
-          await withErrorHandling(() => window.startAmbientListening(), {
-            type: ERROR_TYPES.PERMISSION,
-            severity: ERROR_SEVERITY.MEDIUM,
-            context: { operation: "startAmbientListening" },
-          });
+    // --- DATA & CORE LOGIC ---
+    async fetchAllData() { await this.fetchNotes(); await this.fetchTags(); },
+    async fetchNotes() {
+      const notes = await store.getNotes();
+      this.notes = await Promise.all(notes.map(async (note) => {
+        if (note.audioUrl && note.audioUrl.startsWith("blob:")) {
+          try {
+            note.audioUrl = await this.convertBlobUrlToDataUrl(note.audioUrl);
+            await store.saveNote(note);
+          } catch (error) { console.warn(`Failed to migrate blob URL for note ${note.id}:`, error); }
         }
-
-        // Step 6: Initialize UI and complete loading
-        this.loadingMessage = "Finalizing...";
-        this.isHeaderLoading = false;
-
-        // Small delay to ensure smooth transition
-        setTimeout(() => {
-          this.isLoading = false;
-          console.log("✅ Notes & Tasks Vue App initialized successfully");
-          window.endMeasurement("app_initialization");
-        }, 500);
-      } catch (error) {
-        console.error("Fatal initialization error:", error);
-        this.loadingMessage = "Error during initialization";
-        this.isLoading = false;
-        this.isSidebarLoading = false;
-        this.isNotesLoading = false;
-        this.isHeaderLoading = false;
+        // Ensure all notes have a tags array
+        if (!note.tags) {
+          note.tags = [];
+        }
+        return note;
+      }));
+    },
+    async fetchTags() {
+        this.allTags = await store.getTags();
+    },
+    async saveNote(noteToSave) {
+      console.log('Main: Saving note:', noteToSave);
+      this.saveStatus = 'saving';
+      try {
+        const analysis = await aiService.analyzeNote(noteToSave.content);
+        const noteToStore = { ...noteToSave, ...analysis, updatedAt: new Date().toISOString() };
+        console.log('Main: Note to store:', noteToStore);
+        const savedNote = await store.saveNote(noteToStore);
+        console.log('Main: Saved note:', savedNote);
+        this.updateNoteInState(savedNote);
+        if (this.editingNote && this.editingNote.id === savedNote.id) this.editingNote = { ...savedNote };
+        this.saveStatus = 'saved';
+        setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle' }, 2000);
+      } catch (error) { console.error("Failed to save note:", error); this.saveStatus = 'error'; }
+    },
+    async deleteNote(noteId) {
+      const confirmed = await alertService.confirm('Delete Note', 'Are you sure you want to permanently delete this note?', { confirmText: 'Delete' });
+      if (confirmed) {
+        if (this.editingNote && this.editingNote.id === noteId) this.closeEditor();
+        await store.deleteNote(noteId);
+        await this.fetchNotes();
       }
     },
-
-    // Load notes from store
-    async loadNotes() {
-      const notes = await window.store.getNotes();
-      this.notes = notes;
+    createNewNote(content = "", shouldOpenEditor = true) {
+        const timestamp = new Date();
+        const summary = content ? `Voice Note ${timestamp.toLocaleTimeString()}` : "New Note";
+        const newNote = { id: `note_${timestamp.getTime()}`, summary, content, createdAt: timestamp.toISOString(), updatedAt: timestamp.toISOString(), isFavorite: false, isArchived: false, topics: [], tags: [], sentiment: "neutral", reminderAt: null };
+        this.notes.unshift(newNote);
+        if (shouldOpenEditor) this.editNote(newNote);
+        return newNote;
     },
-
-    // Load organization data
-    async loadOrganizationData() {
-      // Load notebooks and tags from store
-      this.notebooks = await window.store.getNotebooks();
-      this.tags = await window.store.getTags();
-    },
-
-    // Sort notes based on current sort setting
-    sortNotes(notes) {
-      const sorted = [...notes];
-      switch (this.currentSort) {
-        case "dateModified":
-          return sorted.sort(
-            (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-          );
-        case "dateCreated":
-          return sorted.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          );
-        case "title":
-          return sorted.sort((a, b) => a.summary.localeCompare(b.summary));
-        default:
-          return sorted;
-      }
-    },
-
-    // Navigation methods
-    switchView(view) {
-      this.currentView = view;
-    },
-
-    // Note management methods
-    createNote() {
-      const newNote = {
-        id: Date.now().toString(),
-        summary: "",
-        content: "",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isFavorite: false,
-        isArchived: false,
-        tags: [],
-        notebookId: null,
-      };
-
-      this.notes.unshift(newNote);
-      this.editNote(newNote);
-    },
-
     editNote(note) {
-      this.selectedNote = note;
-      this.editingNote = { ...note };
-      this.editorTitle = note.summary;
-      this.editorContent = note.content;
-      this.editorVisible = true;
-    },
-
-    saveNote() {
-      if (this.editingNote) {
-        const index = this.notes.findIndex((n) => n.id === this.editingNote.id);
-        if (index !== -1) {
-          this.notes[index] = {
-            ...this.editingNote,
-            summary: this.editorTitle,
-            content: this.editorContent,
-            updatedAt: new Date().toISOString(),
-          };
-          window.store.saveNote(this.notes[index]);
-        }
-      }
-
-      this.closeEditor();
-    },
-
-    closeEditor() {
-      this.editorVisible = false;
-      this.selectedNote = null;
-      this.editingNote = null;
-      this.editorTitle = "";
-      this.editorContent = "";
-    },
-
-    deleteNote(note) {
-      this.confirmAction = () => {
-        const index = this.notes.findIndex((n) => n.id === note.id);
-        if (index !== -1) {
-          this.notes.splice(index, 1);
-          window.store.deleteNote(note.id);
-        }
-        this.closeConfirmationModal();
-      };
-      this.confirmMessage = "Are you sure you want to delete this note?";
-      this.showConfirmationModal = true;
-    },
-
-    // Modal methods
-    openModal(modalName) {
-      this[`show${modalName}Modal`] = true;
-    },
-
-    closeModal(modalName) {
-      this[`show${modalName}Modal`] = false;
-    },
-
-    closeConfirmationModal() {
-      this.showConfirmationModal = false;
-      this.confirmAction = null;
-    },
-
-    confirmAction() {
-      if (this.confirmAction) {
-        this.confirmAction();
-      }
-      this.closeConfirmationModal();
-    },
-
-    // Search method
-    onSearch(event) {
-      this.searchQuery = event.target.textContent || "";
-    },
-
-    // Sidebar toggle - cycles through expanded -> collapsed -> expanded
-    toggleSidebar() {
-      if (this.sidebarState === "expanded") {
-        this.sidebarState = "collapsed";
-      } else if (this.sidebarState === "collapsed") {
-        this.sidebarState = "expanded";
-      } else {
-        this.sidebarState = "expanded"; // fallback
-      }
-      this.updateSidebarClasses();
-    },
-
-    // Update CSS classes on body based on sidebar state
-    updateSidebarClasses() {
-      const body = document.body;
-      body.classList.remove("has-collapsed-sidebar", "has-expanded-sidebar");
-
-      if (this.sidebarState === "collapsed" && this.isSidebarVisible) {
-        body.classList.add("has-collapsed-sidebar");
-      } else if (this.sidebarState === "expanded" && this.isSidebarVisible) {
-        body.classList.add("has-expanded-sidebar");
-      }
-      // Note: No classes added when sidebar is hidden (mobile behavior)
-    },
-
-    // Enhanced sidebar toggle with animation classes
-    toggleSidebar() {
-      const currentState = this.sidebarState;
-
-      if (this.sidebarState === "expanded") {
-        this.sidebarState = "collapsed";
-      } else if (this.sidebarState === "collapsed") {
-        this.sidebarState = "expanded";
-        // Add expanding class for staggered animations when expanding from collapsed
+        this.editingNote = JSON.parse(JSON.stringify(note));
+        // Position the resizer after the editor becomes visible
         this.$nextTick(() => {
-          const sidebar = document.querySelector(".sidebar");
-          if (sidebar) {
-            sidebar.classList.add("sidebar-expanding");
-            setTimeout(() => {
-              sidebar.classList.remove("sidebar-expanding");
-            }, 600);
-          }
+            this.positionResizer();
         });
+    },
+    positionResizer() {
+        const editor = document.querySelector('.note-editor');
+        const resizer = document.querySelector('.editor-resizer');
+        if (editor && resizer) {
+            // Use computed style to get the actual rendered width
+            const computedStyle = window.getComputedStyle(editor);
+            const editorWidth = parseInt(computedStyle.width) || editor.offsetWidth || 400; // fallback to 400px
+
+            // Position the resizer at the left edge of the editor
+            // The editor is positioned from right: 0, so we need to position
+            // the resizer at the same position as the editor's left edge
+            const container = editor.parentElement;
+            const containerWidth = container.offsetWidth;
+
+            // The editor's left edge is at: containerWidth - editorWidth
+            // So the resizer should be positioned at: containerWidth - editorWidth
+            const resizerLeft = containerWidth - editorWidth;
+            resizer.style.left = `${resizerLeft}px`;
+        }
+    },
+    closeEditor() {
+        if (this.isDictating) aiService.stopDictation();
+        this.editingNote = null;
+        // Reset widths and resizer position when closing editor
+        const mainContent = document.querySelector('.main-content');
+        const resizer = document.querySelector('.editor-resizer');
+        if (mainContent) {
+            mainContent.style.width = '';
+        }
+        if (resizer) {
+            resizer.style.left = '';
+        }
+    },
+    
+    // --- THEME MANAGEMENT ---
+    setTheme(theme) {
+      this.currentTheme = theme;
+      localStorage.setItem("theme", theme);
+
+      // Apply theme to document
+      if (theme === "auto") {
+        // Remove data-theme attribute for auto mode (uses CSS media queries)
+        document.documentElement.removeAttribute("data-theme");
+        // Listen for system theme changes
+        this.watchSystemTheme();
       } else {
-        this.sidebarState = "expanded";
+        document.documentElement.setAttribute("data-theme", theme);
+        // Stop watching system theme when manual mode is selected
+        this.stopWatchingSystemTheme();
       }
-
-      this.updateSidebarClasses();
     },
 
-    // Recording methods (placeholder for now)
-    startRecording() {
-      this.isRecording = true;
-      this.recordingTime = "0:00";
+    watchSystemTheme() {
+      // Watch for system theme changes
+      if (window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.addEventListener('change', this.handleSystemThemeChange.bind(this));
+      }
     },
 
-    stopRecording() {
-      this.isRecording = false;
-      this.recordingTime = "0:00";
+    stopWatchingSystemTheme() {
+      // Stop watching for system theme changes
+      if (window.matchMedia) {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        mediaQuery.removeEventListener('change', this.handleSystemThemeChange.bind(this));
+      }
     },
-  },
 
-  async mounted() {
-    await this.init();
-    this.updateSidebarClasses(); // Set initial sidebar classes
-    window.initSettingsView();
-  },
-});
+    handleSystemThemeChange(e) {
+      // Only apply system theme changes if current theme is set to auto
+      if (this.currentTheme === "auto") {
+        // The CSS will automatically handle the theme change via media queries
+        // We don't need to do anything here as the CSS variables will update automatically
+        console.log('System theme changed:', e.matches ? 'dark' : 'light');
+      }
+    },
+    getCurrentTheme() {
+      return this.currentTheme;
+    },
+    openHelp() {
+      // Simple help modal or redirect to help documentation
+      alertService.confirm(
+        'Help & Documentation',
+        'Welcome to Notes & Tasks!\n\n' +
+        '• Click the microphone button to start voice dictation\n' +
+        '• Use the sidebar to navigate between notes, favorites, and archived items\n' +
+        '• Click the search bar to find specific notes\n' +
+        '• Use the grid/list toggle to change your view\n' +
+        '• Tag your notes for better organization\n' +
+        '• Set reminders for important notes\n\n' +
+        'For more detailed help, visit our documentation.',
+        { confirmText: 'Got it!', cancelText: false }
+      );
+    },
 
-// Define components before mounting the app
-const AppHeader = {
-  template: `
-    <header class="app-header">
-      <div v-if="isRecording" class="recording-indicator">
-        <div class="recording-dot"></div>
-        <span>Recording</span>
-        <span class="recording-time">{{ recordingTime }}</span>
-      </div>
-    </header>
-  `,
-  props: ["isRecording", "recordingTime"],
-};
-
-const AppSidebar = {
-  template: `
-    <nav class="sidebar bg-light border-end d-flex flex-column" style="width: 280px; min-height: 100vh;">
-      <div class="sidebar-header d-flex justify-content-between align-items-center p-3 border-bottom">
-        <h1 class="app-title h5 mb-0 text-primary">Notes & Tasks</h1>
-        <button @click="$emit('toggle-sidebar')" class="sidebar-toggle btn btn-outline-secondary btn-sm">
-          <i class="bi bi-list"></i>
-        </button>
-      </div>
-
-      <div class="sidebar-nav flex-fill overflow-auto">
-        <div class="nav-section mb-4">
-          <div
-            class="nav-item d-flex align-items-center justify-content-between p-2 mb-1 rounded"
-            :class="{ active: currentView === 'all-notes' }"
-            @click="$emit('switch-view', 'all-notes')"
-            style="cursor: pointer;"
-          >
-            <div class="d-flex align-items-center">
-              <i class="bi bi-journal-text me-2"></i>
-              <span class="nav-text">All Notes</span>
-            </div>
-            <span class="nav-count badge bg-secondary">{{ allNotesCount }}</span>
-          </div>
-          <div
-            class="nav-item d-flex align-items-center justify-content-between p-2 mb-1 rounded"
-            :class="{ active: currentView === 'favorites' }"
-            @click="$emit('switch-view', 'favorites')"
-            style="cursor: pointer;"
-          >
-            <div class="d-flex align-items-center">
-              <i class="bi bi-star me-2"></i>
-              <span class="nav-text">Favorites</span>
-            </div>
-            <span class="nav-count badge bg-secondary">{{ favoritesCount }}</span>
-          </div>
-          <div
-            class="nav-item d-flex align-items-center justify-content-between p-2 mb-1 rounded"
-            :class="{ active: currentView === 'recent' }"
-            @click="$emit('switch-view', 'recent')"
-            style="cursor: pointer;"
-          >
-            <div class="d-flex align-items-center">
-              <i class="bi bi-clock me-2"></i>
-              <span class="nav-text">Recent</span>
-            </div>
-          </div>
-          <div
-            class="nav-item d-flex align-items-center justify-content-between p-2 mb-1 rounded"
-            :class="{ active: currentView === 'archived' }"
-            @click="$emit('switch-view', 'archived')"
-            style="cursor: pointer;"
-          >
-            <div class="d-flex align-items-center">
-              <i class="bi bi-archive me-2"></i>
-              <span class="nav-text">Archived</span>
-            </div>
-            <span class="nav-count badge bg-secondary">{{ archivedCount }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="sidebar-footer p-3 border-top mt-auto">
-        <button @click="$emit('create-note')" class="new-note-btn btn btn-primary w-100 d-flex align-items-center justify-content-center">
-          <i class="bi bi-plus-lg me-2"></i>
-          <span>New Note</span>
-        </button>
-      </div>
-    </nav>
-  `,
-  props: ["currentView", "allNotesCount", "favoritesCount", "archivedCount"],
-  emits: ["toggle-sidebar", "switch-view", "create-note"],
-};
-
-const NotesList = {
-  template: `
-    <div class="notes-list-container flex-fill overflow-auto">
-      <div class="notes-list row g-3 p-3">
-        <div
-          v-for="note in notes"
-          :key="note.id"
-          class="note-card col-md-6 col-lg-4 col-xl-3"
-          @click="$emit('edit-note', note)"
-        >
-          <div class="card h-100">
-            <div class="card-body">
-              <h5 class="card-title">{{ note.summary || 'Untitled' }}</h5>
-              <p class="card-text">{{ note.content.substring(0, 150) }}...</p>
-              <small class="text-muted">{{ formatDate(note.updatedAt) }}</small>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="notes.length === 0" class="empty-state-container d-flex flex-column align-items-center justify-content-center p-5 text-center">
-        <div class="empty-state-content">
-          <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
-          <h2 class="h4 mb-3">No notes yet</h2>
-          <p class="text-muted mb-4">Start writing your first note or create a task to get organized.</p>
-          <button @click="$emit('create-note')" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-2"></i>
-            Create your first note
-          </button>
-        </div>
-      </div>
-    </div>
-  `,
-  props: ["notes"],
-  emits: ["edit-note", "create-note"],
-  methods: {
-    formatDate(dateString) {
-      if (!dateString) return "";
-      try {
-        const date = new Date(dateString);
-        // Check if date is valid
-        if (isNaN(date.getTime())) {
-          return "Invalid date";
+    // --- UI & VIEW HANDLERS ---
+    switchView(view) {
+        console.log('Switching to view:', view);
+        this.currentView = view;
+        this.editingNote = null;
+        // Clear search when switching views (except for search view itself)
+        if (view !== 'search' && !view.startsWith('tag:')) {
+            this.searchQuery = '';
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
         }
-        return (
-          date.toLocaleDateString() +
-          " " +
-          date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        );
-      } catch (error) {
-        console.error("Error formatting date:", error, dateString);
-        return "Invalid date";
-      }
     },
-  },
-};
-
-const NoteEditor = {
-  template: `
-    <aside v-if="visible" class="note-editor d-flex flex-column border-start bg-white">
-      <div class="editor-header border-bottom p-3">
-        <div class="editor-title mb-3">
-          <input
-            v-model="title"
-            placeholder="Note title..."
-            class="note-title-input form-control form-control-lg border-0 px-0"
-            style="font-size: 1.5rem; font-weight: 600;"
-          />
-          <div class="note-meta d-flex justify-content-between align-items-center mt-2 text-muted small">
-            <span class="note-date">{{ formatDate(note.updatedAt) }}</span>
-            <span class="note-word-count">{{ wordCount }} words</span>
-          </div>
-        </div>
-        <div class="editor-actions d-flex gap-2">
-          <button class="editor-btn btn btn-outline-secondary btn-sm">
-            <i class="bi bi-pin"></i>
-          </button>
-          <button class="editor-btn btn btn-outline-secondary btn-sm">
-            <i class="bi bi-tag"></i>
-          </button>
-          <button class="editor-btn btn btn-outline-secondary btn-sm">
-            <i class="bi bi-flag"></i>
-          </button>
-          <button class="editor-btn btn btn-outline-secondary btn-sm">
-            <i class="bi bi-share"></i>
-          </button>
-          <button class="editor-btn btn btn-outline-secondary btn-sm">
-            <i class="bi bi-archive"></i>
-          </button>
-          <button @click="$emit('close')" class="editor-btn btn btn-outline-danger btn-sm">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-      </div>
-
-      <div class="editor-content flex-fill p-3">
-        <div
-          contenteditable="true"
-          class="note-content-editable form-control border-0 p-0 h-100"
-          style="resize: none; overflow-y: auto;"
-          @input="updateContent"
-          v-html="content"
-        ></div>
-      </div>
-
-      <div class="editor-footer border-top p-3 d-flex justify-content-between align-items-center">
-        <div class="editor-status">
-          <span class="status-text text-muted small">Ready</span>
-        </div>
-        <div class="editor-actions-footer d-flex gap-2">
-          <button @click="$emit('save')" class="editor-btn btn btn-primary btn-sm">
-            Save
-          </button>
-          <button @click="$emit('cancel')" class="editor-btn btn btn-outline-secondary btn-sm">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </aside>
-  `,
-  props: ["visible", "note"],
-  emits: ["close", "save", "cancel"],
-  data() {
-    return {
-      title: this.note?.summary || "",
-      content: this.note?.content || "",
-    };
-  },
-  computed: {
-    wordCount() {
-      return this.content.trim().split(/\s+/).length;
+    toggleSidebar() { 
+        this.isSidebarCollapsed = !this.isSidebarCollapsed; 
+        localStorage.setItem("sidebarCollapsed", this.isSidebarCollapsed);
     },
-  },
-  methods: {
-    formatDate(dateString) {
-      if (!dateString) return "";
-      try {
-        const date = new Date(dateString);
-        // Check if date is valid
-        if (isNaN(date.getTime())) {
-          return "Invalid date";
+    toggleLayout() { this.currentLayout = this.currentLayout === 'grid' ? 'list' : 'grid'; },
+    handleSortChange() {
+      const sorts = ['updatedAt-desc', 'createdAt-desc', 'summary-asc'];
+      this.currentSort = sorts[(sorts.indexOf(this.currentSort) + 1) % sorts.length];
+    },
+    getSortLabel() {
+      const labels = {
+        'updatedAt-desc': 'Newest',
+        'createdAt-desc': 'Created',
+        'summary-asc': 'A-Z'
+      };
+      return labels[this.currentSort] || 'Sort';
+    },
+    handleSearch(event) { this.searchQuery = event.target.value.trim().replace(/\s+/g, ' '); },
+    openTagModal(note) { this.noteToTag = note; },
+    closeTagModal() { this.noteToTag = null; },
+    handleTagClick(tagId) {
+        console.log('Filtering by tag:', tagId);
+        this.currentView = `tag:${tagId}`;
+        // Don't set searchQuery for pure tag filtering
+        // Clear search if it was previously set to a tag name to avoid confusion
+        if (this.searchQuery && this.allTags.find(t => t.name === this.searchQuery)) {
+            this.searchQuery = '';
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
         }
-        return (
-          date.toLocaleDateString() +
-          " " +
-          date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        );
-      } catch (error) {
-        console.error("Error formatting date:", error, dateString);
-        return "Invalid date";
+    },
+    // **REVISED & CORRECTED TAG CREATION LOGIC**
+    async handleCreateTag(tagName = null) {
+        // If tagName is not provided, use newTagName (for backward compatibility)
+        const name = (tagName || this.newTagName || '').trim();
+        if (!name) return;
+
+        const newTag = {
+            id: `tag_${Date.now()}`,
+            name,
+            color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+        };
+
+        try {
+            // Save to the database
+            const savedTag = await store.saveTag(newTag);
+
+            // **FIX:** Directly update the local state for instant reactivity
+            this.allTags.push(savedTag);
+
+            // Keep the list sorted consistently
+            this.allTags.sort((a,b) => a.name.localeCompare(b.name));
+
+            // Clear the input field
+            this.newTagName = "";
+        } catch (error) {
+            console.error("Failed to save tag:", error);
+            // Show an error to the user
+            alertService.confirm('Error', 'Could not save the new tag. Please try again.');
+        }
+    },
+    
+    // --- CARD ACTION HANDLERS ---
+    async handleToggleFavorite(note) {
+      const updatedNote = { ...note, isFavorite: !note.isFavorite };
+      this.updateNoteInState(updatedNote);
+      await store.saveNote(updatedNote);
+    },
+    async handleArchiveNote(note) {
+      const isArchived = !!note.isArchived;
+      if (this.editingNote && this.editingNote.id === note.id) this.closeEditor();
+      const updatedNote = { ...note, isArchived: !isArchived };
+      this.updateNoteInState(updatedNote);
+      await store.saveNote(updatedNote);
+      await this.fetchNotes();
+    },
+    async setReminder(note) {
+      const currentReminder = note.reminderAt ? new Date(note.reminderAt).toISOString().slice(0, 16) : '';
+      const result = await alertService.input(
+        note.reminderAt ? 'Edit Reminder' : 'Set Reminder',
+        note.reminderAt ? 'Edit the reminder date and time:' : 'Enter date and time for the reminder:',
+        {
+          inputType: 'datetime-local',
+          inputPlaceholder: 'YYYY-MM-DDTHH:MM',
+          defaultValue: currentReminder,
+          confirmText: note.reminderAt ? 'Update Reminder' : 'Set Reminder',
+          cancelText: 'Cancel'
+        }
+      );
+
+      if (result !== null) {
+        const updatedNote = {
+          ...note,
+          reminderAt: result ? new Date(result).toISOString() : null
+        };
+        this.updateNoteInState(updatedNote);
+        await store.saveNote(updatedNote);
+      }
+    },
+    async handleUpdateTags({ noteId, tagIds }) {
+      const noteToUpdate = this.notes.find(n => n.id === noteId);
+      if (noteToUpdate) {
+        const updatedNote = { ...noteToUpdate, tags: tagIds };
+        this.updateNoteInState(updatedNote);
+        await store.saveNote(updatedNote);
       }
     },
 
-    updateContent(event) {
-      this.content = event.target.innerHTML;
+    // --- AI & DICTATION HANDLERS ---
+    handleDictateToggle() {
+      if (this.isDictating) aiService.stopDictation();
+      else {
+        if (this.editingNote) {
+          this.contentBeforeDictation = this.editingNote.content;
+          this.$nextTick(() => { const editorEl = document.querySelector('.note-content-editable'); if(editorEl) editorEl.focus(); });
+        } else {
+          this.contentBeforeDictation = "";
+          this.createNewNote("", true);
+        }
+        aiService.startDictation();
+      }
+    },
+    handleAIStatusUpdate(event) { this.aiStatus = event.detail; },
+    handleAICreateNote(event) { this.createNewNote(event.detail.content); },
+    handleAISearch(event) {
+      this.searchQuery = event.detail.query;
+      const searchInput = document.getElementById("search-input");
+      if (searchInput) searchInput.value = this.searchQuery;
+    },
+    handleAIDictationStarted() { this.isDictating = true; },
+    handleAIDictationUpdate(event) {
+      if (this.editingNote) {
+        const newText = event.detail.transcript;
+        const separator = this.contentBeforeDictation.trim() === '' ? '' : ' ';
+        this.editingNote.content = this.contentBeforeDictation + separator + newText;
+      }
+    },
+    handleAIDictationFinished(event) {
+      if (this.editingNote) this.editingNote.audioUrl = event.detail.audioUrl;
+      this.isDictating = false;
+    },
+    
+    // --- EDITOR RESIZE HANDLERS ---
+    startResize(event) {
+        event.preventDefault();
+        this.isResizing = true;
+        document.body.classList.add('is-resizing');
+
+        // Ensure the editor has an explicit width set for the resize operation
+        const editor = document.querySelector('.note-editor');
+        const mainContent = document.querySelector('.main-content');
+        const resizer = document.querySelector('.editor-resizer');
+        if (editor && mainContent && resizer) {
+            // Set initial widths if not already set
+            if (!editor.style.width) {
+                const containerWidth = mainContent.parentElement.offsetWidth;
+                const initialEditorWidth = Math.min(500, Math.max(350, containerWidth * 0.4));
+                editor.style.width = `${initialEditorWidth}px`;
+                mainContent.style.width = `${containerWidth - initialEditorWidth}px`;
+            }
+
+            // Position the resizer at the left edge of the editor
+            const editorWidth = parseInt(editor.style.width) || editor.offsetWidth || 400;
+            const containerWidth = mainContent.parentElement.offsetWidth;
+            const resizerLeft = containerWidth - editorWidth;
+            resizer.style.left = `${resizerLeft}px`;
+        }
+
+        window.addEventListener('mousemove', this.doResize);
+        window.addEventListener('mouseup', this.stopResize);
+    },
+    doResize(event) {
+        if (!this.isResizing) return;
+        const editor = document.querySelector('.note-editor');
+        const mainContent = document.querySelector('.main-content');
+        const resizer = document.querySelector('.editor-resizer');
+        const sidebar = document.querySelector('.sidebar');
+        const container = mainContent.parentElement;
+        if (!editor || !mainContent || !resizer || !sidebar || !container) return;
+
+        const containerRect = container.getBoundingClientRect();
+
+        // Calculate mouse position relative to the container
+        const relativeX = event.clientX - containerRect.left;
+
+        // Ensure minimum widths
+        const minMainWidth = 300;
+        const minEditorWidth = 350;
+        const maxEditorWidth = Math.max(minEditorWidth, containerRect.width * 0.8);
+
+        // For left-side dragging:
+        // - Editor width = distance from left edge to mouse position
+        // - Main content width = distance from mouse position to right edge
+        const newEditorWidth = Math.max(minEditorWidth, Math.min(maxEditorWidth, relativeX));
+        const newMainWidth = Math.max(minMainWidth, containerRect.width - relativeX);
+
+        // Apply the new widths
+        editor.style.width = `${newEditorWidth}px`;
+        mainContent.style.width = `${newMainWidth}px`;
+
+        // Position the resizer at the left edge of the editor (same as editor's left edge)
+        const containerWidth = container.offsetWidth;
+        const resizerLeft = containerWidth - newEditorWidth;
+        resizer.style.left = `${resizerLeft}px`;
+    },
+    stopResize() {
+        this.isResizing = false; document.body.classList.remove('is-resizing');
+        window.removeEventListener('mousemove', this.doResize); window.removeEventListener('mouseup', this.stopResize);
+    },
+
+    // --- HELPERS & REMINDERS ---
+    updateNoteInState(updatedNote) {
+      const index = this.notes.findIndex(n => n.id === updatedNote.id);
+      if (index !== -1) this.notes.splice(index, 1, updatedNote);
+    },
+    async convertBlobUrlToDataUrl(blobUrl) {
+        const response = await fetch(blobUrl); const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result); reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    },
+    checkReminders() {
+        const now = new Date();
+        const upcomingNotes = this.notes.filter(note => {
+            if (!note.reminderAt || note.isArchived || note.reminderSeen) return false;
+            return new Date(note.reminderAt) <= now;
+        });
+        upcomingNotes.forEach(async (note) => {
+            await alertService.confirm('Reminder', `Your note titled "${note.summary}" is due now.`, { confirmText: 'Mark as Done', cancelText: 'Snooze' });
+            const updatedNote = { ...note, reminderSeen: true };
+            this.updateNoteInState(updatedNote);
+            await store.saveNote(updatedNote);
+        });
     },
   },
   watch: {
-    note: {
-      handler(newNote) {
-        this.title = newNote?.summary || "";
-        this.content = newNote?.content || "";
-      },
-      deep: true,
-      immediate: true,
+    isSidebarCollapsed(isCollapsed) {
+      document.body.classList.toggle("sidebar-collapsed", isCollapsed);
     },
+    handsFreeMode(newValue) {
+      localStorage.setItem("handsFreeMode", newValue);
+      newValue ? aiService.startAmbientListening() : aiService.stopAmbientListening();
+    },
+    newTagName(newValue, oldValue) {
+      // Ensure newTagName is never undefined
+      if (newValue === undefined) {
+        this.newTagName = '';
+      }
+    },
+    editingNote: {
+      handler(newNote, oldNote) {
+        if (newNote && !oldNote) {
+          // Editor just opened - position the resizer
+          this.$nextTick(() => {
+            setTimeout(() => {
+              this.positionResizer();
+            }, 100); // Small delay to ensure DOM is fully updated
+          });
+        } else if (!newNote && oldNote) {
+          // Editor just closed - reset resizer position
+          const resizer = document.querySelector('.editor-resizer');
+          if (resizer) {
+            resizer.style.left = '';
+          }
+        }
+      },
+      immediate: true
+    }
   },
-};
+  async created() {
+    // Apply initial theme
+    this.setTheme(this.currentTheme);
 
-// Compact sidebar component for collapsed state
-const CompactSidebar = {
-  template: `
-    <nav class="sidebar-compact bg-light border-end d-flex flex-column align-items-center" style="width: 60px; min-height: 100vh;">
-      <div class="sidebar-header-compact p-3 border-bottom w-100 text-center">
-        <button @click="$emit('toggle-sidebar')" class="sidebar-toggle-compact btn btn-outline-primary btn-sm p-2" title="Expand Sidebar">
-          <i class="bi bi-chevron-right"></i>
-        </button>
-      </div>
-
-      <div class="sidebar-nav-compact flex-fill d-flex flex-column align-items-center py-3">
-        <button
-          @click="$emit('switch-view', 'all-notes')"
-          class="nav-btn-compact btn btn-sm mb-2 p-2"
-          :class="{ active: currentView === 'all-notes' }"
-          title="All Notes"
-        >
-          <i class="bi bi-journal-text"></i>
-        </button>
-        <button
-          @click="$emit('switch-view', 'favorites')"
-          class="nav-btn-compact btn btn-sm mb-2 p-2"
-          :class="{ active: currentView === 'favorites' }"
-          title="Favorites"
-        >
-          <i class="bi bi-star"></i>
-        </button>
-        <button
-          @click="$emit('switch-view', 'recent')"
-          class="nav-btn-compact btn btn-sm mb-2 p-2"
-          :class="{ active: currentView === 'recent' }"
-          title="Recent"
-        >
-          <i class="bi bi-clock"></i>
-        </button>
-        <button
-          @click="$emit('switch-view', 'archived')"
-          class="nav-btn-compact btn btn-sm mb-2 p-2"
-          :class="{ active: currentView === 'archived' }"
-          title="Archived"
-        >
-          <i class="bi bi-archive"></i>
-        </button>
-      </div>
-
-      <div class="sidebar-footer-compact p-3 border-top w-100 text-center">
-        <button @click="$emit('create-note')" class="new-note-compact btn btn-primary btn-sm p-2" title="New Note">
-          <i class="bi bi-plus-lg"></i>
-        </button>
-      </div>
-    </nav>
-  `,
-  props: ["currentView"],
-  emits: ["toggle-sidebar", "switch-view", "create-note"],
-};
-
-// Skeleton loader components
-const SkeletonSidebar = {
-  template: `
-    <nav class="sidebar bg-light border-end d-flex flex-column skeleton-sidebar" style="width: 280px; min-height: 100vh;">
-      <div class="skeleton-sidebar-header skeleton p-3"></div>
-
-      <div class="sidebar-nav flex-fill overflow-auto p-2">
-        <div class="skeleton-nav-item skeleton mb-2"></div>
-        <div class="skeleton-nav-item skeleton mb-2"></div>
-        <div class="skeleton-nav-item skeleton mb-2"></div>
-        <div class="skeleton-nav-item skeleton mb-2"></div>
-        <div class="skeleton-nav-item skeleton mb-2"></div>
-      </div>
-
-      <div class="sidebar-footer p-3 border-top">
-        <div class="skeleton-toolbar skeleton"></div>
-      </div>
-    </nav>
-  `,
-};
-
-const SkeletonHeader = {
-  template: `
-    <header class="content-toolbar d-flex justify-content-between align-items-center p-3 border-bottom skeleton-notes-header">
-      <div class="toolbar-left d-flex align-items-center flex-grow-1 me-3">
-        <div class="search-container d-flex align-items-center position-relative flex-grow-1 me-3">
-          <div class="skeleton-search skeleton"></div>
-        </div>
-      </div>
-      <div class="toolbar-right d-flex gap-2 skeleton-header-controls">
-        <div class="skeleton-header-btn skeleton"></div>
-        <div class="skeleton-header-btn skeleton"></div>
-      </div>
-    </header>
-  `,
-};
-
-const SkeletonNoteCard = {
-  template: `
-    <div class="skeleton-note-card skeleton">
-      <div class="skeleton-note-title skeleton"></div>
-      <div class="skeleton-note-content skeleton"></div>
-      <div class="skeleton-note-meta skeleton"></div>
-    </div>
-  `,
-};
-
-const SkeletonNotesList = {
-  template: `
-    <div class="notes-list-container flex-fill overflow-auto">
-      <div class="notes-list row g-3 p-3">
-        <div v-for="n in 8" :key="n" class="col-md-6 col-lg-4 col-xl-3">
-          <skeleton-note-card></skeleton-note-card>
-        </div>
-      </div>
-    </div>
-  `,
-  components: {
-    SkeletonNoteCard,
+    await store.initDB();
+    await this.fetchAllData();
+    aiService.init();
+    window.addEventListener("ai-status-update", this.handleAIStatusUpdate);
+    window.addEventListener("ai-create-note", this.handleAICreateNote);
+    window.addEventListener("ai-search", this.handleAISearch);
+    window.addEventListener("ai-dictation-started", this.handleAIDictationStarted);
+    window.addEventListener("ai-dictation-update", this.handleAIDictationUpdate);
+    window.addEventListener("ai-dictation-finished", this.handleAIDictationFinished);
+    this.isLoading = false;
+    setInterval(this.checkReminders, 60000);
   },
-};
-
-const SkeletonLoader = {
-  template: `
-    <div class="app-layout d-flex">
-      <skeleton-sidebar></skeleton-sidebar>
-      <main class="main-content flex-fill" role="main">
-        <skeleton-header></skeleton-header>
-        <skeleton-notes-list></skeleton-notes-list>
-      </main>
-    </div>
-  `,
-  components: {
-    SkeletonSidebar,
-    SkeletonHeader,
-    SkeletonNotesList,
+  mounted() {
+    document.body.classList.toggle("sidebar-collapsed", this.isSidebarCollapsed);
+    // Position resizer when component mounts and window resizes
+    if (this.editingNote) {
+      this.positionResizer();
+    }
+    window.addEventListener('resize', () => {
+      if (this.editingNote) {
+        this.positionResizer();
+      }
+    });
   },
-};
-
-// Register components with the app
-app.component("AppHeader", AppHeader);
-app.component("AppSidebar", AppSidebar);
-app.component("CompactSidebar", CompactSidebar);
-app.component("NotesList", NotesList);
-app.component("NoteEditor", NoteEditor);
-app.component("SkeletonLoader", SkeletonLoader);
-app.component("SkeletonSidebar", SkeletonSidebar);
-app.component("SkeletonHeader", SkeletonHeader);
-app.component("SkeletonNoteCard", SkeletonNoteCard);
-app.component("SkeletonNotesList", SkeletonNotesList);
-
-// Mount the app
+  beforeUnmount() {
+    window.removeEventListener("ai-status-update", this.handleAIStatusUpdate);
+    window.removeEventListener("ai-create-note", this.handleAICreateNote);
+    window.removeEventListener("ai-search", this.handleAISearch);
+    window.removeEventListener("ai-dictation-started", this.handleAIDictationStarted);
+    window.removeEventListener("ai-dictation-update", this.handleAIDictationUpdate);
+    window.removeEventListener("ai-dictation-finished", this.handleAIDictationFinished);
+    window.removeEventListener('resize', this.handleResize);
+    // Clean up system theme watcher
+    this.stopWatchingSystemTheme();
+  },
+});
 app.mount("#app");

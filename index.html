@@ -4,697 +4,119 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Notes & Tasks</title>
-    <!-- Bootstrap CSS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <!-- Bootstrap Icons -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
-    />
-    <!-- Custom Styles for NotesAI -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"/>
+    <link rel="stylesheet" href="styles/theme.css" />
     <link rel="stylesheet" href="styles/custom.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Caveat:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Iconify CDN for icons -->
-    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   </head>
   <body>
-    <div id="app">
-      <!-- Skeleton Loader for Initial Loading -->
+    <div id="app" class="app-layout">
       <skeleton-loader v-if="isLoading"></skeleton-loader>
-
-      <!-- Main App Layout -->
-      <div v-else class="app-layout d-flex">
-        <!-- App Header -->
+      <template v-else>
+        <!-- REFACTORED: Updated event binding to toggle-sidebar -->
         <app-header
-          :is-recording="isRecording"
-          :recording-time="recordingTime"
-        ></app-header>
-
-        <!-- Sidebar - Show skeleton if still loading -->
-        <template v-if="isSidebarVisible">
-          <skeleton-sidebar v-if="isSidebarLoading"></skeleton-sidebar>
-          <template v-else>
-            <!-- Compact sidebar for collapsed state -->
-            <compact-sidebar
-              v-if="sidebarState === 'collapsed'"
-              :current-view="currentView"
-              @toggle-sidebar="toggleSidebar"
-              @switch-view="switchView"
-              @create-note="createNote"
-            ></compact-sidebar>
-            <!-- Full sidebar for expanded state -->
-            <app-sidebar
-              v-else
-              :current-view="currentView"
-              :all-notes-count="allNotesCount"
-              :favorites-count="favoritesCount"
-              :archived-count="archivedCount"
-              @toggle-sidebar="toggleSidebar"
-              @switch-view="switchView"
-              @create-note="createNote"
-            ></app-sidebar>
+          :is-dictating="isDictating"
+          :is-sidebar-collapsed="isSidebarCollapsed"
+          @open-settings="isSettingsModalVisible = true"
+          @open-help="openHelp"
+          @dictate-toggle="handleDictateToggle"
+          @toggle-sidebar="toggleSidebar"
+        >
+          <template #ai-status>
+            <div class="ai-status-container text-center" v-if="aiStatus.status !== 'disabled'">
+              <small class="text-muted">{{ aiStatus.message }}</small>
+            </div>
           </template>
-        </template>
+        </app-header>
 
-        <!-- Main Content Area -->
-        <main class="main-content" role="main">
-          <!-- Content Toolbar - Show skeleton if still loading -->
-          <skeleton-header v-if="isHeaderLoading"></skeleton-header>
-          <header
-            v-else
-            class="content-toolbar d-flex justify-content-between align-items-center p-3 border-bottom"
-          >
-            <div
-              class="toolbar-left d-flex align-items-center flex-grow-1 me-3"
-            >
-              <div
-                class="search-container d-flex align-items-center position-relative flex-grow-1 me-3"
-              >
-                <span class="search-icon me-2">
-                  <i class="bi bi-search"></i>
-                </span>
-                <div
-                  id="search-input"
-                  class="search-input form-control border-0 px-0"
-                  contenteditable="true"
-                  role="textbox"
-                  placeholder="Ask about your past, or start a new entry..."
-                  style="
-                    outline: none;
-                    box-shadow: none;
-                    background: transparent;
-                  "
-                  @input="onSearch"
-                ></div>
+        <div class="d-flex">
+          <!-- REFACTORED: Removed props and events related to pinning/hovering -->
+          <app-sidebar
+            :current-view="currentView"
+            :all-tags="allTags"
+            :newTagName="newTagName"
+            :is-sidebar-collapsed="isSidebarCollapsed"
+            @update:new-tag-name="(value) => { console.log('update:new-tag-name received:', value); newTagName = value; }"
+            @switch-view="switchView"
+            @create-note="createNewNote"
+            @tag-click="handleTagClick"
+            @create-tag="handleCreateTag"
+          ></app-sidebar>
+
+          <div :class="['main-content-wrapper', { 'editor-visible': !!editingNote }]">
+            <main class="main-content flex-fill">
+              <div class="content-toolbar d-flex justify-content-between align-items-center p-3 border-bottom shadow-sm">
+                <div class="toolbar-left d-flex align-items-center flex-grow-1 me-3">
+                  <div class="search-container position-relative flex-grow-1 me-3">
+                    <div class="input-group">
+                      <span class="input-group-text border-end-0">
+                        <i class="bi bi-search"></i>
+                      </span>
+                      <div
+                        id="search-input"
+                        class="form-control border-start-0"
+                        contenteditable="true"
+                        @input="handleSearch"
+                        placeholder="Search notes...">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="toolbar-right d-flex gap-2">
+                  <div class="btn-group" role="group">
+                    <button @click="toggleLayout" class="btn btn-outline-secondary" :title="`Switch to ${currentLayout === 'grid' ? 'list' : 'grid'} view`">
+                      <i :class="['bi', currentLayout === 'grid' ? 'bi-list' : 'bi-grid-3x3-gap']"></i>
+                      <span class="d-none d-lg-inline ms-1">{{ currentLayout === 'grid' ? 'List' : 'Grid' }}</span>
+                    </button>
+                    <button @click="handleSortChange" class="btn btn-outline-secondary" title="Change Sort Order">
+                      <i class="bi bi-sort-down"></i>
+                      <span class="d-none d-lg-inline ms-1">{{ getSortLabel() }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="toolbar-right d-flex gap-2">
-              <button
-                class="view-toggle-btn btn btn-outline-secondary btn-sm"
-                title="Toggle view"
-              >
-                <i class="bi bi-grid-3x3"></i>
-              </button>
-              <div class="dropdown">
-                <button
-                  class="sort-btn btn btn-outline-secondary btn-sm dropdown-toggle"
-                  title="Sort notes"
-                  data-bs-toggle="dropdown"
-                >
-                  <i class="bi bi-sort-alpha-down me-1"></i>
-                  <span class="sort-text"
-                    >{{ currentSort === 'dateModified' ? 'Date Modified' :
-                    currentSort === 'dateCreated' ? 'Date Created' : 'Title'
-                    }}</span
-                  >
-                </button>
-                <ul class="dropdown-menu">
-                  <li>
-                    <a
-                      class="dropdown-item"
-                      href="#"
-                      @click.prevent="currentSort = 'dateModified'"
-                      >Date Modified</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      class="dropdown-item"
-                      href="#"
-                      @click.prevent="currentSort = 'dateCreated'"
-                      >Date Created</a
-                    >
-                  </li>
-                  <li>
-                    <a
-                      class="dropdown-item"
-                      href="#"
-                      @click.prevent="currentSort = 'title'"
-                      >Title</a
-                    >
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </header>
 
-          <!-- Main Content Inner Wrapper - handles scrolling -->
-          <div class="main-content-inner">
-            <!-- Notes List Area - Show skeleton if still loading -->
-            <skeleton-notes-list v-if="isNotesLoading"></skeleton-notes-list>
-            <notes-list
-              v-else
-              :notes="filteredNotes"
-              @edit-note="editNote"
-              @create-note="createNote"
-            ></notes-list>
+              <notes-list
+                :notes="filteredNotes"
+                :layout="currentLayout"
+                :all-tags="allTags"
+                @edit-note="editNote"
+                @delete-note="deleteNote"
+                @toggle-favorite="handleToggleFavorite"
+                @archive-note="handleArchiveNote"
+                @open-tag-modal="openTagModal"
+                @set-reminder="setReminder"
+              ></notes-list>
+            </main>
 
-            <!-- Note Editor Panel -->
+            <div class="editor-resizer" v-if="editingNote" @mousedown="startResize"></div>
+
             <note-editor
-              :visible="editorVisible"
-              :note="editingNote"
-              @close="closeEditor"
-              @save="saveNote"
-              @cancel="closeEditor"
+                v-if="editingNote"
+                :note="editingNote"
+                :save-status="saveStatus"
+                @save="saveNote"
+                @close="closeEditor"
             ></note-editor>
           </div>
-        </main>
-
-        <!-- Confirmation Modal -->
-        <div
-          v-if="showConfirmationModal"
-          class="modal fade show d-block"
-          style="background-color: rgba(0, 0, 0, 0.5)"
-          tabindex="-1"
-        >
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h2 class="modal-title h6 mb-0">Confirm Action</h2>
-                <button
-                  type="button"
-                  class="btn-close"
-                  @click="closeConfirmationModal"
-                ></button>
-              </div>
-              <div class="modal-body">
-                <p class="mb-0">{{ confirmMessage }}</p>
-              </div>
-              <div class="modal-footer">
-                <button
-                  class="btn btn-outline-secondary"
-                  @click="closeConfirmationModal"
-                >
-                  Cancel
-                </button>
-                <button class="btn btn-danger" @click="confirmAction">
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
-      </div>
+      </template>
+
+      <!-- Modals -->
+      <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="currentTheme" @update:theme="setTheme" @close="isSettingsModalVisible = false"></settings-modal>
+      <alert-modal></alert-modal>
+
+      <tag-selection-modal
+        v-if="noteToTag"
+        :note-to-tag="noteToTag"
+        :all-tags="allTags"
+        @close="closeTagModal"
+        @update-tags="handleUpdateTags"
+      ></tag-selection-modal>
     </div>
 
-    <!-- Hidden file inputs -->
-    <input
-      type="file"
-      id="image-input"
-      accept="image/*"
-      style="display: none"
-    />
-    <input
-      type="file"
-      id="import-file-input"
-      accept=".json,.txt"
-      style="display: none"
-    />
-
-    <!-- Settings Modal -->
-    <div
-      id="settings-modal"
-      class="modal fade"
-      tabindex="-1"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <!-- Content will be dynamically generated by settings-view.js -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Goals Modal -->
-    <div id="goals-modal" class="modal fade" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title h5 mb-0">Goals & Habits</h2>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <!-- Goals Dashboard -->
-            <div class="goals-dashboard">
-              <div class="goals-stats row g-3 mb-4">
-                <div class="col-md-4">
-                  <div class="stat-item text-center p-3 bg-light rounded">
-                    <div class="stat-number h3 text-primary mb-1">
-                      {{ activeGoalsCount }}
-                    </div>
-                    <div class="stat-label text-muted">Active</div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="stat-item text-center p-3 bg-light rounded">
-                    <div class="stat-number h3 text-success mb-1">
-                      {{ completedGoalsCount }}
-                    </div>
-                    <div class="stat-label text-muted">Completed</div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="stat-item text-center p-3 bg-light rounded">
-                    <div class="stat-number h3 text-warning mb-1">
-                      {{ totalStreakCount }}
-                    </div>
-                    <div class="stat-label text-muted">Streak Days</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="goals-insights mb-4" id="goals-insights">
-                <!-- AI insights will be populated here -->
-              </div>
-
-              <div class="goals-list" id="goals-list">
-                <!-- Goals will be populated here -->
-              </div>
-            </div>
-
-            <!-- Add/Edit Goal Form -->
-            <div id="goal-form" class="goal-form">
-              <h3 id="goal-form-title" class="h6 mb-3">Add New Goal</h3>
-              <form id="goal-form-element">
-                <div class="row g-3">
-                  <div class="col-12">
-                    <label for="goal-title-input" class="form-label"
-                      >Title *</label
-                    >
-                    <input
-                      type="text"
-                      class="form-control"
-                      id="goal-title-input"
-                      required
-                      placeholder="e.g., Exercise daily"
-                    />
-                  </div>
-
-                  <div class="col-12">
-                    <label for="goal-description-input" class="form-label"
-                      >Description</label
-                    >
-                    <textarea
-                      class="form-control"
-                      id="goal-description-input"
-                      rows="3"
-                      placeholder="What does success look like?"
-                    ></textarea>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="goal-type-select" class="form-label"
-                      >Type *</label
-                    >
-                    <select class="form-select" id="goal-type-select" required>
-                      <option value="habit">Daily Habit</option>
-                      <option value="project">Project</option>
-                      <option value="milestone">Milestone</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="goal-category-input" class="form-label"
-                      >Category</label
-                    >
-                    <input
-                      type="text"
-                      class="form-control"
-                      id="goal-category-input"
-                      placeholder="health, work, personal"
-                    />
-                  </div>
-
-                  <div class="col-md-6" id="habit-options">
-                    <label for="goal-frequency-select" class="form-label"
-                      >Frequency</label
-                    >
-                    <select class="form-select" id="goal-frequency-select">
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-6" id="habit-options">
-                    <label for="goal-target-input" class="form-label"
-                      >Target</label
-                    >
-                    <input
-                      type="number"
-                      class="form-control"
-                      id="goal-target-input"
-                      min="1"
-                      value="1"
-                    />
-                  </div>
-
-                  <div class="col-12" id="target-date-group">
-                    <label for="goal-target-date-input" class="form-label"
-                      >Target Date</label
-                    >
-                    <input
-                      type="date"
-                      class="form-control"
-                      id="goal-target-date-input"
-                    />
-                  </div>
-                </div>
-
-                <div class="d-flex gap-2 mt-3">
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    id="cancel-goal-btn"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    class="btn btn-primary"
-                    id="save-goal-btn"
-                  >
-                    Save Goal
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <div class="modal-footer" id="goals-modal-actions">
-            <button class="btn btn-primary" id="add-new-goal-btn">
-              <i class="bi bi-plus-lg me-2"></i> Add Goal
-            </button>
-            <button
-              class="btn btn-outline-secondary"
-              data-bs-dismiss="modal"
-              id="goals-close-btn"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Notebook Management Modal -->
-    <div
-      id="notebook-modal"
-      class="modal fade"
-      tabindex="-1"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 id="notebook-modal-title" class="modal-title h6 mb-0">
-              Create Notebook
-            </h2>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <form id="notebook-form">
-              <input type="hidden" id="notebook-id-input" />
-              <div class="mb-3">
-                <label for="notebook-name-input" class="form-label"
-                  >Name *</label
-                >
-                <input
-                  type="text"
-                  class="form-control"
-                  id="notebook-name-input"
-                  required
-                  placeholder="e.g., Personal, Work, Ideas"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label for="notebook-description-input" class="form-label"
-                  >Description</label
-                >
-                <textarea
-                  class="form-control"
-                  id="notebook-description-input"
-                  placeholder="What kind of notes will go here?"
-                  rows="3"
-                ></textarea>
-              </div>
-
-              <div class="mb-3">
-                <label for="notebook-color-input" class="form-label"
-                  >Color</label
-                >
-                <input
-                  type="color"
-                  class="form-control form-control-color"
-                  id="notebook-color-input"
-                  value="#007aff"
-                />
-              </div>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              id="cancel-notebook-btn"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="btn btn-primary"
-              id="save-notebook-btn"
-              form="notebook-form"
-            >
-              Save Notebook
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tag Management Modal -->
-    <div id="tag-modal" class="modal fade" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 id="tag-modal-title" class="modal-title h6 mb-0">Create Tag</h2>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <form id="tag-form" class="mb-3">
-              <div class="row g-3">
-                <div class="col-8">
-                  <label for="tag-name-input" class="form-label">Name *</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="tag-name-input"
-                    required
-                    placeholder="e.g., important, work, personal"
-                  />
-                </div>
-
-                <div class="col-4">
-                  <label for="tag-color-input" class="form-label">Color</label>
-                  <input
-                    type="color"
-                    class="form-control form-control-color"
-                    id="tag-color-input"
-                    value="#666666"
-                  />
-                </div>
-              </div>
-            </form>
-
-            <!-- Tag Management List -->
-            <div id="tag-management-list" class="tag-management-list mb-3">
-              <!-- Tags will be populated dynamically by JavaScript -->
-            </div>
-
-            <!-- Add new tag form -->
-            <form id="add-tag-form" class="add-new-form d-flex gap-2">
-              <input
-                type="text"
-                class="form-control"
-                id="new-tag-name-input"
-                placeholder="Create new tag..."
-                required
-              />
-              <input
-                type="color"
-                class="form-control form-control-color"
-                id="new-tag-color-input"
-                value="#8a8a8a"
-              />
-              <button type="submit" class="btn btn-primary">Add</button>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              id="cancel-tag-btn"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="btn btn-primary"
-              id="save-tag-btn"
-              form="tag-form"
-            >
-              Save Tag
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tag Selection Modal -->
-    <div
-      id="tag-selection-modal"
-      class="modal fade"
-      tabindex="-1"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title h6 mb-0">Add Tags to Note</h2>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <div class="tag-selection-content">
-              <div class="tag-list mb-3" id="tag-selection-list">
-                <!-- Tags will be populated dynamically -->
-              </div>
-              <div class="tag-selection-actions d-flex justify-content-center">
-                <button id="create-new-tag-btn" class="btn btn-primary">
-                  <i class="bi bi-plus-lg me-2"></i>
-                  Create New Tag
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-primary" id="confirm-tag-selection-btn">
-              Confirm
-            </button>
-            <button
-              class="btn btn-outline-secondary"
-              id="cancel-tag-selection-btn"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Goal Selection Modal -->
-    <div
-      id="goal-selection-modal"
-      class="modal fade"
-      tabindex="-1"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title h6 mb-0">Link Note to Goal Progress</h2>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <p class="mb-3">
-              Select a goal that this note helped you make progress on:
-            </p>
-            <div class="goal-selection-content">
-              <div class="goal-list" id="goal-selection-list">
-                <!-- Goals will be populated dynamically -->
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              class="btn btn-outline-secondary"
-              id="cancel-goal-selection-btn"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bootstrap JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Vue.js CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-
-    <!-- Load core dependencies first -->
-    <script src="js/utils/config.js"></script>
-    <script src="js/utils/utils.js"></script>
-    <script src="js/components/modals.js"></script>
-    <script src="js/core/error-handler.js"></script>
-    <script src="js/utils/performance.js"></script>
-
-    <!-- Load organization services before store -->
-    <script src="js/services/organization-service.js"></script>
-
-    <!-- Load required JavaScript modules before Vue app -->
-    <script src="js/core/store.js"></script>
-    <script src="js/components/header.js"></script>
-    <script src="js/ui-manager.js"></script>
-    <script src="js/event-handler.js"></script>
-    <script src="js/ai-coordinator.js"></script>
-    <script src="js/services/voice-service.js"></script>
-    <script src="js/utils/cache.js"></script>
-    <script src="js/services/goals-service.js"></script>
-    <script src="js/services/ai-insights.js"></script>
-    <script src="js/components/goals-ui.js"></script>
-    <script src="js/components/settings-view.js"></script>
-    <script src="js/services/ai-service.js"></script>
-
     <script type="module" src="js/main.js"></script>
   </body>
 </html>

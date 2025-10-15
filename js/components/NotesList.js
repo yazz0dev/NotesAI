@@ -1,0 +1,124 @@
+export default {
+    props: ["notes", "layout", "allTags"],
+    template: `
+            <div class="notes-list-container p-3">
+                <div v-if="notes.length === 0" class="text-center text-muted mt-5 py-5">
+                    <div class="empty-state-icon mb-4">
+                        <i class="bi bi-journal-x display-1 text-muted"></i>
+                    </div>
+                    <h4 class="text-muted mb-2">No notes found</h4>
+                    <p class="text-muted">Create a new note or try a different search.</p>
+                    <button class="btn btn-primary mt-3" @click="$emit('create-note')">
+                        <i class="bi bi-plus-lg me-2"></i>Create First Note
+                    </button>
+                </div>
+                <div v-else :class="['row', 'g-3', { 'list-view': layout === 'list' }]">
+                    <div v-for="note in notes" :key="note.id" :class="layout === 'grid' ? 'col-12 col-sm-6 col-lg-4 col-xl-3' : 'col-12'">
+                        <div class="card h-100 note-card position-relative"
+                             @click="$emit('edit-note', note)"
+                             :class="{ 'border-warning': note.reminderAt, 'border-primary': note.isFavorite }">
+                            <!-- Card Header with Status Indicators -->
+                            <div class="card-header bg-transparent border-bottom-0 pb-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i v-if="note.audioUrl" class="bi bi-mic-fill text-primary" title="Contains original recording"></i>
+                                        <i v-if="note.reminderAt" class="bi bi-bell-fill text-warning" title="Has reminder set"></i>
+                                        <small class="text-muted fw-semibold">{{ formatDate(note.updatedAt) }}</small>
+                                    </div>
+                                    <div class="dropdown position-absolute top-0 end-0">
+                                        <button class="btn btn-sm btn-link text-muted p-1"
+                                                type="button"
+                                                data-bs-toggle="dropdown"
+                                                aria-expanded="false"
+                                                @click.stop>
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="#" @click.stop="$emit('set-reminder', note)">
+                                                <i class="bi bi-bell me-2"></i>{{ note.reminderAt ? 'Edit Reminder' : 'Set Reminder' }}
+                                            </a></li>
+                                            <li><a class="dropdown-item" href="#" @click.stop="$emit('archive-note', note)">
+                                                <i class="bi bi-archive me-2"></i>Archive
+                                            </a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item text-danger" href="#" @click.stop="$emit('delete-note', note.id)">
+                                                <i class="bi bi-trash me-2"></i>Delete
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Body -->
+                            <div class="card-body pt-0">
+                                <h6 class="card-title fw-semibold text-dark mb-2 line-clamp-2">
+                                    {{ note.summary || 'Untitled Note' }}
+                                </h6>
+                                <p class="card-text text-muted small line-clamp-3 mb-3">{{ getSnippet(note.content) }}</p>
+
+                                <!-- DISPLAY NOTE'S TAGS -->
+                                <div v-if="note.tags && note.tags.length" class="mb-0">
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span v-for="tagId in note.tags.slice(0, 3)" :key="tagId"
+                                              class="badge bg-light text-dark border">
+                                            {{ getTagById(tagId)?.name || '...' }}
+                                        </span>
+                                        <span v-if="note.tags.length > 3" class="badge bg-secondary">
+                                            +{{ note.tags.length - 3 }} more
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Footer with Quick Actions -->
+                            <div class="card-footer bg-transparent border-top-0 pt-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-light border-0 text-muted"
+                                                @click.stop="$emit('toggle-favorite', note)"
+                                                :title="note.isFavorite ? 'Unfavorite' : 'Favorite'">
+                                            <i class="bi" :class="note.isFavorite ? 'bi-star-fill text-warning' : 'bi-star'"></i>
+                                        </button>
+                                        <button class="btn btn-outline-light border-0 text-muted"
+                                                @click.stop="$emit('open-tag-modal', note)"
+                                                title="Edit Tags">
+                                            <i class="bi bi-tags"></i>
+                                        </button>
+                                        <button class="btn btn-outline-light border-0 text-muted"
+                                                @click.stop="$emit('set-reminder', note)"
+                                                :title="note.reminderAt ? 'Edit Reminder' : 'Set Reminder'">
+                                            <i class="bi bi-bell" :class="note.reminderAt ? 'text-warning' : ''"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `,
+    methods: {
+      getTagById(tagId) {
+        return this.allTags.find(t => t.id === tagId);
+      },
+      getSnippet(content) {
+          if (!content) return 'No content';
+          return content.replace(/<[^>]*>/g, "").substring(0, 120) + (content.length > 120 ? '...' : '');
+      },
+      formatDate(dateString) {
+          if (!dateString) return '';
+          const date = new Date(dateString);
+          const now = new Date();
+          const diffInHours = (now - date) / (1000 * 60 * 60);
+
+          if (diffInHours < 1) return 'Just now';
+          if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
+          if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
+          return date.toLocaleDateString();
+      },
+      getWordCount(content) {
+          if (!content) return '0';
+          return content.replace(/<[^>]*>/g, "").trim().split(/\s+/).length;
+      }
+    }
+  };
