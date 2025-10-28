@@ -109,7 +109,8 @@ export default {
         <!-- Modal Body -->
         <div class="modal-body-enhanced">
           <div class="modal-message-container">
-            <p class="modal-message">{{ alertState.message }}</p>
+            <!-- KEY CHANGE: Use v-html to allow formatted help text -->
+            <div class="modal-message" v-html="alertState.message"></div>
           </div>
 
           <!-- Enhanced Input Field -->
@@ -135,7 +136,8 @@ export default {
 
         <!-- Modal Footer -->
         <div class="modal-footer-enhanced">
-          <button type="button"
+          <button v-if="alertState.cancelText"
+                  type="button"
                   class="btn-enhanced btn-cancel-enhanced"
                   @click="handleCancel"
                   :disabled="alertState.loading">

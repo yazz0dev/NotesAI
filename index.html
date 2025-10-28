@@ -7,7 +7,7 @@
 
     <meta name="description" content="An intelligent notes and tasks application with AI-powered features." />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -26,13 +26,13 @@
       <skeleton-loader v-if="isLoading"></skeleton-loader>
       <template v-else>
         <app-header
-          :is-dictating="isDictating"
+          :is-voice-active="isVoiceActive"
           :is-sidebar-collapsed="isSidebarCollapsed"
           :current-layout="currentLayout"
           :sort-label="getSortLabel()"
           @open-settings="isSettingsModalVisible = true"
           @open-help="openHelp"
-          @dictate-toggle="handleDictateToggle"
+          @voice-toggle="handleVoiceToggle"
           @toggle-sidebar="toggleSidebar"
           @search="handleSearch"
           @toggle-layout="toggleLayout"
@@ -40,12 +40,17 @@
         >
           <template #ai-status>
             <div class="ai-status-container text-center" v-if="aiStatus.status !== 'disabled'">
-              <small class="text-muted">{{ aiStatus.message }}</small>
+              <small :class="getAIStatusClass()">{{ aiStatus.message }}</small>
             </div>
           </template>
 
           <template #toolbar>
-            <div class="header-toolbar d-flex align-items-center flex-grow-1 px-4">
+            <!-- 
+              KEY FIX: Removed the "flex-grow-1" class from this div.
+              The parent container in AppHeader.js already handles the growing behavior.
+              This class was causing the toolbar to push the ai-status slot out of view.
+            -->
+            <div class="header-toolbar d-flex align-items-center px-4">
               <div class="search-container position-relative flex-grow-1 me-3">
                 <div class="input-group">
                   <span class="input-group-text border-end-0">
@@ -102,6 +107,7 @@
                 @open-tag-modal="openTagModal"
                 @set-reminder="setReminder"
                 @remove-reminder="handleRemoveReminder"
+                @create-note="createNewNote"
               ></notes-list>
             </main>
 
@@ -119,7 +125,7 @@
       </template>
 
       <!-- Modals -->
-      <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="currentTheme" @update:theme="setTheme" @close="isSettingsModalVisible = false"></settings-modal>
+      <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="currentTheme" :save-voice-recordings="saveVoiceRecordings" @update:theme="setTheme" @update:save-voice-recordings="saveVoiceRecordings = $event" @close="isSettingsModalVisible = false"></settings-modal>
       <alert-modal></alert-modal>
       <tag-selection-modal v-if="noteToTag" :note-to-tag="noteToTag" :all-tags="allTags" @close="closeTagModal" @update-tags="handleUpdateTags" @create-tag="handleCreateTag"></tag-selection-modal>
     </div>

@@ -31,3 +31,35 @@
   .header-toolbar .search-container .form-control {
       border-color: var(--border-color);
   }
+
+  /* AI Status Container */
+  .ai-status-container {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
+
+  .ai-status-container small {
+    font-weight: 500;
+  }
+
+  /* AI Status Colors */
+  .ai-status-container small.text-muted {
+    color: var(--text-secondary) !important;
+  }
+
+  .ai-status-container small.text-success {
+    color: var(--success-color, #28a745) !important;
+  }
+
+  .ai-status-container small.text-warning {
+    color: var(--warning-color, #ffc107) !important;
+  }
+
+  .ai-status-container small.text-danger {
+    color: var(--danger-color, #dc3545) !important;
+  }
+
+  .ai-status-container small.text-info {
+    color: var(--info-color, #17a2b8) !important;
+  }

@@ -1,6 +1,6 @@
 export default {
-    props: ['modelValue', 'currentTheme'], // Use v-model for two-way binding and current theme
-    emits: ['update:modelValue', 'update:theme', 'close'],
+    props: ['modelValue', 'currentTheme', 'saveVoiceRecordings'], // Use v-model for two-way binding and current theme
+    emits: ['update:modelValue', 'update:theme', 'update:saveVoiceRecordings', 'close'],
     template: `
           <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" @click.self="$emit('close')">
               <div class="modal-dialog">
@@ -50,6 +50,15 @@ export default {
                               </div>
                               <small class="text-muted">Enable "Hey Notes" voice commands.</small>
                           </div>
+
+                          <!-- Save Voice Recordings -->
+                          <div class="mb-3">
+                              <label for="save-recordings-toggle" class="form-check-label fw-semibold">Save Voice Recordings</label>
+                              <div class="form-check form-switch">
+                                  <input class="form-check-input" type="checkbox" id="save-recordings-toggle" :checked="saveVoiceRecordings" @change="$emit('update:saveVoiceRecordings', $event.target.checked)">
+                              </div>
+                              <small class="text-muted">Save audio recordings with voice notes.</small>
+                          </div>
                           </div>
                       <div class="modal-footer">
                           <button type="button" class="btn btn-secondary" @click="$emit('close')">Close</button>
@@ -58,4 +67,4 @@ export default {
               </div>
           </div>
       `,
-  };
+};
