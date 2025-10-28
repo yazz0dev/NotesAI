@@ -74,6 +74,7 @@ const app = createApp({
           } catch (error) { console.warn(`Failed to migrate blob URL for note ${note.id}:`, error); }
         }
         if (!note.tags) note.tags = [];
+        if (!note.aiSummary) note.aiSummary = null;
         return note;
       }));
     },
@@ -118,7 +119,8 @@ const app = createApp({
         isFavorite: false,
         isArchived: false,
         tags: [],
-        reminderAt: null
+        reminderAt: null,
+        aiSummary: null  // AI-generated summary
       };
 
       this.notes.unshift(newNote);

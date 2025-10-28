@@ -21,7 +21,20 @@ export default {
   template: `
       <aside class="note-editor d-flex flex-column border-start">
         <div class="editor-header p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
-          <input type="text" class="form-control border-0 px-0 fs-4 flex-grow-1" v-model="editableNote.summary" @input="triggerSave" placeholder="Note Title">
+          <div class="flex-grow-1">
+            <input type="text" class="form-control border-0 px-0 fs-4 mb-2" v-model="editableNote.summary" @input="triggerSave" placeholder="Note Title">
+            <!-- AI Summary Status -->
+            <div v-if="editableNote.aiSummary" class="ai-summary-indicator d-flex align-items-center gap-2 text-muted small">
+              <i class="bi bi-robot"></i>
+              <span>AI Summary attached</span>
+              <button class="btn btn-sm btn-outline-primary btn-sm-custom" @click="viewSummary">
+                <i class="bi bi-eye"></i> View
+              </button>
+              <button class="btn btn-sm btn-outline-danger btn-sm-custom" @click="removeSummary">
+                <i class="bi bi-trash"></i> Remove
+              </button>
+            </div>
+          </div>
           <button class="btn btn-sm btn-outline-secondary" @click="$emit('close')"><i class="bi bi-x-lg"></i></button>
         </div>
 
@@ -165,7 +178,25 @@ export default {
     async summarizeNote() {
       try {
         const summary = await aiService.summarizeText(this.editableNote.content);
-        alertService.info('AI Summary', summary, { confirmText: 'Awesome!', cancelText: false });
+
+        // Show the summary in a modal with save option
+        const shouldSave = await alertService.confirm(
+          'AI Summary Generated',
+          'Would you like to save this summary with your note?',
+          { confirmText: 'Save Summary', cancelText: 'Just View' }
+        );
+
+        if (shouldSave) {
+          // Save the summary to the note
+          this.editableNote.aiSummary = summary;
+          this.undoStack.push({ ...this.editableNote }); // Save state for undo
+          this.triggerSave();
+
+          alertService.success('Summary Saved', 'The AI summary has been saved and attached to your note.');
+        } else {
+          // Just show the summary without saving
+          alertService.infoMarkdown('AI Summary', summary, { confirmText: 'OK', cancelText: false });
+        }
       } catch (e) {
         alertService.error('AI Error', e.message);
       }
@@ -173,17 +204,68 @@ export default {
     async proofreadNote() {
       try {
         const originalContent = this.editableNote.content;
-        const correctedContent = await aiService.proofreadText(originalContent);
-        if (correctedContent.trim() !== originalContent.replace(/<[^>]*>/g, " ").trim()) {
+        const cleanContent = originalContent.replace(/<[^>]*>/g, " ").trim();
+
+        // Check if there's enough content to proofread
+        if (cleanContent.split(' ').length < 3) {
+          alertService.info('Content Too Short', 'Please add more content before proofreading.');
+          return;
+        }
+
+        // Check proofreader availability first
+        const proofreaderAvailability = await aiService.checkProofreaderAvailability();
+        if (!proofreaderAvailability.available && proofreaderAvailability.reason.includes('downloadable')) {
+          alertService.info('Downloading AI Model', 'The proofreading AI model is downloading. This may take a few minutes on first use. Please try again shortly.', {
+            confirmText: 'OK',
+            cancelText: false
+          });
+          return;
+        }
+
+        const result = await aiService.proofreadTextWithDetails(cleanContent);
+
+        if (result.hasCorrections) {
           this.undoStack.push(originalContent); // Save state before changing
-          this.editableNote.content = `<div>${correctedContent.replace(/\n/g, '</div><div>')}</div>`;
-          this.$refs.editor.innerHTML = this.editableNote.content;
-          alertService.success('Proofread Complete', 'The note has been updated with corrections.');
+
+          if (result.corrections && result.corrections.length > 0) {
+            // Use new API with structured corrections - show highlights
+            this.showCorrectionsWithHighlights(originalContent, result.corrections);
+            alertService.success('Proofread Complete', `Found ${result.corrections.length} correction(s). Hover over highlighted text for details.`);
+          } else {
+            // Fallback to simple replacement
+            this.editableNote.content = `<div>${result.corrected.replace(/\n/g, '</div><div>')}</div>`;
+            this.$refs.editor.innerHTML = this.editableNote.content;
+            alertService.success('Proofread Complete', 'The note has been updated with corrections.');
+          }
         } else {
           alertService.info('No Changes', 'The AI found no corrections to make.');
         }
       } catch (e) {
         alertService.error('AI Error', e.message);
+      }
+    },
+
+    viewSummary() {
+      if (this.editableNote.aiSummary) {
+        alertService.infoMarkdown('Saved AI Summary', this.editableNote.aiSummary, {
+          confirmText: 'Close',
+          cancelText: false
+        });
+      }
+    },
+
+    async removeSummary() {
+      const confirmed = await alertService.confirm(
+        'Remove AI Summary',
+        'Are you sure you want to remove the saved AI summary from this note?',
+        { confirmText: 'Remove', cancelText: 'Cancel' }
+      );
+
+      if (confirmed) {
+        this.undoStack.push({ ...this.editableNote }); // Save state for undo
+        this.editableNote.aiSummary = null;
+        this.triggerSave();
+        alertService.success('Summary Removed', 'The AI summary has been removed from your note.');
       }
     },
 
@@ -198,7 +280,7 @@ export default {
         if (this.editableNote.content !== currentContent) {
           this.editableNote.content = currentContent;
           if (!this.isUndoRedo) {
-            this.undoStack.push(currentContent);
+            this.undoStack.push(JSON.parse(JSON.stringify(this.editableNote)));
             if (this.undoStack.length > 50) this.undoStack.shift();
             this.redoStack = [];
           }
@@ -209,13 +291,13 @@ export default {
     },
     undo() {
       if (this.undoStack.length > 1) {
-        this.redoStack.push(this.undoStack.pop());
-        const previousContent = this.undoStack[this.undoStack.length - 1];
+        this.redoStack.push(JSON.parse(JSON.stringify(this.undoStack.pop())));
+        const previousNoteState = this.undoStack[this.undoStack.length - 1];
         this.isUndoRedo = true;
-        this.editableNote.content = previousContent;
+        this.editableNote = JSON.parse(JSON.stringify(previousNoteState));
         this.$nextTick(() => {
           if (this.$refs.editor) {
-            this.$refs.editor.innerHTML = previousContent;
+            this.$refs.editor.innerHTML = previousNoteState.content;
             this.setCursorToEnd();
             this.triggerSave();
           }
@@ -224,13 +306,13 @@ export default {
     },
     redo() {
       if (this.redoStack.length > 0) {
-        const nextContent = this.redoStack.pop();
-        this.undoStack.push(nextContent);
+        const nextNoteState = this.redoStack.pop();
+        this.undoStack.push(JSON.parse(JSON.stringify(nextNoteState)));
         this.isUndoRedo = true;
-        this.editableNote.content = nextContent;
+        this.editableNote = JSON.parse(JSON.stringify(nextNoteState));
         this.$nextTick(() => {
           if (this.$refs.editor) {
-            this.$refs.editor.innerHTML = nextContent;
+            this.$refs.editor.innerHTML = nextNoteState.content;
             this.setCursorToEnd();
             this.triggerSave();
           }
@@ -273,6 +355,91 @@ export default {
       const text = event.clipboardData.getData('text/plain');
       document.execCommand('insertText', false, text);
     },
+    showCorrectionsWithHighlights(originalContent, corrections) {
+      const editor = this.$refs.editor;
+      if (!editor) return;
+
+      // Clear any existing highlights
+      this.clearCorrectionHighlights();
+
+      // Sort corrections by startIndex in descending order to avoid index shifting
+      corrections.sort((a, b) => b.startIndex - a.startIndex);
+
+      let html = originalContent;
+      const highlights = [];
+
+      corrections.forEach((correction, index) => {
+        const beforeError = html.substring(0, correction.startIndex);
+        const errorText = html.substring(correction.startIndex, correction.endIndex);
+        const afterError = html.substring(correction.endIndex);
+
+        // Create highlighted span with tooltip
+        const highlightId = `correction-${index}`;
+        const highlightedError = `<span id="${highlightId}" class="correction-highlight" data-correction-index="${index}" title="${this.getCorrectionTooltip(correction)}">${errorText}</span>`;
+
+        html = beforeError + highlightedError + afterError;
+
+        highlights.push({
+          id: highlightId,
+          correction: correction
+        });
+      });
+
+      // Update the editor content
+      editor.innerHTML = html;
+      this.editableNote.content = html;
+
+      // Add event listeners for highlights
+      this.$nextTick(() => {
+        highlights.forEach(({ id, correction }) => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.addEventListener('click', () => this.showCorrectionDetails(correction));
+          }
+        });
+      });
+    },
+
+    clearCorrectionHighlights() {
+      const editor = this.$refs.editor;
+      if (!editor) return;
+
+      // Remove all correction highlights
+      const highlights = editor.querySelectorAll('.correction-highlight');
+      highlights.forEach(highlight => {
+        const text = highlight.textContent;
+        highlight.parentNode.replaceChild(document.createTextNode(text), highlight);
+      });
+    },
+
+    getCorrectionTooltip(correction) {
+      let tooltip = `Error: ${correction.errorType || 'Unknown'}`;
+      if (correction.replacement) {
+        tooltip += `\nSuggestion: ${correction.replacement}`;
+      }
+      if (correction.explanation) {
+        tooltip += `\nExplanation: ${correction.explanation}`;
+      }
+      return tooltip;
+    },
+
+    showCorrectionDetails(correction) {
+      let message = `**Error Type:** ${correction.errorType || 'Unknown'}\n\n`;
+
+      if (correction.replacement) {
+        message += `**Suggested:** ${correction.replacement}\n\n`;
+      }
+
+      if (correction.explanation) {
+        message += `**Explanation:** ${correction.explanation}`;
+      }
+
+      alertService.info('Correction Details', message, {
+        confirmText: 'Got it',
+        cancelText: false
+      });
+    },
+
     formatLastUpdated(dateString) {
       if (!dateString) return 'Never';
       const date = new Date(dateString);

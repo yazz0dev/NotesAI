@@ -25,6 +25,7 @@ export default {
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div class="d-flex align-items-center gap-2">
                                         <i v-if="note.audioUrl" class="bi bi-mic-fill text-primary" title="Contains original recording"></i>
+                                        <i v-if="note.aiSummary" class="bi bi-robot text-info" title="Has AI summary"></i>
                                         <i v-if="note.reminderAt" class="bi bi-bell-fill text-warning" title="Has reminder set"></i>
                                         <small class="text-muted fw-semibold">{{ formatDate(note.updatedAt) }}</small>
                                     </div>
@@ -110,27 +111,27 @@ export default {
             </div>
         `,
     methods: {
-      getTagById(tagId) {
-        return this.allTags.find(t => t.id === tagId);
-      },
-      getSnippet(content) {
-          if (!content) return 'No content';
-          return content.replace(/<[^>]*>/g, "").substring(0, 120) + (content.length > 120 ? '...' : '');
-      },
-      formatDate(dateString) {
-          if (!dateString) return '';
-          const date = new Date(dateString);
-          const now = new Date();
-          const diffInHours = (now - date) / (1000 * 60 * 60);
+        getTagById(tagId) {
+            return this.allTags.find(t => t.id === tagId);
+        },
+        getSnippet(content) {
+            if (!content) return 'No content';
+            return content.replace(/<[^>]*>/g, "").substring(0, 120) + (content.length > 120 ? '...' : '');
+        },
+        formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInHours = (now - date) / (1000 * 60 * 60);
 
-          if (diffInHours < 1) return 'Just now';
-          if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
-          if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-          return date.toLocaleDateString();
-      },
-      getWordCount(content) {
-          if (!content) return '0';
-          return content.replace(/<[^>]*>/g, "").trim().split(/\s+/).length;
-      }
+            if (diffInHours < 1) return 'Just now';
+            if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
+            if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
+            return date.toLocaleDateString();
+        },
+        getWordCount(content) {
+            if (!content) return '0';
+            return content.replace(/<[^>]*>/g, "").trim().split(/\s+/).length;
+        }
     }
-  };
+};
