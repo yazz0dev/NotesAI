@@ -1,0 +1,114 @@
+/* ===== ENHANCED ALERT MODAL STYLES ===== */
+.modal-backdrop-enhanced {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+    z-index: 1055; display: flex; align-items: center; justify-content: center;
+    animation: backdropFadeIn 0.3s ease-out;
+}
+.modal-enhanced {
+    background: var(--bg-primary); color: var(--text-primary); border-radius: 16px;
+    box-shadow: 0 20px 60px var(--shadow-color); max-width: 500px;
+    width: 90%; max-height: 90vh; overflow: hidden;
+    animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid var(--border-color); transform-origin: center;
+}
+.modal-shake { animation: modalShake 0.5s ease-in-out; }
+.modal-header-enhanced {
+    display: flex; align-items: flex-start; padding: 24px 24px 0; gap: 16px;
+}
+.modal-icon-container { flex-shrink: 0; margin-top: 2px; }
+.modal-icon { font-size: 1.5rem; opacity: 0.9; }
+.modal-title-container {
+    flex: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+}
+.modal-title-enhanced {
+    font-size: 1.25rem; font-weight: 600; color: var(--text-primary);
+    margin: 0; line-height: 1.4; flex: 1;
+}
+.btn-close-enhanced {
+    background: none; border: none; font-size: 1.25rem; color: #6b7280;
+    cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+}
+.btn-close-enhanced:hover { background: #f3f4f6; color: #374151; }
+.modal-body-enhanced { padding: 16px 24px 24px; }
+.modal-message-container { margin-bottom: 20px; }
+.modal-message { font-size: 1rem; line-height: 1.6; color: var(--text-primary); margin: 0; }
+.input-container-enhanced { margin-top: 20px; }
+.input-wrapper { position: relative; }
+.form-control-enhanced {
+    width: 100%; padding: 12px 16px; border: 2px solid var(--border-color);
+    border-radius: 8px; font-size: 0.95rem; transition: all 0.2s ease;
+    background: var(--bg-primary); color: var(--text-primary);
+}
+.form-control-enhanced:focus {
+    outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+}
+[data-theme="dark"] .form-control-enhanced:focus { box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.15); }
+.form-control-enhanced::placeholder { color: var(--text-muted); }
+.input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important; }
+.input-error-message {
+    display: flex; align-items: center; margin-top: 6px;
+    font-size: 0.875rem; color: #ef4444; animation: errorSlideDown 0.2s ease-out;
+}
+.modal-footer-enhanced {
+    display: flex; gap: 12px; padding: 20px 24px 24px;
+    background: var(--bg-tertiary); border-top: 1px solid var(--border-color);
+}
+.btn-enhanced {
+    padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+    border: none; cursor: pointer; transition: all 0.2s ease; display: flex;
+    align-items: center; justify-content: center; min-height: 44px; flex: 1;
+    position: relative; overflow: hidden;
+}
+.btn-enhanced:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-cancel-enhanced {
+    background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color);
+}
+.btn-cancel-enhanced:hover:not(:disabled) {
+    background: var(--bg-tertiary); border-color: var(--border-color); color: var(--text-primary);
+}
+.btn-confirm-enhanced { color: white; position: relative; }
+.btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.btn-success { background: linear-gradient(135deg, #10b981, #059669); }
+.btn-confirm-enhanced:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+.btn-confirm-enhanced:active:not(:disabled) { transform: translateY(0); }
+
+/* ===== ENHANCED TAG SELECTION MODAL STYLES ===== */
+.selected-tags-container {
+  border-bottom: 1px solid var(--border-color); margin: -16px -24px 0; padding: 16px 24px 0;
+}
+.selected-tag-pill {
+  font-size: 0.8rem; font-weight: 500; padding: 0.3rem 0.3rem 0.3rem 0.6rem;
+  border-radius: 16px; background-color: var(--bg-tertiary); color: var(--text-primary);
+  border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s ease;
+}
+.selected-tag-pill:hover { background-color: var(--bg-secondary); border-color: var(--bs-danger); color: var(--bs-danger); }
+.tag-color-indicator-sm { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.tag-list-wrapper { max-height: 250px; overflow-y: auto; padding-right: 0.5rem; }
+.create-tag-suggestion {
+  display: flex; align-items: center; padding: 0.75rem; border: 2px dashed var(--border-color);
+  border-radius: 8px; background: var(--bg-tertiary); cursor: pointer;
+  transition: all 0.2s ease; color: var(--text-secondary); margin-top: 0.5rem;
+}
+.create-tag-suggestion:hover {
+  border-color: var(--primary-color); background: rgba(77, 171, 247, 0.1); color: var(--primary-color);
+}
+.tag-item-enhanced {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem;
+  border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-secondary); cursor: pointer; transition: all 0.2s ease;
+  position: relative; min-height: 44px;
+}
+.tag-item-enhanced:hover { border-color: var(--primary-color); background: var(--bg-tertiary); transform: translateY(-1px); box-shadow: none; }
+.tag-item-enhanced.selected { border-color: var(--primary-color); background: rgba(77, 171, 247, 0.15); box-shadow: none; }
+.tag-color-indicator { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.tag-name {
+    flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tag-check { opacity: 0; transition: opacity 0.2s ease; }
+.tag-item-enhanced.selected .tag-check { opacity: 1; }
+.tag-item-enhanced .bi-check-circle-fill { font-size: 1.1rem; }

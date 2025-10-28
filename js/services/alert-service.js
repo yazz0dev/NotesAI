@@ -1,5 +1,6 @@
 // js/services/alert-service.js
 
+// Use the global Vue object provided by the script tag in index.html
 const { reactive } = Vue;
 
 // The reactive state that the Vue component will watch.
@@ -26,7 +27,7 @@ const state = reactive({
  * @param {string} message - The body text of the alert.
  * @param {object} [options] - Optional settings.
  * @param {string} [options.confirmText='Confirm'] - Text for the confirm button.
- * @param {string} [options.cancelText='Cancel'] - Text for the cancel button.
+ * @param {string|boolean} [options.cancelText='Cancel'] - Text for the cancel button. Set to false to hide.
  * @param {string} [options.type='info'] - Modal type: 'info', 'success', 'warning', 'danger'.
  * @returns {Promise<boolean>} - Resolves true if confirmed, false if canceled.
  */
@@ -34,7 +35,7 @@ function confirm(title, message, options = {}) {
   state.title = title;
   state.message = message;
   state.confirmText = options.confirmText || "Confirm";
-  state.cancelText = options.cancelText || "Cancel";
+  state.cancelText = options.cancelText === false ? false : (options.cancelText || "Cancel");
   state.type = options.type || "info";
   state.showInput = false;
   state.inputValue = "";
@@ -56,7 +57,7 @@ function confirm(title, message, options = {}) {
  * @param {string} message - The body text of the dialog.
  * @param {object} [options] - Optional settings.
  * @param {string} [options.confirmText='Set'] - Text for the confirm button.
- * @param {string} [options.cancelText='Cancel'] - Text for the cancel button.
+ * @param {string|boolean} [options.cancelText='Cancel'] - Text for the cancel button. Set to false to hide.
  * @param {string} [options.inputType='text'] - Type of input field.
  * @param {string} [options.inputPlaceholder=''] - Placeholder for input field.
  * @param {string} [options.defaultValue=''] - Default value for input field.
@@ -67,7 +68,7 @@ function input(title, message, options = {}) {
   state.title = title;
   state.message = message;
   state.confirmText = options.confirmText || "Set";
-  state.cancelText = options.cancelText || "Cancel";
+  state.cancelText = options.cancelText === false ? false : (options.cancelText || "Cancel");
   state.type = options.type || "info";
   state.showInput = true;
   state.inputType = options.inputType || "text";
@@ -86,7 +87,7 @@ function input(title, message, options = {}) {
 function handleConfirm() {
   if (state.resolve) {
     // For input dialogs, return the input value; for confirmation dialogs, return true
-    const result = state.showInput ? state.inputValue || null : true;
+    const result = state.showInput ? state.inputValue : true;
     state.resolve(result);
   }
   resetState();

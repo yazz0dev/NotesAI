@@ -1,0 +1,33 @@
+.app-header {
+    z-index: 1030;
+    min-height: fit-content;
+    flex-shrink: 0;
+    background-color: var(--header-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px var(--shadow-color);
+  }
+  
+  .app-logo {
+      background: var(--primary-gradient);
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  }
+  
+  .header-toolbar {
+    max-width: 700px;
+    width: 100%;
+  }
+  
+  .header-toolbar .search-container .form-control {
+      background: var(--bg-tertiary);
+  }
+  
+  .header-toolbar .search-container .form-control:focus {
+      background: var(--bg-primary);
+  }
+  
+  .header-toolbar .search-container .input-group-text,
+  .header-toolbar .search-container .form-control {
+      border-color: var(--border-color);
+  }

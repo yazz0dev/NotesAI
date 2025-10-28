@@ -2,13 +2,45 @@ import { alertService } from "../services/alert-service.js";
 
 export default {
   props: ['noteToTag', 'allTags'],
-  emits: ['close', 'update-tags'],
+  emits: ['close', 'update-tags', 'create-tag'],
   data() {
     return {
+      // Store initial state to detect changes
+      initialTagIds: [...(this.noteToTag?.tags || [])],
       // Create a local copy to avoid directly mutating the prop
       selectedTagIds: [...(this.noteToTag?.tags || [])],
       searchQuery: '',
-      filteredTags: []
+    }
+  },
+  computed: {
+    /**
+     * Checks if the selected tags have changed from their initial state.
+     */
+    hasChanges() {
+      const initial = [...this.initialTagIds].sort();
+      const current = [...this.selectedTagIds].sort();
+      return JSON.stringify(initial) !== JSON.stringify(current);
+    },
+    /**
+     * Filters the available tags based on the search query.
+     */
+    filteredTags() {
+      if (!this.searchQuery.trim()) {
+        return this.allTags;
+      }
+      const query = this.searchQuery.toLowerCase();
+      return this.allTags.filter(tag =>
+        tag.name.toLowerCase().includes(query)
+      );
+    },
+    /**
+     * Determines if the current search query can be used to create a new tag.
+     */
+    canCreateTag() {
+        if (!this.searchQuery.trim()) return false;
+        const query = this.searchQuery.trim().toLowerCase();
+        // Returns true only if no tag with the exact same name exists
+        return !this.allTags.some(tag => tag.name.toLowerCase() === query);
     }
   },
   template: `
@@ -19,8 +51,8 @@ export default {
             <i class="modal-icon bi bi-tags text-primary"></i>
           </div>
           <div class="modal-title-container">
-            <h5 class="modal-title-enhanced">Edit Tags</h5>
-            <p class="text-muted mb-0 small">for "{{ noteToTag.summary }}"</p>
+            <h5 class="modal-title-enhanced">Manage Tags</h5>
+            <p class="text-muted mb-0 small text-truncate" :title="noteToTag.summary">for "{{ noteToTag.summary }}"</p>
           </div>
           <button type="button" class="btn-close-enhanced" @click="$emit('close')">
             <i class="bi bi-x-lg"></i>
@@ -28,6 +60,23 @@ export default {
         </div>
 
         <div class="modal-body-enhanced">
+          <!-- Selected tags display -->
+          <div v-if="selectedTagIds.length > 0" class="selected-tags-container mb-3">
+            <div class="d-flex flex-wrap gap-2">
+              <span
+                v-for="tagId in selectedTagIds"
+                :key="tagId"
+                class="badge selected-tag-pill d-flex align-items-center gap-1"
+                @click="toggleTag(tagId)"
+              >
+                <span class="tag-color-indicator-sm" :style="{ backgroundColor: getTagById(tagId)?.color }"></span>
+                {{ getTagById(tagId)?.name }}
+                <i class="bi bi-x-circle"></i>
+              </span>
+            </div>
+            <hr class="my-3">
+          </div>
+        
           <!-- Search input for filtering tags -->
           <div class="search-container mb-3">
             <div class="input-group input-group-sm">
@@ -38,43 +87,24 @@ export default {
                 type="text"
                 class="form-control"
                 v-model="searchQuery"
-                placeholder="Search tags..."
-                @input="filterTags"
+                placeholder="Search or create a new tag..."
               >
             </div>
           </div>
 
-          <!-- Selected tags display -->
-          <div v-if="selectedTagIds.length > 0" class="selected-tags mb-3">
-            <label class="form-label small text-muted mb-2">Selected Tags:</label>
-            <div class="d-flex flex-wrap gap-2">
-              <span
-                v-for="tagId in selectedTagIds"
-                :key="tagId"
-                class="badge bg-primary d-flex align-items-center gap-1"
-                style="cursor: pointer;"
-                @click="toggleTag(tagId)"
-              >
-                {{ getTagById(tagId)?.name }}
-                <i class="bi bi-x-circle-fill" style="font-size: 0.75em;"></i>
-              </span>
+          <!-- Tags List / Empty States -->
+          <div class="tag-list-wrapper">
+            <div v-if="allTags.length === 0" class="text-center py-4">
+              <i class="bi bi-tag empty-state-icon mb-2" style="font-size: 2rem;"></i>
+              <p class="text-muted mb-0">No tags yet. Type to create one!</p>
             </div>
-          </div>
 
-          <!-- Available tags -->
-          <div v-if="filteredTags.length === 0 && !searchQuery" class="text-center py-4">
-            <i class="bi bi-tag empty-state-icon mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
-            <p class="text-muted mb-2">No tags created yet</p>
-            <small class="text-muted">You can create tags in Settings</small>
-          </div>
+            <div v-else-if="filteredTags.length === 0 && !canCreateTag" class="text-center py-4">
+              <i class="bi bi-search empty-state-icon mb-2" style="font-size: 2rem;"></i>
+              <p class="text-muted mb-0">No tags found matching "{{ searchQuery }}"</p>
+            </div>
 
-          <div v-else-if="filteredTags.length === 0" class="text-center py-4">
-            <i class="bi bi-search empty-state-icon mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
-            <p class="text-muted mb-0">No tags found matching "{{ searchQuery }}"</p>
-          </div>
-
-          <div v-else class="tag-selection-list">
-            <div class="tag-grid">
+            <div v-else class="tag-grid">
               <div
                 v-for="tag in filteredTags"
                 :key="tag.id"
@@ -89,16 +119,21 @@ export default {
                 </div>
               </div>
             </div>
+
+            <!-- Create New Tag Suggestion -->
+            <div v-if="canCreateTag" class="create-tag-suggestion" @click="handleCreateTagAndSelect">
+                <i class="bi bi-plus-circle-dotted me-2"></i>
+                <span>Create new tag: <strong>"{{ searchQuery }}"</strong></span>
+            </div>
           </div>
         </div>
 
         <div class="modal-footer-enhanced">
-          <button type="button" class="btn-cancel-enhanced" @click="$emit('close')">
+          <button type="button" class="btn-enhanced btn-cancel-enhanced" @click="$emit('close')">
             Cancel
           </button>
-          <button type="button" class="btn-confirm-enhanced" @click="confirmSelection">
-            <span v-if="selectedTagIds.length === 0">Remove All Tags</span>
-            <span v-else>Save {{ selectedTagIds.length }} Tag{{ selectedTagIds.length !== 1 ? 's' : '' }}</span>
+          <button type="button" class="btn-enhanced btn-confirm-enhanced btn-primary" @click="confirmSelection" :disabled="!hasChanges">
+            Save Changes
           </button>
         </div>
       </div>
@@ -119,27 +154,34 @@ export default {
     getTagById(tagId) {
       return this.allTags.find(tag => tag.id === tagId);
     },
-    filterTags() {
-      if (!this.searchQuery.trim()) {
-        this.filteredTags = this.allTags;
-      } else {
-        const query = this.searchQuery.toLowerCase();
-        this.filteredTags = this.allTags.filter(tag =>
-          tag.name.toLowerCase().includes(query)
-        );
-      }
+    handleCreateTagAndSelect() {
+        if (!this.canCreateTag) return;
+        // Emit event for main app to handle tag creation
+        this.$emit('create-tag', this.searchQuery.trim());
     },
     confirmSelection() {
-      this.$emit('update-tags', { noteId: this.noteToTag.id, tagIds: this.selectedTagIds });
+      // Only emit if there are actual changes
+      if (this.hasChanges) {
+          this.$emit('update-tags', { noteId: this.noteToTag.id, tagIds: this.selectedTagIds });
+      }
       this.$emit('close');
     }
   },
   watch: {
-    allTags: {
-      handler() {
-        this.filterTags();
-      },
-      immediate: true
+    // This watcher is key: when a new tag is created in the parent,
+    // the `allTags` prop updates, and we can automatically select the new tag.
+    allTags(newTags, oldTags) {
+        if (newTags.length > oldTags.length && this.searchQuery) {
+            // Find the newly added tag
+            const newTag = newTags.find(nt => !oldTags.some(ot => ot.id === nt.id));
+            // If the new tag's name matches our search, it means we just created it
+            if (newTag && this.searchQuery.trim().toLowerCase() === newTag.name.toLowerCase()) {
+                if (!this.selectedTagIds.includes(newTag.id)) {
+                    this.selectedTagIds.push(newTag.id);
+                }
+                this.searchQuery = ''; // Clear search after creation
+            }
+        }
     }
   }
 };

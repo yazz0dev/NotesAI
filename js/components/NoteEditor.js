@@ -8,19 +8,20 @@ export default {
   emits: ["save", "close"],
   data() {
     return {
-      // Initialize from prop, creating a deep copy to edit locally
       editableNote: JSON.parse(JSON.stringify(this.note)),
       debouncedSave: null,
-      // Undo/Redo system
       undoStack: [],
       redoStack: [],
       isUndoRedo: false,
+      // KEY FIX: Flag to prevent auto-save on initial load of a note
+      isContentLoaded: false,
     };
   },
   template: `
       <aside class="note-editor d-flex flex-column border-start">
         <div class="editor-header p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
-          <input type="text" class="form-control border-0 px-0 fs-4 flex-grow-1" v-model="editableNote.summary" placeholder="Note Title">
+          <!-- KEY FIX: Added @input listener to trigger save on title change -->
+          <input type="text" class="form-control border-0 px-0 fs-4 flex-grow-1" v-model="editableNote.summary" @input="triggerSave" placeholder="Note Title">
           <button class="btn btn-sm btn-outline-secondary" @click="$emit('close')"><i class="bi bi-x-lg"></i></button>
         </div>
 
@@ -30,19 +31,16 @@ export default {
         </div>
 
         <div class="editor-content-wrapper d-flex flex-column flex-fill overflow-hidden">
-
           <editor-toolbar @content-change="updateContentFromDOM" @undo="undo" @redo="redo" :can-undo="undoStack.length > 0" :can-redo="redoStack.length > 0"></editor-toolbar>
 
           <div
               ref="editor"
               class="note-content-editable flex-fill p-3 overflow-auto"
               contenteditable="true"
-              dir="ltr"
+              dir="ltr" 
               @input="updateContentFromDOM"
               @click="handleEditorClick"
               @paste="handlePaste"
-              @keydown="handleKeyDown"
-              v-html="editableNote.content"
               placeholder="Start writing or dictate a new voice note..."
           ></div>
         </div>
@@ -58,110 +56,100 @@ export default {
       </aside>
       `,
   watch: {
-    // FIX: This watcher is improved to prevent cursor jumping during auto-save.
-    // It only updates the editor's content if the note ID changes (i.e., a different note is selected).
     note(newNote) {
-      if (newNote.id !== this.editableNote.id) {
-          this.editableNote = { ...newNote };
-          // Reset undo/redo stacks when loading a new note
+      if (newNote && newNote.id !== this.editableNote.id) {
+          // KEY FIX: Reset the content loaded flag before loading new content
+          this.isContentLoaded = false;
+          this.editableNote = JSON.parse(JSON.stringify(newNote));
           this.undoStack = [];
           this.redoStack = [];
+
           this.$nextTick(() => {
             if (this.$refs.editor) {
-                this.$refs.editor.innerHTML = newNote.content || '';
-                this.ensureEditorDirection();
+                this.$refs.editor.innerHTML = this.editableNote.content || '';
+                // KEY FIX: Set the flag to true only AFTER the new content is loaded
+                this.isContentLoaded = true;
             }
           });
       }
     },
-    editableNote: {
-      handler(newValue, oldValue) {
-        if (oldValue && (newValue.summary !== oldValue.summary || newValue.content !== oldValue.content || newValue.reminderAt !== oldValue.reminderAt)) {
-            console.log('NoteEditor: Content changed, triggering save');
-            this.debouncedSave();
-        }
-      },
-      deep: true,
-    },
   },
   created() {
     this.debouncedSave = this.debounce(() => {
+      console.log('Auto-saving note...', this.editableNote);
       this.$emit('save', this.editableNote);
     }, 1500);
   },
   mounted() {
-    // Ensure direction is correct when component mounts
-    this.$nextTick(() => {
-      this.ensureEditorDirection();
-    });
+    if (this.$refs.editor) {
+        this.$refs.editor.innerHTML = this.editableNote.content || '';
+        // KEY FIX: Set flag to true after initial mount
+        this.isContentLoaded = true;
+    }
   },
   methods: {
+    // KEY FIX: This new method centralizes the call to the debounced function.
+    triggerSave() {
+        // Only trigger save if the initial content has been loaded into the editor.
+        // This prevents a save operation right when a note is opened.
+        if (this.isContentLoaded) {
+            this.debouncedSave();
+        }
+    },
     updateContentFromDOM() {
       if (this.$refs.editor) {
-        // Ensure LTR direction is maintained
-        this.ensureEditorDirection();
-
-        // Force direction on all child elements
-        const elements = this.$refs.editor.querySelectorAll('*');
-        elements.forEach(el => {
-          el.style.direction = 'ltr';
-          el.style.textAlign = 'left';
-        });
-
         const currentContent = this.$refs.editor.innerHTML;
 
-        // Don't push to undo stack if this is an undo/redo operation
-        if (!this.isUndoRedo) {
-          // Push current state to undo stack before making changes
-          if (this.undoStack.length >= 50) { // Limit stack size
-            this.undoStack.shift();
-          }
-          this.undoStack.push(this.editableNote.content);
-          this.redoStack = []; // Clear redo stack when new changes are made
-        }
-
+        // Update the data model without triggering a re-render
         this.editableNote.content = currentContent;
+
+        if (!this.isUndoRedo) {
+          // Manage undo stack
+          if (this.undoStack.length > 0 && this.undoStack[this.undoStack.length - 1] !== currentContent) {
+             this.undoStack.push(currentContent);
+          } else if (this.undoStack.length === 0) {
+             this.undoStack.push(currentContent);
+          }
+          if (this.undoStack.length > 50) this.undoStack.shift();
+          this.redoStack = [];
+        }
+        
         this.isUndoRedo = false;
+        
+        // KEY FIX: Call the triggerSave method on every input to handle auto-saving.
+        this.triggerSave();
       }
     },
     undo() {
-      if (this.undoStack.length > 0) {
-        // Push current state to redo stack
-        this.redoStack.push(this.editableNote.content);
-
-        // Get the previous state from undo stack
-        const previousContent = this.undoStack.pop();
-
+      if (this.undoStack.length > 1) { // Need more than one state to undo
+        this.redoStack.push(this.undoStack.pop());
+        const previousContent = this.undoStack[this.undoStack.length - 1];
+        
         this.isUndoRedo = true;
         this.editableNote.content = previousContent;
 
         this.$nextTick(() => {
           if (this.$refs.editor) {
             this.$refs.editor.innerHTML = previousContent;
-            this.ensureEditorDirection();
-            // Set cursor to end of content
             this.setCursorToEnd();
+            this.triggerSave(); // Save after undo
           }
         });
       }
     },
     redo() {
       if (this.redoStack.length > 0) {
-        // Push current state to undo stack
-        this.undoStack.push(this.editableNote.content);
-
-        // Get the next state from redo stack
         const nextContent = this.redoStack.pop();
-
+        this.undoStack.push(nextContent);
+        
         this.isUndoRedo = true;
         this.editableNote.content = nextContent;
 
         this.$nextTick(() => {
           if (this.$refs.editor) {
             this.$refs.editor.innerHTML = nextContent;
-            this.ensureEditorDirection();
-            // Set cursor to end of content
             this.setCursorToEnd();
+            this.triggerSave(); // Save after redo
           }
         });
       }
@@ -169,24 +157,13 @@ export default {
     setCursorToEnd() {
       const editor = this.$refs.editor;
       if (editor) {
-        // Ensure LTR direction before setting cursor
-        editor.style.direction = 'ltr';
-        editor.style.textAlign = 'left';
         editor.focus();
         const range = document.createRange();
         const selection = window.getSelection();
         range.selectNodeContents(editor);
-        range.collapse(false); // Collapse to end
+        range.collapse(false);
         selection.removeAllRanges();
         selection.addRange(range);
-      }
-    },
-    ensureEditorDirection() {
-      const editor = this.$refs.editor;
-      if (editor) {
-        editor.style.direction = 'ltr';
-        editor.style.textAlign = 'left';
-        editor.dir = 'ltr';
       }
     },
     debounce(func, delay) {
@@ -197,47 +174,19 @@ export default {
       };
     },
     handleEditorClick(event) {
-        const taskItem = event.target.closest('.task-item');
-        if (taskItem) {
-            const isChecked = taskItem.dataset.checked === 'true';
-            taskItem.dataset.checked = !isChecked;
-            // Manually update the undo stack for task changes
-            if (this.undoStack.length >= 50) {
-                this.undoStack.shift();
+        if (event.target.classList.contains('task-checkbox')) {
+            const taskItem = event.target.closest('.task-item');
+            if (taskItem) {
+                const isChecked = taskItem.dataset.checked === 'true';
+                taskItem.dataset.checked = !isChecked;
+                this.$nextTick(() => this.updateContentFromDOM());
             }
-            this.undoStack.push(this.editableNote.content);
-            this.redoStack = [];
-            this.editableNote.content = this.$refs.editor.innerHTML;
         }
     },
     handlePaste(event) {
-        // Ensure pasted content maintains LTR direction
         event.preventDefault();
         const text = event.clipboardData.getData('text/plain');
         document.execCommand('insertText', false, text);
-
-        // Force LTR direction on the editor
-        this.$refs.editor.style.direction = 'ltr';
-        this.$refs.editor.style.textAlign = 'left';
-
-        this.$nextTick(() => {
-            this.updateContentFromDOM();
-        });
-    },
-    handleKeyDown(event) {
-        // Ensure LTR direction is maintained during typing
-        this.$nextTick(() => {
-            this.ensureEditorDirection();
-
-            // Force direction on all child elements after key press
-            if (this.$refs.editor) {
-                const elements = this.$refs.editor.querySelectorAll('*');
-                elements.forEach(el => {
-                    el.style.direction = 'ltr';
-                    el.style.textAlign = 'left';
-                });
-            }
-        });
     },
     formatLastUpdated(dateString) {
       if (!dateString) return 'Never';

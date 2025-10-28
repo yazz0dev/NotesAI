@@ -101,6 +101,9 @@ class AIService {
             transcript += e.results[i][0].transcript;
           }
           this.dispatchAIEvent("ai-dictation-update", { transcript });
+          // Update status to show current transcript
+          const displayText = transcript.length > 50 ? transcript.substring(0, 50) + "..." : transcript;
+          this.dispatchAIEvent("ai-status-update", { status: "recording", message: `Dictating: "${displayText}"` });
         };
         this.dictationRecognition.onend = () => this.stopDictation(); // Auto-stop everything together
   

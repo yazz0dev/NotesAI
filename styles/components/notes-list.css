@@ -1,0 +1,81 @@
+/* --- Notes List Container & Empty State --- */
+.notes-list-container {
+    /* KEY CHANGE: Make this container a flex item that can grow */
+    flex-grow: 1;
+    /* KEY CHANGE: If content overflows, show a scrollbar HERE, not on the body */
+    overflow-y: auto;
+  }
+  
+  .notes-list .card {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    animation: slideInUp 0.5s var(--ease-out-quint) backwards;
+  }
+  
+  .notes-list .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 0.75rem var(--shadow-color);
+  }
+  
+  .empty-state-icon {
+      opacity: 0.5;
+  }
+  
+  /* --- Responsive Notes Grid Layout --- */
+  .notes-grid {
+    display: grid;
+    /* This is the magic: It creates as many columns as can fit with a minimum width of 280px,
+       and lets them grow to fill any remaining space. */
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem; /* This replaces the g-3 class */
+  }
+  
+  /* --- List View Layout --- */
+  .notes-list-container .list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .notes-list-container .list-view .card {
+    flex-direction: row;
+    align-items: center;
+  }
+  .notes-list-container .list-view .card-body {
+    flex-grow: 1;
+  }
+  .notes-list-container .list-view .card-footer {
+    flex-shrink: 0;
+    border: none !important;
+    padding-right: 1.25rem;
+  }
+  .notes-list-container .list-view .card-text {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+  
+  /* --- Enhanced Note Cards --- */
+  .note-card {
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+      background: var(--card-bg);
+      box-shadow: 0 2px 4px var(--card-shadow);
+  }
+  .note-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0.25rem 0.75rem var(--shadow-color);
+      border-color: var(--border-color);
+  }
+  .note-card .card-header {
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+      border-bottom-color: var(--border-color);
+      color: var(--text-primary);
+  }
+  .note-card.active {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(77, 171, 247, 0.25);
+  }
+  [data-theme="dark"] .note-card.active {
+      box-shadow: 0 0 0 0.2rem rgba(77, 171, 247, 0.25);
+  }

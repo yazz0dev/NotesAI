@@ -4,40 +4,85 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Notes & Tasks</title>
+
+    <meta name="description" content="An intelligent notes and tasks application with AI-powered features." />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" as="style">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" as="style">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"/>
+    
     <link rel="stylesheet" href="styles/theme.css" />
-    <link rel="stylesheet" href="styles/custom.css" />
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="styles/main.css" />
   </head>
   <body>
     <div id="app" class="app-layout">
       <skeleton-loader v-if="isLoading"></skeleton-loader>
       <template v-else>
-        <!-- REFACTORED: Updated event binding to toggle-sidebar -->
         <app-header
           :is-dictating="isDictating"
           :is-sidebar-collapsed="isSidebarCollapsed"
+          :current-layout="currentLayout"
+          :sort-label="getSortLabel()"
           @open-settings="isSettingsModalVisible = true"
           @open-help="openHelp"
           @dictate-toggle="handleDictateToggle"
           @toggle-sidebar="toggleSidebar"
+          @search="handleSearch"
+          @toggle-layout="toggleLayout"
+          @change-sort="handleSortChange"
         >
           <template #ai-status>
             <div class="ai-status-container text-center" v-if="aiStatus.status !== 'disabled'">
               <small class="text-muted">{{ aiStatus.message }}</small>
             </div>
           </template>
+
+          <template #toolbar>
+            <div class="header-toolbar d-flex align-items-center flex-grow-1 px-4">
+              <div class="search-container position-relative flex-grow-1 me-3">
+                <div class="input-group">
+                  <span class="input-group-text border-end-0">
+                    <i class="bi bi-search"></i>
+                  </span>
+                  <div
+                    id="search-input"
+                    class="form-control border-start-0"
+                    contenteditable="true"
+                    @input="handleSearch($event.target.textContent)"
+                    placeholder="Search notes...">
+                  </div>
+                </div>
+              </div>
+              <div class="toolbar-right d-flex gap-2">
+                <div class="btn-group" role="group">
+                  <button @click="toggleLayout" class="btn btn-outline-secondary" :title="`Switch to ${currentLayout === 'grid' ? 'list' : 'grid'} view`">
+                    <i :class="['bi', currentLayout === 'grid' ? 'bi-list' : 'bi-grid-3x3-gap']"></i>
+                    <span class="d-none d-lg-inline ms-1">{{ currentLayout === 'grid' ? 'List' : 'Grid' }}</span>
+                  </button>
+                  <button @click="handleSortChange" class="btn btn-outline-secondary" title="Change Sort Order">
+                    <i class="bi bi-sort-down"></i>
+                    <span class="d-none d-lg-inline ms-1">{{ getSortLabel() }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
         </app-header>
 
         <div class="d-flex">
-          <!-- REFACTORED: Removed props and events related to pinning/hovering -->
           <app-sidebar
             :current-view="currentView"
             :all-tags="allTags"
             :newTagName="newTagName"
             :is-sidebar-collapsed="isSidebarCollapsed"
-            @update:new-tag-name="(value) => { console.log('update:new-tag-name received:', value); newTagName = value; }"
+            @update:new-tag-name="(value) => { newTagName = value; }"
             @switch-view="switchView"
             @create-note="createNewNote"
             @tag-click="handleTagClick"
@@ -46,37 +91,6 @@
 
           <div :class="['main-content-wrapper', { 'editor-visible': !!editingNote }]">
             <main class="main-content flex-fill">
-              <div class="content-toolbar d-flex justify-content-between align-items-center p-3 border-bottom shadow-sm">
-                <div class="toolbar-left d-flex align-items-center flex-grow-1 me-3">
-                  <div class="search-container position-relative flex-grow-1 me-3">
-                    <div class="input-group">
-                      <span class="input-group-text border-end-0">
-                        <i class="bi bi-search"></i>
-                      </span>
-                      <div
-                        id="search-input"
-                        class="form-control border-start-0"
-                        contenteditable="true"
-                        @input="handleSearch"
-                        placeholder="Search notes...">
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="toolbar-right d-flex gap-2">
-                  <div class="btn-group" role="group">
-                    <button @click="toggleLayout" class="btn btn-outline-secondary" :title="`Switch to ${currentLayout === 'grid' ? 'list' : 'grid'} view`">
-                      <i :class="['bi', currentLayout === 'grid' ? 'bi-list' : 'bi-grid-3x3-gap']"></i>
-                      <span class="d-none d-lg-inline ms-1">{{ currentLayout === 'grid' ? 'List' : 'Grid' }}</span>
-                    </button>
-                    <button @click="handleSortChange" class="btn btn-outline-secondary" title="Change Sort Order">
-                      <i class="bi bi-sort-down"></i>
-                      <span class="d-none d-lg-inline ms-1">{{ getSortLabel() }}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               <notes-list
                 :notes="filteredNotes"
                 :layout="currentLayout"
@@ -87,6 +101,7 @@
                 @archive-note="handleArchiveNote"
                 @open-tag-modal="openTagModal"
                 @set-reminder="setReminder"
+                @remove-reminder="handleRemoveReminder"
               ></notes-list>
             </main>
 
@@ -106,17 +121,11 @@
       <!-- Modals -->
       <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="currentTheme" @update:theme="setTheme" @close="isSettingsModalVisible = false"></settings-modal>
       <alert-modal></alert-modal>
-
-      <tag-selection-modal
-        v-if="noteToTag"
-        :note-to-tag="noteToTag"
-        :all-tags="allTags"
-        @close="closeTagModal"
-        @update-tags="handleUpdateTags"
-      ></tag-selection-modal>
+      <tag-selection-modal v-if="noteToTag" :note-to-tag="noteToTag" :all-tags="allTags" @close="closeTagModal" @update-tags="handleUpdateTags" @create-tag="handleCreateTag"></tag-selection-modal>
     </div>
-
+    
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>

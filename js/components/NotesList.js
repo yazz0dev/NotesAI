@@ -1,5 +1,6 @@
 export default {
     props: ["notes", "layout", "allTags"],
+    emits: ['edit-note', 'delete-note', 'toggle-favorite', 'archive-note', 'open-tag-modal', 'set-reminder', 'remove-reminder', 'create-note'],
     template: `
             <div class="notes-list-container p-3">
                 <div v-if="notes.length === 0" class="text-center text-muted mt-5 py-5">
@@ -12,8 +13,10 @@ export default {
                         <i class="bi bi-plus-lg me-2"></i>Create First Note
                     </button>
                 </div>
-                <div v-else :class="['row', 'g-3', { 'list-view': layout === 'list' }]">
-                    <div v-for="note in notes" :key="note.id" :class="layout === 'grid' ? 'col-12 col-sm-6 col-lg-4 col-xl-3' : 'col-12'">
+                <!-- KEY CHANGE: Replaced Bootstrap's row/col system for grid view with a new .notes-grid class -->
+                <div v-else :class="['g-3', { 'list-view': layout === 'list', 'notes-grid': layout === 'grid' }]">
+                    <!-- The wrapping div is now removed for grid view, the parent handles the layout -->
+                    <div v-for="note in notes" :key="note.id" :class="layout === 'list' ? 'col-12' : ''">
                         <div class="card h-100 note-card position-relative"
                              @click="$emit('edit-note', note)"
                              :class="{ 'border-warning': note.reminderAt, 'border-primary': note.isFavorite }">
@@ -34,9 +37,19 @@ export default {
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end">
-                                            <li><a class="dropdown-item" href="#" @click.stop="$emit('set-reminder', note)">
-                                                <i class="bi bi-bell me-2"></i>{{ note.reminderAt ? 'Edit Reminder' : 'Set Reminder' }}
-                                            </a></li>
+                                            <template v-if="note.reminderAt">
+                                                <li><a class="dropdown-item" href="#" @click.stop="$emit('set-reminder', note)">
+                                                    <i class="bi bi-pencil me-2"></i>Edit Reminder
+                                                </a></li>
+                                                <li><a class="dropdown-item text-danger" href="#" @click.stop="$emit('remove-reminder', note)">
+                                                    <i class="bi bi-bell-slash me-2"></i>Remove Reminder
+                                                </a></li>
+                                            </template>
+                                            <li v-else>
+                                                <a class="dropdown-item" href="#" @click.stop="$emit('set-reminder', note)">
+                                                    <i class="bi bi-bell me-2"></i>Set Reminder
+                                                </a>
+                                            </li>
                                             <li><a class="dropdown-item" href="#" @click.stop="$emit('archive-note', note)">
                                                 <i class="bi bi-archive me-2"></i>Archive
                                             </a></li>
@@ -56,7 +69,6 @@ export default {
                                 </h6>
                                 <p class="card-text text-muted small line-clamp-3 mb-3">{{ getSnippet(note.content) }}</p>
 
-                                <!-- DISPLAY NOTE'S TAGS -->
                                 <div v-if="note.tags && note.tags.length" class="mb-0">
                                     <div class="d-flex flex-wrap gap-1">
                                         <span v-for="tagId in note.tags.slice(0, 3)" :key="tagId"

@@ -1,0 +1,137 @@
+/* --- Sidebar Base & Collapsed States --- */
+.sidebar {
+    /* KEY FIX: Removed position: fixed and related properties */
+    /* position: fixed; top: 0; left: 0; bottom: 0; */
+    
+    /* KEY FIX: Make the sidebar a flex item that doesn't shrink */
+    flex-shrink: 0;
+    height: 100%; /* Fill the height of its parent flex container */
+    z-index: 1020;
+    width: var(--sidebar-width);
+    transition: width 0.3s var(--ease-out-quint);
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    /* Add display: flex to allow its children to be arranged */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  body.sidebar-collapsed .sidebar {
+    width: var(--sidebar-compact-width);
+  }
+  
+  /* This new rule is needed to make the inner nav container scrollable */
+  .sidebar-nav {
+      flex: 1;
+      overflow-y: hidden; /* Hide scrollbar here */
+      display: flex;
+      flex-direction: column;
+  }
+  
+  /* --- Sidebar Content (Text, Icons) --- */
+  .sidebar .nav-text {
+    opacity: 1;
+    transition: opacity 0.3s ease, width 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  body.sidebar-collapsed .sidebar .nav-text {
+    opacity: 0;
+    width: 0;
+  }
+  
+  .sidebar .nav-link,
+  .sidebar .btn-primary {
+    justify-content: flex-start !important;
+    transition: all 0.3s ease;
+  }
+  .sidebar .nav-link .me-2,
+  .sidebar .btn-primary .me-2 {
+    margin-right: 0.5rem !important;
+    transition: margin-right 0.3s ease;
+  }
+  body.sidebar-collapsed .sidebar .nav-link,
+  body.sidebar-collapsed .sidebar .btn-primary {
+    justify-content: center !important;
+  }
+  body.sidebar-collapsed .sidebar .nav-link .me-2,
+  body.sidebar-collapsed .sidebar .btn-primary .me-2 {
+    margin-right: 0 !important;
+  }
+  
+  /* --- Sidebar Theming & States --- */
+  .sidebar {
+    background: var(--sidebar-bg);
+    border-color: var(--border-color);
+    box-shadow: none;
+  }
+  
+  .sidebar .nav-link {
+    color: var(--text-primary);
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+  
+  .sidebar .nav-link:hover {
+      background-color: rgba(0, 123, 255, 0.08);
+      color: var(--bs-primary);
+      transform: translateX(2px);
+  }
+  
+  .sidebar .nav-link.active {
+    background-color: var(--bs-primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+  }
+  
+  /* --- Sidebar Tags Section --- */
+  .tag-list-sidebar { overflow-y: auto; }
+  .sidebar h6 { color: var(--text-muted); }
+  .sidebar .text-muted { color: var(--text-muted) !important; }
+  
+  .tag-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.4rem 1.25rem;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-weight: 500;
+      border-radius: 8px;
+      margin: 0.1rem 0;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+  }
+  .tag-item:hover {
+      background-color: rgba(0, 123, 255, 0.1);
+      color: var(--bs-primary);
+  }
+  .tag-item.active {
+      background-color: rgba(0, 123, 255, 0.15);
+      color: var(--bs-primary);
+      font-weight: 600;
+  }
+  .tag-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+  }
+  .tag-item.active .tag-color-dot {
+      box-shadow: 0 0 0 2px var(--bs-primary);
+  }
+  
+  /* --- Sidebar Footer --- */
+  .sidebar-footer {
+      background: var(--bg-tertiary);
+      border-color: var(--border-color);
+  }
+  .sidebar-footer .badge {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+  }
+  .sidebar-footer small {
+      color: var(--text-muted);
+  }

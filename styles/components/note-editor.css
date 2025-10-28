@@ -1,0 +1,109 @@
+/* --- Editor Layout --- */
+.note-editor {
+    flex: 0 0 40%;
+    width: 40%;
+    max-width: 80%;
+    min-width: 350px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-primary);
+    border-left: 1px solid var(--border-color);
+    box-shadow: -5px 0 20px -10px var(--shadow-color);
+  }
+  
+  .editor-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    overflow-y: auto;
+  }
+  
+  /* --- Editor Resizer --- */
+  .editor-resizer {
+      flex: 0 0 8px;
+      cursor: col-resize;
+      background-color: var(--bg-tertiary);
+      border-left: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+      transition: background-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+  }
+  .editor-resizer::before {
+      content: '';
+      width: 2px;
+      height: 20px;
+      background-color: var(--text-secondary);
+      border-radius: 1px;
+      opacity: 0.6;
+  }
+  .editor-resizer:hover, body.is-resizing .editor-resizer {
+      background-color: var(--primary-color);
+      border-left-color: var(--primary-color);
+      border-right-color: var(--primary-color);
+  }
+  .editor-resizer:hover::before, body.is-resizing .editor-resizer::before {
+      background-color: white;
+      opacity: 1;
+  }
+  
+  /* --- Editor Header --- */
+  .editor-header {
+    background-color: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+  }
+  .editor-header .form-control {
+    background-color: transparent;
+    border: none; box-shadow: none; font-size: 1.25rem; font-weight: 600;
+    color: var(--text-primary); padding: 0;
+  }
+  .editor-header .form-control:focus {
+    background-color: var(--bg-tertiary); border: none; box-shadow: none; outline: none;
+  }
+  .editor-header .form-control::placeholder {
+    color: var(--text-secondary); font-weight: 400;
+  }
+  
+  /* --- Editor Content & Tasks --- */
+  .note-content-editable {
+      direction: ltr !important;
+      text-align: left !important;
+      unicode-bidi: embed !important;
+      outline: none;
+      line-height: 1.6;
+  }
+  .note-content-editable * {
+      direction: ltr !important;
+      text-align: left !important;
+  }
+  .note-content-editable img {
+      max-width: 100%; height: auto; border-radius: var(--bs-border-radius); margin: 1rem 0;
+  }
+  .note-content-editable blockquote {
+      border-left: 3px solid var(--border-color); padding-left: 1rem;
+      margin-left: 0; font-style: italic; color: var(--text-secondary);
+  }
+  
+  .task-item {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem;
+      border-radius: var(--bs-border-radius); background-color: var(--bs-tertiary-bg);
+      margin: 0.5rem 0;
+  }
+  .task-checkbox {
+      width: 16px; height: 16px; border: 2px solid var(--bs-secondary);
+      border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .task-item[data-checked="true"] .task-checkbox {
+      background-color: var(--bs-primary); border-color: var(--bs-primary);
+  }
+  .task-item[data-checked="true"] .task-checkbox::after {
+      content: '✔'; color: white; font-size: 12px;
+  }
+  .task-item[data-checked="true"] .task-text {
+      text-decoration: line-through; opacity: 0.6;
+  }
+  .task-text { flex-grow: 1; outline: none; }
