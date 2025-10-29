@@ -1,5 +1,6 @@
 // js/services/voice-commands.js
-import { search, summarize, proofread } from './promptapi-service.js';
+import aiService from './ai-service.js';
+import { alertService } from './alert-service.js';
 
 /**
  * A utility to manage voice command definitions for the note editor.
@@ -91,29 +92,29 @@ const commands = [
 
     // --- Editor & AI Actions ---
     {
-        keywords: ['undo that', 'undo', 'go back', 'undo last'],
+        keywords: ['undo that', 'undo', 'undo last'],
         method: 'undo',
         type: 'editorMethod'
     },
     {
-        keywords: ['redo that', 'redo', 'go forward', 'redo last'],
+        keywords: ['redo that', 'redo', 'redo last'],
         method: 'redo',
         type: 'editorMethod'
     },
     {
-        keywords: ['save this note', 'save changes', 'save'],
+        keywords: ['save this note', 'save changes', 'save note'],
         method: 'forceSave',
         type: 'editorMethod'
     },
     {
-        keywords: ['close editor', 'done editing', 'finish note', 'close note', 'close'],
+        keywords: ['close editor', 'done editing', 'finish note', 'close note'],
         method: 'close',
         type: 'editorMethod'
     },
     {
         keywords: ['summarize this note', 'summary of this', 'create summary', 'summarize'],
         action: async (editor) => {
-            const summary = await summarize(editor.innerHTML);
+            const summary = await aiService.summarizeText(editor.innerHTML);
             alertService.infoMarkdown('Note Summary', summary);
         },
         type: 'async'
@@ -121,22 +122,19 @@ const commands = [
     {
         keywords: ['proofread this note', 'proofread this', 'check my writing', 'proof read this', 'proofread'],
         action: async (editor) => {
-            const result = await proofread(editor.innerHTML);
-            const message = result.corrections.length > 0
-                ? `Found ${result.corrections.length} potential corrections.`
-                : 'No corrections found.';
-            alertService.success('Proofreading Complete', message);
+            const correctedText = await aiService.proofreadText(editor.innerHTML);
+            // Replace the editor content with corrected text
+            editor.innerHTML = correctedText;
+            alertService.success('Proofreading Complete', 'Text has been corrected.');
         },
         type: 'async'
     },
     {
         keywords: ['search for', 'find', 'search'],
         action: async (editor, query) => {
-            const results = await search(query);
-            const message = results.length > 0
-                ? `Found ${results.length} results for "${query}".`
-                : `No results found for "${query}".`;
-            alertService.info('Search Results', message);
+            // Note: This search functionality needs to be implemented
+            // For now, show a placeholder message
+            alertService.info('Search', `Search for "${query}" is not yet implemented.`);
         },
         type: 'async'
     }

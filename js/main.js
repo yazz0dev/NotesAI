@@ -1,6 +1,7 @@
 import store from "./services/store.js";
 import aiService from "./services/ai-service.js";
 import { alertService } from "./services/alert-service.js";
+import { pinia, initializeStores, useNotesStore, useTagsStore, useSettingsStore } from "./stores/index.js";
 import AppHeader from "./components/AppHeader.js";
 import AppSidebar from "./components/AppSidebar.js";
 import NotesList from "./components/NotesList.js";
@@ -11,6 +12,7 @@ import AlertModal from "./components/AlertModal.js";
 import TagSelectionModal from "./components/TagSelectionModal.js";
 
 const { createApp } = Vue;
+const { mapState, mapActions, mapWritableState } = window.Pinia;
 
 const app = createApp({
   components: {
@@ -18,44 +20,109 @@ const app = createApp({
   },
   data() {
     return {
-      notes: [], allTags: [], noteToTag: null, currentView: "all-notes", editingNote: null,
-      isLoading: true, searchQuery: "",
-      isSidebarCollapsed: localStorage.getItem("sidebarCollapsed") === "true",
-      handsFreeMode: localStorage.getItem("handsFreeMode") === "true",
-      saveVoiceRecordings: localStorage.getItem("saveVoiceRecordings") === "true",
-      currentTheme: localStorage.getItem("theme") || "auto",
+      // UI-only state (not persisted in Pinia)
+      noteToTag: null,
       aiStatus: { status: "disabled", message: "Initializing..." },
       isVoiceActive: false,
       contentBeforeDictation: "",
-      isSettingsModalVisible: false, currentSort: "updatedAt-desc",
-      currentLayout: "grid", saveStatus: 'idle', newTagName: "", isResizing: false,
+      isSettingsModalVisible: false,
+      isResizing: false,
+      newTagName: "",
     };
   },
   computed: {
+    // Map Pinia store state to component computed properties
+    ...mapState(useNotesStore, {
+      notes: 'allNotes',
+      isLoading: 'isLoading',
+      saveStatus: 'saveStatus'
+    }),
+    ...mapWritableState(useNotesStore, ['editingNote']),
+    ...mapState(useTagsStore, {
+      allTags: 'allTags'
+    }),
+    ...mapState(useSettingsStore, {
+      isSidebarCollapsed: 'sidebarCollapsed',
+      handsFreeMode: 'handsFreeMode',
+      saveVoiceRecordings: 'saveVoiceRecordings',
+      currentTheme: 'theme',
+      currentLayout: 'currentLayout'
+    }),
+    ...mapWritableState(useSettingsStore, [
+      'searchQuery',
+      'currentFilter',
+      'currentTag',
+      'sortBy',
+      'sortOrder'
+    ]),
+
+    // Computed property for current view (backward compatibility)
+    currentView: {
+      get() {
+        const settingsStore = useSettingsStore();
+        if (settingsStore.currentTag) {
+          return `tag:${settingsStore.currentTag}`;
+        }
+        switch (settingsStore.currentFilter) {
+          case 'favorites': return 'favorites';
+          case 'archived': return 'archived';
+          default: return 'all-notes';
+        }
+      },
+      set(value) {
+        const settingsStore = useSettingsStore();
+        if (value.startsWith('tag:')) {
+          settingsStore.currentTag = value.split(':')[1];
+          settingsStore.currentFilter = 'all';
+        } else {
+          settingsStore.currentTag = null;
+          settingsStore.currentFilter = value === 'all-notes' ? 'all' : value;
+        }
+      }
+    },
+
+    // Computed property for current sort (backward compatibility)
+    currentSort: {
+      get() {
+        const settingsStore = useSettingsStore();
+        return `${settingsStore.sortBy}-${settingsStore.sortOrder}`;
+      },
+      set(value) {
+        const settingsStore = useSettingsStore();
+        const [sortBy, sortOrder] = value.split('-');
+        settingsStore.sortBy = sortBy;
+        settingsStore.sortOrder = sortOrder;
+      }
+    },
     // --- Performance Optimization: Memoized filtering and sorting ---
     filteredNotes() {
+      const notesStore = useNotesStore();
+      const settingsStore = useSettingsStore();
+      
       // Step 1: Filter based on view (favorites, archived, tags)
-      let notesToFilter = this.notes.filter(note => {
-        if (note.isArchived) {
-          return this.currentView === "archived";
-        }
-        switch (this.currentView) {
-          case "favorites":
-            return note.isFavorite;
-          case "archived":
-            return false; // Already handled
-          default:
-            if (this.currentView.startsWith("tag:")) {
-              const tagId = this.currentView.split(':')[1];
-              return (note.tags || []).includes(tagId);
-            }
-            return true; // all-notes view
-        }
-      });
+      let notesToFilter = [];
+      
+      switch (settingsStore.currentFilter) {
+        case 'favorites':
+          notesToFilter = notesStore.favoriteNotes;
+          break;
+        case 'archived':
+          notesToFilter = notesStore.archivedNotes;
+          break;
+        case 'active':
+          notesToFilter = notesStore.activeNotes;
+          break;
+        default:
+          if (settingsStore.currentTag) {
+            notesToFilter = notesStore.notesByTag(settingsStore.currentTag);
+          } else {
+            notesToFilter = notesStore.activeNotes;
+          }
+      }
 
       // Step 2: Filter based on search query
-      if (this.searchQuery.trim()) {
-        const searchKeywords = this.searchQuery.toLowerCase().split(' ').filter(Boolean);
+      if (settingsStore.searchQuery?.trim()) {
+        const searchKeywords = settingsStore.searchQuery.toLowerCase().split(' ').filter(Boolean);
         notesToFilter = notesToFilter.filter(note => {
           // Memoize note text to avoid re-computation
           if (!note._searchText) {
@@ -69,7 +136,9 @@ const app = createApp({
       }
 
       // Step 3: Sort the filtered notes
-      const [sortKey, sortDir] = this.currentSort.split('-');
+      const sortKey = settingsStore.sortBy || 'updatedAt';
+      const sortDir = settingsStore.sortOrder || 'desc';
+      
       return notesToFilter.sort((a, b) => {
         const valA = a[sortKey];
         const valB = b[sortKey];
@@ -82,36 +151,60 @@ const app = createApp({
     },
   },
   methods: {
+    // Map Pinia store actions
+    ...mapActions(useNotesStore, {
+      createNoteInStore: 'createNote',
+      updateNoteInStore: 'updateNote',
+      deleteNoteInStore: 'deleteNote',
+      toggleFavoriteInStore: 'toggleFavorite',
+      toggleArchiveInStore: 'toggleArchive',
+      setReminderInStore: 'setReminder',
+      removeReminderInStore: 'removeReminder',
+      updateNoteTagsInStore: 'updateNoteTags',
+      initializeNotesStore: 'initialize'
+    }),
+    ...mapActions(useTagsStore, {
+      createTagInStore: 'createTag',
+      initializeTagsStore: 'initialize'
+    }),
+    ...mapActions(useSettingsStore, {
+      setThemeInStore: 'setTheme',
+      setSidebarCollapsedInStore: 'setSidebarCollapsed',
+      setLayoutInStore: 'setLayout',
+      setHandsFreeModeInStore: 'setHandsFreeMode',
+      setSaveVoiceRecordingsInStore: 'setSaveVoiceRecordings',
+      initializeSettingsStore: 'initialize'
+    }),
+    
+    // Legacy methods - now delegating to Pinia stores
     async fetchAllData() {
-      try {
-        await Promise.all([this.fetchNotes(), this.fetchTags()]);
-      } catch (error) {
-        console.error("Failed to fetch initial data:", error);
-        alertService.error('Initialization Failed', 'Could not load notes and tags. Please refresh the page.');
-      }
+      // No longer needed - handled by Pinia store initialization
+      console.log('fetchAllData called - handled by Pinia stores');
     },
     async fetchNotes() {
-      const notes = await store.getNotes();
-      // Optimization: Avoid processing audioUrl here, do it on-demand
-      this.notes = notes.map(note => ({
-        ...note,
-        tags: note.tags || [],
-        aiSummary: note.aiSummary || null,
-      }));
+      // No longer needed - handled by Pinia store
+      const notesStore = useNotesStore();
+      await notesStore.loadNotes();
     },
-    async fetchTags() { this.allTags = await store.getTags(); },
+    async fetchTags() { 
+      // No longer needed - handled by Pinia store
+      const tagsStore = useTagsStore();
+      await tagsStore.loadTags();
+    },
     async saveNote(noteToSave) {
-      this.saveStatus = 'saving';
+      const notesStore = useNotesStore();
       try {
-        const noteToStore = { ...noteToSave, updatedAt: new Date().toISOString() };
-        const savedNote = await store.saveNote(noteToStore);
-        this.updateNoteInState(savedNote);
-        if (this.editingNote && this.editingNote.id === savedNote.id) this.editingNote = { ...savedNote };
-        this.saveStatus = 'saved';
-        setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle'; }, 2000);
+        if (noteToSave.id) {
+          await this.updateNoteInStore(noteToSave.id, noteToSave);
+        } else {
+          await this.createNoteInStore(noteToSave);
+        }
+        // Update editing note if it's the same
+        if (this.editingNote && this.editingNote.id === noteToSave.id) {
+          this.editingNote = { ...notesStore.getNoteById(noteToSave.id) };
+        }
       } catch (error) {
         console.error("Failed to save note:", error);
-        this.saveStatus = 'error';
         alertService.error('Save Failed', `There was an issue saving your note: ${error.message}`);
       }
     },
@@ -119,9 +212,10 @@ const app = createApp({
       try {
         const confirmed = await alertService.confirm('Delete Note', 'Are you sure you want to permanently delete this note?', { confirmText: 'Delete' });
         if (confirmed) {
-          if (this.editingNote && this.editingNote.id === noteId) this.closeEditor();
-          await store.deleteNote(noteId);
-          this.notes = this.notes.filter(n => n.id !== noteId);
+          if (this.editingNote && this.editingNote.id === noteId) {
+            this.closeEditor();
+          }
+          await this.deleteNoteInStore(noteId);
         }
       } catch (error) {
         console.error("Failed to delete note:", error);
@@ -131,6 +225,8 @@ const app = createApp({
 
     // --- KEY FIX: This function now handles both types of calls ---
     createNewNote(payload = {}, shouldOpenEditor = true) {
+      const notesStore = useNotesStore();
+      
       // Check if the payload is a MouseEvent from a button click, or our data object.
       const isClickEvent = payload instanceof Event;
 
@@ -141,40 +237,37 @@ const app = createApp({
       const newSummary = summary || (content ? `Voice Note ${timestamp.toLocaleTimeString()}` : "New Note");
 
       const newNote = {
-        id: `note_${timestamp.getTime()}`,
-        summary: newSummary,
+        title: newSummary,  // Using title instead of summary for Pinia store
+        summary: newSummary,  // Keep for backward compatibility
         content: content,
-        createdAt: timestamp.toISOString(),
-        updatedAt: timestamp.toISOString(),
+        tags: [],
         isFavorite: false,
         isArchived: false,
-        tags: [],
         reminderAt: null,
-        aiSummary: null  // AI-generated summary
+        aiSummary: null
       };
 
-      this.notes.unshift(newNote);
-      if (shouldOpenEditor) {
-        this.editNote(newNote);
-      }
+      // Create note in Pinia store
+      this.createNoteInStore(newNote).then(createdNote => {
+        if (shouldOpenEditor) {
+          this.editNote(createdNote);
+        }
+      });
+
       return newNote;
     },
 
-    editNote(note) { this.editingNote = JSON.parse(JSON.stringify(note)); },
+    editNote(note) { 
+      const notesStore = useNotesStore();
+      notesStore.setEditingNote(note ? JSON.parse(JSON.stringify(note)) : null);
+    },
     closeEditor() {
+      const notesStore = useNotesStore();
       if (this.isVoiceActive) aiService.stopListening();
-      this.editingNote = null;
+      notesStore.clearEditingNote();
     },
     setTheme(theme) {
-      this.currentTheme = theme;
-      localStorage.setItem("theme", theme);
-      if (theme === "auto") {
-        document.documentElement.removeAttribute("data-theme");
-        this.watchSystemTheme();
-      } else {
-        document.documentElement.setAttribute("data-theme", theme);
-        this.stopWatchingSystemTheme();
-      }
+      this.setThemeInStore(theme);
     },
     watchSystemTheme() {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -184,38 +277,57 @@ const app = createApp({
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       mediaQuery.removeEventListener('change', this.handleSystemThemeChange.bind(this));
     },
-    handleSystemThemeChange(e) { if (this.currentTheme === "auto") console.log('System theme changed:', e.matches ? 'dark' : 'light'); },
+    handleSystemThemeChange(e) { 
+      const settingsStore = useSettingsStore();
+      if (settingsStore.theme === "auto") {
+        console.log('System theme changed:', e.matches ? 'dark' : 'light');
+      }
+    },
     getSortLabel() {
+      const settingsStore = useSettingsStore();
+      const currentSort = `${settingsStore.sortBy}-${settingsStore.sortOrder}`;
       const labels = { 'updatedAt-desc': 'Newest', 'createdAt-desc': 'Created', 'summary-asc': 'A-Z' };
-      return labels[this.currentSort] || 'Sort';
+      return labels[currentSort] || 'Sort';
     },
     handleSearch(queryText) {
-      this.searchQuery = (queryText || '').trim().replace(/\s+/g, ' ');
+      const settingsStore = useSettingsStore();
+      settingsStore.searchQuery = (queryText || '').trim().replace(/\s+/g, ' ');
     },
     switchView(view) {
+      const settingsStore = useSettingsStore();
       this.currentView = view;
       this.editingNote = null;
       if (view !== 'search' && !view.startsWith('tag:')) {
-        this.searchQuery = '';
+        settingsStore.searchQuery = '';
         const searchInput = document.getElementById('search-input');
         if (searchInput) searchInput.textContent = '';
       }
     },
     toggleSidebar() {
-      this.isSidebarCollapsed = !this.isSidebarCollapsed;
-      localStorage.setItem("sidebarCollapsed", this.isSidebarCollapsed);
+      this.setSidebarCollapsedInStore(!this.isSidebarCollapsed);
     },
-    toggleLayout() { this.currentLayout = this.currentLayout === 'grid' ? 'list' : 'grid'; },
+    toggleLayout() { 
+      const settingsStore = useSettingsStore();
+      this.setLayoutInStore(settingsStore.currentLayout === 'grid' ? 'list' : 'grid');
+    },
     handleSortChange() {
+      const settingsStore = useSettingsStore();
       const sorts = ['updatedAt-desc', 'createdAt-desc', 'summary-asc'];
-      this.currentSort = sorts[(sorts.indexOf(this.currentSort) + 1) % sorts.length];
+      const currentSort = `${settingsStore.sortBy}-${settingsStore.sortOrder}`;
+      const nextSort = sorts[(sorts.indexOf(currentSort) + 1) % sorts.length];
+      const [sortBy, sortOrder] = nextSort.split('-');
+      settingsStore.sortBy = sortBy;
+      settingsStore.sortOrder = sortOrder;
     },
     openTagModal(note) { this.noteToTag = note; },
     closeTagModal() { this.noteToTag = null; },
     handleTagClick(tagId) {
-      this.currentView = `tag:${tagId}`;
-      if (this.searchQuery) {
-        this.searchQuery = '';
+      const settingsStore = useSettingsStore();
+      settingsStore.currentTag = tagId;
+      settingsStore.currentFilter = 'all';
+      
+      if (settingsStore.searchQuery) {
+        settingsStore.searchQuery = '';
         const searchInput = document.getElementById('search-input');
         if (searchInput) searchInput.textContent = '';
       }
@@ -223,32 +335,28 @@ const app = createApp({
     async handleCreateTag(tagName = null) {
       const name = (tagName || this.newTagName || '').trim();
       if (!name) return;
-      const newTag = { id: `tag_${Date.now()}`, name, color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}` };
+      
       try {
-        const savedTag = await store.saveTag(newTag);
-        this.allTags.push(savedTag);
-        this.allTags.sort((a, b) => a.name.localeCompare(b.name));
+        await this.createTagInStore({ name });
         this.newTagName = "";
-      } catch (error) { console.error("Failed to save tag:", error); alertService.confirm('Error', 'Could not save the new tag. Please try again.'); }
+      } catch (error) { 
+        console.error("Failed to save tag:", error); 
+        alertService.confirm('Error', 'Could not save the new tag. Please try again.'); 
+      }
     },
     async handleToggleFavorite(note) {
-      const updatedNote = { ...note, isFavorite: !note.isFavorite };
-      this.updateNoteInState(updatedNote);
-      await store.saveNote(updatedNote);
+      await this.toggleFavoriteInStore(note.id);
     },
     async handleArchiveNote(note) {
-      if (this.editingNote && this.editingNote.id === note.id) this.closeEditor();
-      const updatedNote = { ...note, isArchived: !note.isArchived };
-      this.updateNoteInState(updatedNote);
-      await store.saveNote(updatedNote);
-      await this.fetchNotes();
+      if (this.editingNote && this.editingNote.id === note.id) {
+        this.closeEditor();
+      }
+      await this.toggleArchiveInStore(note.id);
     },
     async handleRemoveReminder(note) {
-      const confirmed = await alertService.confirm('Remove Reminder', `Are you sure you want to remove the reminder for "${note.summary}"?`, { confirmText: 'Remove', type: 'warning' });
+      const confirmed = await alertService.confirm('Remove Reminder', `Are you sure you want to remove the reminder for "${note.summary || note.title}"?`, { confirmText: 'Remove', type: 'warning' });
       if (confirmed) {
-        const updatedNote = { ...note, reminderAt: null, reminderSeen: null };
-        this.updateNoteInState(updatedNote);
-        await store.saveNote(updatedNote);
+        await this.removeReminderInStore(note.id);
       }
     },
     async setReminder(note) {
@@ -256,18 +364,15 @@ const app = createApp({
       const message = note.reminderAt ? 'Edit the date and time. To remove this reminder, clear the field and click Update.' : 'Enter a date and time for the reminder:';
       const result = await alertService.input(note.reminderAt ? 'Edit Reminder' : 'Set Reminder', message, { inputType: 'datetime-local', defaultValue: currentReminder, confirmText: note.reminderAt ? 'Update' : 'Set Reminder' });
       if (result !== null) {
-        const updatedNote = { ...note, reminderAt: result ? new Date(result).toISOString() : null, reminderSeen: result ? null : note.reminderSeen };
-        this.updateNoteInState(updatedNote);
-        await store.saveNote(updatedNote);
+        if (result) {
+          await this.setReminderInStore(note.id, new Date(result).toISOString());
+        } else {
+          await this.removeReminderInStore(note.id);
+        }
       }
     },
     async handleUpdateTags({ noteId, tagIds }) {
-      const noteToUpdate = this.notes.find(n => n.id === noteId);
-      if (noteToUpdate) {
-        const updatedNote = { ...noteToUpdate, tags: tagIds };
-        this.updateNoteInState(updatedNote);
-        await store.saveNote(updatedNote);
-      }
+      await this.updateNoteTagsInStore(noteId, tagIds);
     },
     handleVoiceToggle() {
       if (this.isVoiceActive) {
@@ -290,14 +395,18 @@ const app = createApp({
       });
     },
     handleAISearch(event) {
-      this.searchQuery = event.detail.query;
+      const settingsStore = useSettingsStore();
+      settingsStore.searchQuery = event.detail.query;
       const searchInput = document.getElementById("search-input");
-      if (searchInput) searchInput.textContent = this.searchQuery;
+      if (searchInput) searchInput.textContent = settingsStore.searchQuery;
     },
     async handleAIDeleteNote(event) {
+      const notesStore = useNotesStore();
       const query = event.detail.query.toLowerCase();
       if (!query) return;
-      const noteToDelete = this.notes.find(n => n.summary.toLowerCase().includes(query) && !n.isArchived);
+      const noteToDelete = notesStore.activeNotes.find(n => 
+        (n.summary || n.title || '').toLowerCase().includes(query)
+      );
       if (noteToDelete) {
         this.deleteNote(noteToDelete.id);
       } else {
@@ -382,8 +491,8 @@ const app = createApp({
       window.removeEventListener('mouseup', this.stopResize);
     },
     updateNoteInState(updatedNote) {
-      const index = this.notes.findIndex(n => n.id === updatedNote.id);
-      if (index !== -1) this.notes.splice(index, 1, updatedNote);
+      // No longer needed with Pinia - state updates automatically
+      console.warn('updateNoteInState is deprecated - Pinia handles state updates');
     },
     async convertBlobUrlToDataUrl(blobUrl) {
       const response = await fetch(blobUrl);
@@ -396,13 +505,14 @@ const app = createApp({
       });
     },
     checkReminders() {
+      const notesStore = useNotesStore();
       const now = new Date();
-      this.notes.forEach(async (note) => {
-        if (note.reminderAt && !note.isArchived && !note.reminderSeen && new Date(note.reminderAt) <= now) {
-          await alertService.confirm('Reminder', `Your note titled "${note.summary}" is due now.`, { confirmText: 'Mark as Done', cancelText: 'Snooze' });
-          const updatedNote = { ...note, reminderSeen: true };
-          this.updateNoteInState(updatedNote);
-          await store.saveNote(updatedNote);
+      
+      notesStore.notesWithReminders.forEach(async (note) => {
+        if (!note.isArchived && !note.reminderSeen && new Date(note.reminderAt) <= now) {
+          await alertService.confirm('Reminder', `Your note titled "${note.summary || note.title}" is due now.`, { confirmText: 'Mark as Done', cancelText: 'Snooze' });
+          // Mark as seen in the store
+          await notesStore.updateNote(note.id, { reminderSeen: true });
         }
       });
     },
@@ -483,29 +593,52 @@ const app = createApp({
     }
   },
   watch: {
-    isSidebarCollapsed(isCollapsed) { document.body.classList.toggle("sidebar-collapsed", isCollapsed); },
-    handsFreeMode(newValue) { localStorage.setItem("handsFreeMode", newValue); newValue ? aiService.startAmbientListening() : aiService.stopAmbientListening(); },
-    saveVoiceRecordings(newValue) { localStorage.setItem("saveVoiceRecordings", newValue); },
+    isSidebarCollapsed(isCollapsed) { 
+      document.body.classList.toggle("sidebar-collapsed", isCollapsed); 
+    },
+    handsFreeMode(newValue) { 
+      newValue ? aiService.startAmbientListening() : aiService.stopAmbientListening(); 
+    },
+    saveVoiceRecordings(newValue) { 
+      // Handled by Pinia store
+    },
   },
   async created() {
-    this.setTheme(this.currentTheme);
-    await store.initDB();
-    await this.fetchAllData();
-    await aiService.init();
-    window.addEventListener("ai-status-update", this.handleAIStatusUpdate);
-    window.addEventListener("ai-create-note", this.handleAICreateNote);
-    window.addEventListener("ai-search", this.handleAISearch);
-    window.addEventListener("ai-listening-started", this.handleAIListeningStarted);
-    window.addEventListener("ai-dictation-update", this.handleAIDictationUpdate);
-    window.addEventListener("ai-dictation-finalized", this.handleAIDictationFinalized);
-    window.addEventListener("ai-listening-finished", this.handleAIListeningFinished);
-    window.addEventListener("ai-delete-note", this.handleAIDeleteNote);
-    window.addEventListener("ai-summarize-notes", this.handleAISummarizeNotes);
-    window.addEventListener("ai-command-executed", this.handleAICommandExecuted);
-    this.isLoading = false;
-    setInterval(this.checkReminders, 60000);
+    try {
+      // Initialize Pinia stores first
+      await initializeStores();
+      
+      // Get settings store and apply theme
+      const settingsStore = useSettingsStore();
+      this.setTheme(settingsStore.theme);
+      
+      // Initialize AI service
+      await aiService.init();
+      
+      // Setup event listeners
+      window.addEventListener("ai-status-update", this.handleAIStatusUpdate);
+      window.addEventListener("ai-create-note", this.handleAICreateNote);
+      window.addEventListener("ai-search", this.handleAISearch);
+      window.addEventListener("ai-listening-started", this.handleAIListeningStarted);
+      window.addEventListener("ai-dictation-update", this.handleAIDictationUpdate);
+      window.addEventListener("ai-dictation-finalized", this.handleAIDictationFinalized);
+      window.addEventListener("ai-listening-finished", this.handleAIListeningFinished);
+      window.addEventListener("ai-delete-note", this.handleAIDeleteNote);
+      window.addEventListener("ai-summarize-notes", this.handleAISummarizeNotes);
+      window.addEventListener("ai-command-executed", this.handleAICommandExecuted);
+      
+      // Start reminder checks
+      setInterval(this.checkReminders, 60000);
+      
+    } catch (error) {
+      console.error('Failed to initialize app:', error);
+      alertService.error('Initialization Failed', 'Could not initialize the application. Please refresh the page.');
+    }
   },
-  mounted() { document.body.classList.toggle("sidebar-collapsed", this.isSidebarCollapsed); },
+  mounted() { 
+    const settingsStore = useSettingsStore();
+    document.body.classList.toggle("sidebar-collapsed", settingsStore.sidebarCollapsed); 
+  },
   beforeUnmount() {
     window.removeEventListener("ai-status-update", this.handleAIStatusUpdate);
     window.removeEventListener("ai-create-note", this.handleAICreateNote);
@@ -538,5 +671,8 @@ const unhandledRejectionHandler = (event) => {
 
 window.onerror = globalErrorHandler;
 window.onunhandledrejection = unhandledRejectionHandler;
+
+// Use Pinia with the Vue app
+app.use(pinia);
 
 app.mount("#app");

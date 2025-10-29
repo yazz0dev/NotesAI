@@ -1,7 +1,6 @@
 import EditorToolbar from "./EditorToolbar.js";
 import { alertService } from "../services/alert-service.js";
 import aiService from "../services/ai-service.js";
-import { proofread, summarize } from '../services/promptapi-service.js';
 
 export default {
   components: {
@@ -322,7 +321,7 @@ export default {
 
         this.isSummarizing = true;
         try {
-            const summary = await summarize(this.$refs.editor.innerHTML);
+            const summary = await aiService.summarizeText(this.$refs.editor.innerHTML);
             this.editableNote.aiSummary = summary;
             this.triggerSave();
             // The UI will automatically update to show the summary status
@@ -344,8 +343,9 @@ export default {
 
         this.isProofreading = true;
         try {
-            const result = await proofread(content); // Use the new service
-            this.proofreadStats = result.stats;
+            const result = await aiService.proofreadTextWithDetails(content);
+            // If the result has stats, use them; otherwise create basic stats
+            this.proofreadStats = result.stats || { words: wordCount, errors: 0 };
         } catch (error) {
             console.error("Continuous proofreading failed:", error);
             // Optionally show a small error indicator in the UI
