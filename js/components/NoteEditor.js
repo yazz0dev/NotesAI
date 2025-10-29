@@ -1,6 +1,7 @@
 import EditorToolbar from "./EditorToolbar.js";
 import { alertService } from "../services/alert-service.js";
 import aiService from "../services/ai-service.js";
+import { proofread, summarize } from '../services/promptapi-service.js';
 
 export default {
   components: {
@@ -16,6 +17,11 @@ export default {
       redoStack: [],
       isUndoRedo: false,
       isContentLoaded: false,
+      proofreadStats: { words: 0, errors: 0 },
+      isProofreading: false,
+      debouncedProofread: null,
+      isSummarizing: false,
+      debouncedAutoSummary: null,
     };
   },
   template: `
@@ -23,6 +29,13 @@ export default {
         <div class="editor-header p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
           <div class="flex-grow-1">
             <input type="text" class="form-control border-0 px-0 fs-4 mb-2" v-model="editableNote.summary" @input="triggerSave" placeholder="Note Title">
+            <!-- Proofreading and Word Count Stats -->
+            <div class="d-flex align-items-center gap-3 text-muted small mb-2">
+              <span>Words: {{ proofreadStats.words }}</span>
+              <span>Errors: {{ proofreadStats.errors }}</span>
+              <span v-if="isProofreading" class="fst-italic">Proofreading...</span>
+              <span v-if="isSummarizing" class="fst-italic">Summarizing...</span>
+            </div>
             <!-- AI Summary Status -->
             <div v-if="editableNote.aiSummary" class="ai-summary-indicator d-flex align-items-center gap-2 text-muted small">
               <i class="bi bi-robot"></i>
@@ -79,6 +92,7 @@ export default {
           if (this.$refs.editor) {
             this.$refs.editor.innerHTML = this.editableNote.content || '';
             this.isContentLoaded = true;
+            this.runProofreader(); // Run when note changes
           }
         });
       }
@@ -106,12 +120,15 @@ export default {
     this.debouncedSave = this.debounce(() => {
       this.$emit('save', this.editableNote);
     }, 1500);
+    this.debouncedProofread = this.debounce(this.runProofreader, 2000); // Create debounced proofreader
+    this.debouncedAutoSummary = this.debounce(this.runAutoSummary, 10000); // Longer debounce for summarization
     window.addEventListener('ai-execute-command', this.executeVoiceCommand);
   },
   mounted() {
     if (this.$refs.editor) {
       this.$refs.editor.innerHTML = this.editableNote.content || '';
       this.isContentLoaded = true;
+      this.runProofreader(); // Run on initial load
     }
   },
   beforeUnmount() {
@@ -286,8 +303,55 @@ export default {
           }
           this.isUndoRedo = false;
           this.triggerSave();
+          this.debouncedProofread(); // Trigger the debounced proofreader
+          this.debouncedAutoSummary(); // Trigger auto-summary check
         }
       }
+    },
+    async runAutoSummary() {
+        if (!this.$refs.editor || this.isSummarizing || this.editableNote.aiSummary) {
+            return; // Don't run if summarizing, or summary already exists
+        }
+
+        const content = this.$refs.editor.innerText;
+        const wordCount = content.split(' ').filter(Boolean).length;
+
+        if (wordCount < 150) { // Word count threshold
+            return;
+        }
+
+        this.isSummarizing = true;
+        try {
+            const summary = await summarize(this.$refs.editor.innerHTML);
+            this.editableNote.aiSummary = summary;
+            this.triggerSave();
+            // The UI will automatically update to show the summary status
+        } catch (error) {
+            console.error("Automatic summarization failed:", error);
+        } finally {
+            this.isSummarizing = false;
+        }
+    },
+    async runProofreader() {
+        if (!this.$refs.editor) return;
+        const content = this.$refs.editor.innerText; // Use innerText to get clean text
+        const wordCount = content.split(' ').filter(Boolean).length;
+
+        if (wordCount < 3) {
+            this.proofreadStats = { words: wordCount, errors: 0 };
+            return;
+        }
+
+        this.isProofreading = true;
+        try {
+            const result = await proofread(content); // Use the new service
+            this.proofreadStats = result.stats;
+        } catch (error) {
+            console.error("Continuous proofreading failed:", error);
+            // Optionally show a small error indicator in the UI
+        } finally {
+            this.isProofreading = false;
+        }
     },
     undo() {
       if (this.undoStack.length > 1) {
