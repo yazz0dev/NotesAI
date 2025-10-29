@@ -32,50 +32,71 @@ const app = createApp({
     };
   },
   computed: {
+    // --- Performance Optimization: Memoized filtering and sorting ---
     filteredNotes() {
-      let notesToFilter;
-      if (this.currentView === "favorites") notesToFilter = this.notes.filter((n) => n.isFavorite && !n.isArchived);
-      else if (this.currentView === "archived") notesToFilter = this.notes.filter((n) => n.isArchived);
-      else if (this.currentView.startsWith("tag:")) {
-        const tagId = this.currentView.split(':')[1];
-        notesToFilter = this.notes.filter(n => !n.isArchived && n.tags && n.tags.includes(tagId));
-      }
-      else notesToFilter = this.notes.filter((n) => !n.isArchived);
+      // Step 1: Filter based on view (favorites, archived, tags)
+      let notesToFilter = this.notes.filter(note => {
+        if (note.isArchived) {
+          return this.currentView === "archived";
+        }
+        switch (this.currentView) {
+          case "favorites":
+            return note.isFavorite;
+          case "archived":
+            return false; // Already handled
+          default:
+            if (this.currentView.startsWith("tag:")) {
+              const tagId = this.currentView.split(':')[1];
+              return (note.tags || []).includes(tagId);
+            }
+            return true; // all-notes view
+        }
+      });
 
+      // Step 2: Filter based on search query
       if (this.searchQuery.trim()) {
         const searchKeywords = this.searchQuery.toLowerCase().split(' ').filter(Boolean);
         notesToFilter = notesToFilter.filter(note => {
-          const noteText = (note.summary + ' ' + (note.content || '')).toLowerCase().replace(/<[^>]*>/g, "");
-          return searchKeywords.every(keyword => noteText.includes(keyword));
+          // Memoize note text to avoid re-computation
+          if (!note._searchText) {
+            note._searchText = [note.summary, note.content]
+              .join(' ')
+              .toLowerCase()
+              .replace(/<[^>]*>/g, "");
+          }
+          return searchKeywords.every(keyword => note._searchText.includes(keyword));
         });
       }
 
+      // Step 3: Sort the filtered notes
       const [sortKey, sortDir] = this.currentSort.split('-');
-      notesToFilter.sort((a, b) => {
-        let valA = a[sortKey], valB = b[sortKey];
-        if (sortKey.includes('At')) { valA = new Date(valA); valB = new Date(valB); }
-        if (valA < valB) return sortDir === 'asc' ? -1 : 1;
-        if (valA > valB) return sortDir === 'asc' ? 1 : -1;
-        return 0;
-      });
+      return notesToFilter.sort((a, b) => {
+        const valA = a[sortKey];
+        const valB = b[sortKey];
+        const comparison = sortKey.includes('At')
+          ? new Date(valB) - new Date(valA) // Descending for dates
+          : String(valA).localeCompare(String(valB));
 
-      return notesToFilter;
+        return sortDir === 'asc' ? comparison * -1 : comparison;
+      });
     },
   },
   methods: {
-    async fetchAllData() { await this.fetchNotes(); await this.fetchTags(); },
+    async fetchAllData() {
+      try {
+        await Promise.all([this.fetchNotes(), this.fetchTags()]);
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+        alertService.error('Initialization Failed', 'Could not load notes and tags. Please refresh the page.');
+      }
+    },
     async fetchNotes() {
       const notes = await store.getNotes();
-      this.notes = await Promise.all(notes.map(async (note) => {
-        if (note.audioUrl && note.audioUrl.startsWith("blob:")) {
-          try {
-            note.audioUrl = await this.convertBlobUrlToDataUrl(note.audioUrl);
-            await store.saveNote(note);
-          } catch (error) { console.warn(`Failed to migrate blob URL for note ${note.id}:`, error); }
-        }
-        if (!note.tags) note.tags = [];
-        if (!note.aiSummary) note.aiSummary = null;
-        return note;
+      // Optimization: Avoid processing audioUrl here, do it on-demand
+      this.notes = notes.map(note => ({
+        ...note,
+        tags: note.tags || [],
+        aiSummary: note.aiSummary || null,
       }));
     },
     async fetchTags() { this.allTags = await store.getTags(); },
@@ -87,15 +108,24 @@ const app = createApp({
         this.updateNoteInState(savedNote);
         if (this.editingNote && this.editingNote.id === savedNote.id) this.editingNote = { ...savedNote };
         this.saveStatus = 'saved';
-        setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle' }, 2000);
-      } catch (error) { console.error("Failed to save note:", error); this.saveStatus = 'error'; }
+        setTimeout(() => { if (this.saveStatus === 'saved') this.saveStatus = 'idle'; }, 2000);
+      } catch (error) {
+        console.error("Failed to save note:", error);
+        this.saveStatus = 'error';
+        alertService.error('Save Failed', `There was an issue saving your note: ${error.message}`);
+      }
     },
     async deleteNote(noteId) {
-      const confirmed = await alertService.confirm('Delete Note', 'Are you sure you want to permanently delete this note?', { confirmText: 'Delete' });
-      if (confirmed) {
-        if (this.editingNote && this.editingNote.id === noteId) this.closeEditor();
-        await store.deleteNote(noteId);
-        await this.fetchNotes();
+      try {
+        const confirmed = await alertService.confirm('Delete Note', 'Are you sure you want to permanently delete this note?', { confirmText: 'Delete' });
+        if (confirmed) {
+          if (this.editingNote && this.editingNote.id === noteId) this.closeEditor();
+          await store.deleteNote(noteId);
+          this.notes = this.notes.filter(n => n.id !== noteId);
+        }
+      } catch (error) {
+        console.error("Failed to delete note:", error);
+        alertService.error('Delete Failed', 'Could not delete the note. Please try again.');
       }
     },
 
@@ -488,6 +518,25 @@ const app = createApp({
     window.removeEventListener("ai-summarize-notes", this.handleAISummarizeNotes);
     window.removeEventListener("ai-command-executed", this.handleAICommandExecuted);
     this.stopWatchingSystemTheme();
+    window.onerror = null; // Clean up global error handler
+    window.onunhandledrejection = null;
   },
 });
+
+// --- Global Error Handling ---
+const globalErrorHandler = (message, source, lineno, colno, error) => {
+  console.error("A global error occurred:", error);
+  alertService.error('An Unexpected Error Occurred', 'Please refresh the application. If the problem persists, please contact support.');
+  // Returning true prevents the default browser error handling
+  return true;
+};
+
+const unhandledRejectionHandler = (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  alertService.error('An Unexpected Error Occurred', 'An unhandled promise rejection occurred. Please check the console for details.');
+};
+
+window.onerror = globalErrorHandler;
+window.onunhandledrejection = unhandledRejectionHandler;
+
 app.mount("#app");
