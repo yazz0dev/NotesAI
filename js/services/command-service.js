@@ -236,6 +236,15 @@ class CommandService {
     for (const command of voiceCommands) {
       for (const keyword of command.keywords) {
         if (transcript.includes(keyword)) {
+          // Execute app-level commands immediately
+          if (command.type === 'app-level' && command.action) {
+            try {
+              command.action();
+              return null; // Don't return the command since we executed it
+            } catch (error) {
+              console.error('Error executing app-level command:', error);
+            }
+          }
           return command;
         }
       }

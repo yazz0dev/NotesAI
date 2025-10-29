@@ -1,65 +1,104 @@
+/* ============================================
+   APP HEADER
+   ============================================ */
+
 .app-header {
-    z-index: 1030;
-    min-height: fit-content;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 64px;
+    min-height: 64px;
+    max-height: 64px;
     flex-shrink: 0;
+    z-index: 1030;
     background-color: var(--header-bg);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border-color);
     box-shadow: 0 2px 4px var(--shadow-color);
-  }
-  
-  .app-logo {
-      background: var(--primary-gradient);
-      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  }
-  
-  .header-toolbar {
+}
+
+/* ============================================
+   HEADER SECTIONS
+   ============================================ */
+
+/* Logo Section */
+.app-logo {
+    background: var(--primary-gradient);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* Center Section - Toolbar & AI Status */
+.header-toolbar {
     max-width: 700px;
     width: 100%;
-  }
-  
-  .header-toolbar .search-container .form-control {
-      background: var(--bg-tertiary);
-  }
-  
-  .header-toolbar .search-container .form-control:focus {
-      background: var(--bg-primary);
-  }
-  
-  .header-toolbar .search-container .input-group-text,
-  .header-toolbar .search-container .form-control {
-      border-color: var(--border-color);
-  }
+}
 
-  /* AI Status Container */
-  .ai-status-container {
+.header-toolbar .search-container .form-control {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.header-toolbar .search-container .form-control:focus {
+    background: var(--bg-primary);
+}
+
+.header-toolbar .search-container .input-group-text {
+    border-color: var(--border-color);
+}
+
+/* ============================================
+   AI STATUS
+   ============================================ */
+
+.ai-status-container {
     margin-top: 4px;
     font-size: 0.75rem;
+    line-height: 1.2;
     opacity: 0.8;
-  }
+}
 
-  .ai-status-container small {
+.ai-status-container small {
     font-weight: 500;
-  }
+    display: inline-block;
+}
 
-  /* AI Status Colors */
-  .ai-status-container small.text-muted {
+/* AI Status Color States */
+.ai-status-container small.text-muted {
     color: var(--text-secondary) !important;
-  }
+}
 
-  .ai-status-container small.text-success {
+.ai-status-container small.text-success {
     color: var(--success-color, #28a745) !important;
-  }
+}
 
-  .ai-status-container small.text-warning {
+.ai-status-container small.text-warning {
     color: var(--warning-color, #ffc107) !important;
-  }
+}
 
-  .ai-status-container small.text-danger {
+.ai-status-container small.text-danger {
     color: var(--danger-color, #dc3545) !important;
-  }
+}
 
-  .ai-status-container small.text-info {
+.ai-status-container small.text-info {
     color: var(--info-color, #17a2b8) !important;
-  }
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+    .app-header {
+        height: auto;
+        min-height: 56px;
+        max-height: none;
+        flex-wrap: wrap;
+        padding: 0.5rem 0.75rem !important;
+    }
+
+    .header-toolbar {
+        max-width: 100%;
+        padding: 0 !important;
+    }
+}

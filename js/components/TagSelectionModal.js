@@ -52,7 +52,7 @@ export default {
           </div>
           <div class="modal-title-container">
             <h5 class="modal-title-enhanced">Manage Tags</h5>
-            <p class="text-muted mb-0 small text-truncate" :title="noteToTag.summary">for "{{ noteToTag.summary }}"</p>
+            <p class="text-muted mb-0 small text-truncate" :title="noteToTag.title">for "{{ noteToTag.title }}"</p>
           </div>
           <button type="button" class="btn-close-enhanced" @click="$emit('close')">
             <i class="bi bi-x-lg"></i>

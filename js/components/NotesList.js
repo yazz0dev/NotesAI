@@ -66,7 +66,7 @@ export default {
                             <!-- Card Body -->
                             <div class="card-body pt-0">
                                 <h6 class="card-title fw-semibold text-dark mb-2 line-clamp-2">
-                                    {{ note.summary || 'Untitled Note' }}
+                                    {{ note.title || 'Untitled Note' }}
                                 </h6>
                                 <p class="card-text text-muted small line-clamp-3 mb-3">{{ getSnippet(note.content) }}</p>
 

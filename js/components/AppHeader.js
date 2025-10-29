@@ -5,7 +5,11 @@
  * Features include sidebar toggle, voice control, settings access, and help.
  */
 export default {
-    // Props with validation and defaults
+    name: 'AppHeader',
+
+    // ============================================
+    // PROPS
+    // ============================================
     props: {
         isVoiceActive: {
             type: Boolean,
@@ -26,29 +30,52 @@ export default {
         }
     },
 
-    // Events emitted by this component
-    emits: ['toggle-sidebar', 'voice-toggle', 'open-settings', 'open-help', 'search', 'toggle-layout', 'change-sort'],
+    // ============================================
+    // EVENTS
+    // ============================================
+    emits: [
+        'toggle-sidebar',
+        'voice-toggle',
+        'open-settings',
+        'open-help',
+        'search',
+        'toggle-layout',
+        'change-sort'
+    ],
 
-    // Computed properties for dynamic template values
+    // ============================================
+    // COMPUTED PROPERTIES
+    // ============================================
     computed: {
         voiceControlButtonClass() {
-            return ['btn d-flex align-items-center gap-2', this.isVoiceActive ? 'btn-danger' : 'btn-primary'];
+            return [
+                'btn d-flex align-items-center gap-2',
+                this.isVoiceActive ? 'btn-danger' : 'btn-primary'
+            ];
         },
+
         voiceControlButtonAriaLabel() {
             return this.isVoiceActive ? 'Stop voice control' : 'Start voice control';
         },
+
         voiceControlButtonText() {
             return this.isVoiceActive ? 'Stop' : 'Voice Control';
         },
+
         voiceControlButtonIconClass() {
-            return ['bi', this.isVoiceActive ? 'bi-stop-circle-fill' : 'bi-mic-fill'];
+            return [
+                'bi',
+                this.isVoiceActive ? 'bi-stop-circle-fill' : 'bi-mic-fill'
+            ];
         }
     },
 
-    // Component template with semantic HTML and accessibility features
+    // ============================================
+    // TEMPLATE
+    // ============================================
     template: `
-      <header class="app-header align-items-center px-3 py-2" role="banner">
-        <!-- Left Section - Logo and sidebar toggle -->
+      <header class="app-header px-3 py-2" role="banner">
+        <!-- Left Section: Logo and Navigation -->
         <nav class="d-flex align-items-center gap-3" aria-label="Main navigation">
             <button
                 class="btn border-0 btn-outline-secondary"
@@ -71,19 +98,14 @@ export default {
             </div>
         </nav>
 
-        <!-- Center Section - Toolbar and AI status (expands to fill space) -->
-        <div class="flex-grow-1 px-4 d-flex flex-column align-items-center">
+        <!-- Center Section: Toolbar and AI Status -->
+        <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center">
             <slot name="toolbar"></slot>
-            <!-- 
-              KEY FIX: This slot was accidentally removed in the previous version. 
-              This is where the content from index.html (the ai-status-container div) is rendered.
-              Restoring it fixes the missing text issue.
-            -->
             <slot name="ai-status"></slot>
         </div>
 
-        <!-- Right Section - Application controls -->
-        <nav class="d-flex align-items-center gap-2 justify-content-end" aria-label="Application controls">
+        <!-- Right Section: Application Controls -->
+        <nav class="d-flex align-items-center gap-2 flex-shrink-0" aria-label="Application controls">
             <button
                 :class="voiceControlButtonClass"
                 :aria-label="voiceControlButtonAriaLabel"
@@ -99,10 +121,10 @@ export default {
             <button
                 class="btn btn-outline-secondary d-flex align-items-center justify-content-center"
                 aria-label="Open settings"
+                title="Settings"
                 @click="$emit('open-settings')"
                 @keydown.enter="$emit('open-settings')"
                 @keydown.space.prevent="$emit('open-settings')"
-                title="Settings"
                 style="width: 44px; height: 44px; border-radius: 8px;">
                 <i class="bi bi-gear fs-5" aria-hidden="true"></i>
             </button>
@@ -110,14 +132,14 @@ export default {
             <button
                 class="btn btn-outline-secondary d-flex align-items-center justify-content-center"
                 aria-label="Open help"
+                title="Help"
                 @click="$emit('open-help')"
                 @keydown.enter="$emit('open-help')"
                 @keydown.space.prevent="$emit('open-help')"
-                title="Help"
                 style="width: 44px; height: 44px; border-radius: 8px;">
                 <i class="bi bi-question-circle fs-5" aria-hidden="true"></i>
             </button>
         </nav>
       </header>
-      `,
+    `
 };

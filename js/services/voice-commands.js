@@ -1,5 +1,5 @@
 // js/services/voice-commands.js
-import aiService from './ai-service.js';
+import aiHandler from './ai-handler.js';
 import { alertService } from './alert-service.js';
 
 /**
@@ -21,6 +21,32 @@ const insertHTML = (editor, html) => {
 };
 
 const commands = [
+    // --- Note & Dictation Control ---
+    {
+        keywords: ['create note', 'new note', 'create new note', 'make a note'],
+        action: () => {
+            // Dispatch event to create new note and start dictating
+            window.dispatchEvent(new CustomEvent('voice-create-note', { detail: {} }));
+        },
+        type: 'app-level'
+    },
+    {
+        keywords: ['start writing', 'start dictating', 'begin writing', 'begin dictating', 'start dictation'],
+        action: () => {
+            // Dispatch event to start dictation mode
+            window.dispatchEvent(new CustomEvent('voice-start-dictation', { detail: {} }));
+        },
+        type: 'app-level'
+    },
+    {
+        keywords: ['stop writing', 'stop dictating', 'end writing', 'end dictating', 'stop dictation', 'done writing'],
+        action: () => {
+            // Dispatch event to stop dictation mode
+            window.dispatchEvent(new CustomEvent('voice-stop-dictation', { detail: {} }));
+        },
+        type: 'app-level'
+    },
+
     // --- Structure & Insertion ---
     {
         keywords: ['next line', 'new line', 'enter', 'break line'],
@@ -114,7 +140,7 @@ const commands = [
     {
         keywords: ['summarize this note', 'summary of this', 'create summary', 'summarize'],
         action: async (editor) => {
-            const summary = await aiService.summarizeText(editor.innerHTML);
+            const summary = await aiHandler.summarizeText(editor.innerHTML);
             alertService.infoMarkdown('Note Summary', summary);
         },
         type: 'async'
@@ -122,7 +148,7 @@ const commands = [
     {
         keywords: ['proofread this note', 'proofread this', 'check my writing', 'proof read this', 'proofread'],
         action: async (editor) => {
-            const correctedText = await aiService.proofreadText(editor.innerHTML);
+            const correctedText = await aiHandler.proofreadText(editor.innerHTML);
             // Replace the editor content with corrected text
             editor.innerHTML = correctedText;
             alertService.success('Proofreading Complete', 'Text has been corrected.');

@@ -1,5 +1,6 @@
 import store from "./services/store.js";
-import aiService from "./services/ai-service.js";
+// js/main.js
+import aiHandler from "./services/ai-handler.js";
 import { alertService } from "./services/alert-service.js";
 import { pinia, initializeStores, useNotesStore, useTagsStore, useSettingsStore } from "./stores/index.js";
 import AppHeader from "./components/AppHeader.js";
@@ -81,19 +82,6 @@ const app = createApp({
       }
     },
 
-    // Computed property for current sort (backward compatibility)
-    currentSort: {
-      get() {
-        const settingsStore = useSettingsStore();
-        return `${settingsStore.sortBy}-${settingsStore.sortOrder}`;
-      },
-      set(value) {
-        const settingsStore = useSettingsStore();
-        const [sortBy, sortOrder] = value.split('-');
-        settingsStore.sortBy = sortBy;
-        settingsStore.sortOrder = sortOrder;
-      }
-    },
     // --- Performance Optimization: Memoized filtering and sorting ---
     filteredNotes() {
       const notesStore = useNotesStore();
@@ -126,7 +114,7 @@ const app = createApp({
         notesToFilter = notesToFilter.filter(note => {
           // Memoize note text to avoid re-computation
           if (!note._searchText) {
-            note._searchText = [note.summary, note.content]
+            note._searchText = [note.title, note.content]
               .join(' ')
               .toLowerCase()
               .replace(/<[^>]*>/g, "");
@@ -176,21 +164,6 @@ const app = createApp({
       initializeSettingsStore: 'initialize'
     }),
     
-    // Legacy methods - now delegating to Pinia stores
-    async fetchAllData() {
-      // No longer needed - handled by Pinia store initialization
-      console.log('fetchAllData called - handled by Pinia stores');
-    },
-    async fetchNotes() {
-      // No longer needed - handled by Pinia store
-      const notesStore = useNotesStore();
-      await notesStore.loadNotes();
-    },
-    async fetchTags() { 
-      // No longer needed - handled by Pinia store
-      const tagsStore = useTagsStore();
-      await tagsStore.loadTags();
-    },
     async saveNote(noteToSave) {
       const notesStore = useNotesStore();
       try {
@@ -230,15 +203,14 @@ const app = createApp({
       // Check if the payload is a MouseEvent from a button click, or our data object.
       const isClickEvent = payload instanceof Event;
 
-      const summary = isClickEvent ? null : payload.summary;
+      const title = isClickEvent ? null : payload.title;
       const content = isClickEvent ? "" : payload.content || "";
 
       const timestamp = new Date();
-      const newSummary = summary || (content ? `Voice Note ${timestamp.toLocaleTimeString()}` : "New Note");
+      const newTitle = title || (content ? `Voice Note ${timestamp.toLocaleTimeString()}` : "New Note");
 
       const newNote = {
-        title: newSummary,  // Using title instead of summary for Pinia store
-        summary: newSummary,  // Keep for backward compatibility
+        title: newTitle,
         content: content,
         tags: [],
         isFavorite: false,
@@ -263,7 +235,7 @@ const app = createApp({
     },
     closeEditor() {
       const notesStore = useNotesStore();
-      if (this.isVoiceActive) aiService.stopListening();
+      if (this.isVoiceActive) aiHandler.stopListening();
       notesStore.clearEditingNote();
     },
     setTheme(theme) {
@@ -286,7 +258,7 @@ const app = createApp({
     getSortLabel() {
       const settingsStore = useSettingsStore();
       const currentSort = `${settingsStore.sortBy}-${settingsStore.sortOrder}`;
-      const labels = { 'updatedAt-desc': 'Newest', 'createdAt-desc': 'Created', 'summary-asc': 'A-Z' };
+      const labels = { 'updatedAt-desc': 'Newest', 'createdAt-desc': 'Created', 'title-asc': 'A-Z' };
       return labels[currentSort] || 'Sort';
     },
     handleSearch(queryText) {
@@ -312,7 +284,7 @@ const app = createApp({
     },
     handleSortChange() {
       const settingsStore = useSettingsStore();
-      const sorts = ['updatedAt-desc', 'createdAt-desc', 'summary-asc'];
+      const sorts = ['updatedAt-desc', 'createdAt-desc', 'title-asc'];
       const currentSort = `${settingsStore.sortBy}-${settingsStore.sortOrder}`;
       const nextSort = sorts[(sorts.indexOf(currentSort) + 1) % sorts.length];
       const [sortBy, sortOrder] = nextSort.split('-');
@@ -354,7 +326,7 @@ const app = createApp({
       await this.toggleArchiveInStore(note.id);
     },
     async handleRemoveReminder(note) {
-      const confirmed = await alertService.confirm('Remove Reminder', `Are you sure you want to remove the reminder for "${note.summary || note.title}"?`, { confirmText: 'Remove', type: 'warning' });
+      const confirmed = await alertService.confirm('Remove Reminder', `Are you sure you want to remove the reminder for "${note.title}"?`, { confirmText: 'Remove', type: 'warning' });
       if (confirmed) {
         await this.removeReminderInStore(note.id);
       }
@@ -376,18 +348,18 @@ const app = createApp({
     },
     handleVoiceToggle() {
       if (this.isVoiceActive) {
-        aiService.stopListening();
+        aiHandler.stopListening();
       } else {
         if (this.editingNote) {
-          this.contentBeforeDictation = this.editingNote.content;
-          this.$nextTick(() => aiService.startListening({ mode: 'dictation' }));
+          this.contentBeforeDictation = this.editingNote.content || '';
+          this.$nextTick(() => aiHandler.startListening({ mode: 'dictation' }));
         } else {
-          aiService.startListening({ mode: 'command' });
+          aiHandler.startListening({ mode: 'command' });
         }
       }
     },
     handleAICreateNote(event) {
-      this.createNewNote({ summary: event.detail.summary, content: event.detail.content });
+      this.createNewNote({ title: event.detail.summary, content: event.detail.content });
       this.$nextTick(() => {
         if (this.editingNote && !this.isVoiceActive) {
           this.handleVoiceToggle();
@@ -405,7 +377,7 @@ const app = createApp({
       const query = event.detail.query.toLowerCase();
       if (!query) return;
       const noteToDelete = notesStore.activeNotes.find(n => 
-        (n.summary || n.title || '').toLowerCase().includes(query)
+        (n.title || '').toLowerCase().includes(query)
       );
       if (noteToDelete) {
         this.deleteNote(noteToDelete.id);
@@ -419,7 +391,7 @@ const app = createApp({
         alertService.info("No Notes", "There are no notes in the current view to summarize.");
         return;
       }
-      const titles = this.filteredNotes.slice(0, 2).map(n => `"${n.summary}"`).join(', ');
+      const titles = this.filteredNotes.slice(0, 2).map(n => `"${n.title}"`).join(', ');
       alertService.info("Summarize Notes (Demo)", `This feature would summarize the ${count} notes currently visible, starting with ${titles}...`);
     },
     handleAIListeningStarted() {
@@ -430,16 +402,25 @@ const app = createApp({
       }
     },
     handleAIDictationUpdate(event) {
-      if (this.editingNote) {
+      if (this.editingNote && event?.detail?.transcript) {
         const interimText = event.detail.transcript;
+        // Ensure contentBeforeDictation is initialized
+        if (typeof this.contentBeforeDictation !== 'string') {
+          this.contentBeforeDictation = this.editingNote.content || '';
+        }
         const separator = this.contentBeforeDictation.trim() === '' ? '' : ' ';
         this.editingNote.content = this.contentBeforeDictation + separator + interimText;
       }
     },
     handleAIDictationFinalized(event) {
-      if (this.editingNote) {
+      if (this.editingNote && event?.detail?.transcript) {
         const finalText = event.detail.transcript.trim();
         if (!finalText) return; // Ignore empty transcripts
+
+        // Ensure contentBeforeDictation is initialized
+        if (typeof this.contentBeforeDictation !== 'string') {
+          this.contentBeforeDictation = this.editingNote.content || '';
+        }
 
         const separator = this.contentBeforeDictation.trim() === '' ? '' : ' ';
         const newContent = this.contentBeforeDictation + separator + finalText;
@@ -462,6 +443,43 @@ const app = createApp({
         this.saveNote(this.editingNote);
       }
       this.isVoiceActive = false;
+    },
+    handleVoiceCreateNote() {
+      // Create a new note and immediately start dictation
+      this.createNewNote();
+      // Wait for the editor to be ready, then start dictation
+      this.$nextTick(() => {
+        if (this.editingNote) {
+          this.contentBeforeDictation = '';
+          setTimeout(() => {
+            aiHandler.startListening({ mode: 'dictation' });
+          }, 300); // Small delay to ensure editor is fully mounted
+        }
+      });
+    },
+    handleVoiceStartDictation() {
+      if (!this.editingNote) {
+        // If no editor is open, create a new note first
+        this.createNewNote();
+        this.$nextTick(() => {
+          if (this.editingNote) {
+            this.contentBeforeDictation = this.editingNote.content || '';
+            setTimeout(() => {
+              aiHandler.startListening({ mode: 'dictation' });
+            }, 300);
+          }
+        });
+      } else {
+        // Editor is already open, just start dictation
+        this.contentBeforeDictation = this.editingNote.content || '';
+        aiHandler.startListening({ mode: 'dictation' });
+      }
+    },
+    handleVoiceStopDictation() {
+      // Stop the current dictation session
+      if (this.isVoiceActive) {
+        aiHandler.stopListening();
+      }
     },
     startResize(event) {
       event.preventDefault();
@@ -490,10 +508,6 @@ const app = createApp({
       window.removeEventListener('mousemove', this.doResize);
       window.removeEventListener('mouseup', this.stopResize);
     },
-    updateNoteInState(updatedNote) {
-      // No longer needed with Pinia - state updates automatically
-      console.warn('updateNoteInState is deprecated - Pinia handles state updates');
-    },
     async convertBlobUrlToDataUrl(blobUrl) {
       const response = await fetch(blobUrl);
       const blob = await response.blob();
@@ -510,7 +524,7 @@ const app = createApp({
       
       notesStore.notesWithReminders.forEach(async (note) => {
         if (!note.isArchived && !note.reminderSeen && new Date(note.reminderAt) <= now) {
-          await alertService.confirm('Reminder', `Your note titled "${note.summary || note.title}" is due now.`, { confirmText: 'Mark as Done', cancelText: 'Snooze' });
+          await alertService.confirm('Reminder', `Your note titled "${note.title}" is due now.`, { confirmText: 'Mark as Done', cancelText: 'Snooze' });
           // Mark as seen in the store
           await notesStore.updateNote(note.id, { reminderSeen: true });
         }
@@ -550,9 +564,16 @@ const app = createApp({
           
           <h6 class="fw-bold">General Commands (Notes List View)</h6>
           <ul class="list-unstyled lh-lg">
+            <li><i class="bi bi-plus-circle me-2 text-success"></i>To create a new note and start dictating: <br><em>"Create note" or "New note"</em></li>
             <li><i class="bi bi-pencil-square me-2 text-primary"></i>To create a note with a title: <br><em>"Create note titled <strong>My Meeting</strong> with content <strong>agenda items...</strong>"</em></li>
             <li><i class="bi bi-search me-2 text-primary"></i>To search: <em>"Search for <strong>AI project</strong>"</em></li>
             <li><i class="bi bi-trash me-2 text-primary"></i>To delete: <em>"Delete note <strong>My Meeting</strong>"</em></li>
+          </ul>
+
+          <h6 class="fw-bold mt-4">Dictation Control</h6>
+          <ul class="list-unstyled lh-lg">
+            <li><i class="bi bi-mic-fill me-2 text-success"></i>To start dictating: <em>"Start writing" or "Start dictating"</em></li>
+            <li><i class="bi bi-mic-mute me-2 text-danger"></i>To stop dictating: <em>"Stop writing" or "Exit"</em></li>
           </ul>
 
           <h6 class="fw-bold mt-4">In-Editor Commands (Dictation Mode)</h6>
@@ -597,7 +618,7 @@ const app = createApp({
       document.body.classList.toggle("sidebar-collapsed", isCollapsed); 
     },
     handsFreeMode(newValue) { 
-      newValue ? aiService.startAmbientListening() : aiService.stopAmbientListening(); 
+      newValue ? aiHandler.startAmbientListening() : aiHandler.stopAmbientListening(); 
     },
     saveVoiceRecordings(newValue) { 
       // Handled by Pinia store
@@ -613,19 +634,22 @@ const app = createApp({
       this.setTheme(settingsStore.theme);
       
       // Initialize AI service
-      await aiService.init();
+      await aiHandler.init();
       
       // Setup event listeners
-      window.addEventListener("ai-status-update", this.handleAIStatusUpdate);
-      window.addEventListener("ai-create-note", this.handleAICreateNote);
-      window.addEventListener("ai-search", this.handleAISearch);
-      window.addEventListener("ai-listening-started", this.handleAIListeningStarted);
-      window.addEventListener("ai-dictation-update", this.handleAIDictationUpdate);
-      window.addEventListener("ai-dictation-finalized", this.handleAIDictationFinalized);
-      window.addEventListener("ai-listening-finished", this.handleAIListeningFinished);
-      window.addEventListener("ai-delete-note", this.handleAIDeleteNote);
-      window.addEventListener("ai-summarize-notes", this.handleAISummarizeNotes);
-      window.addEventListener("ai-command-executed", this.handleAICommandExecuted);
+      window.addEventListener("command-status-update", this.handleAIStatusUpdate);
+      window.addEventListener("command-create-note", this.handleAICreateNote);
+      window.addEventListener("command-search", this.handleAISearch);
+      window.addEventListener("listening-started", this.handleAIListeningStarted);
+      window.addEventListener("dictation-update", this.handleAIDictationUpdate);
+      window.addEventListener("dictation-finalized", this.handleAIDictationFinalized);
+      window.addEventListener("listening-finished", this.handleAIListeningFinished);
+      window.addEventListener("command-delete-note", this.handleAIDeleteNote);
+      window.addEventListener("command-summarize-notes", this.handleAISummarizeNotes);
+      window.addEventListener("command-execute", this.handleAICommandExecuted);
+      window.addEventListener("voice-create-note", this.handleVoiceCreateNote);
+      window.addEventListener("voice-start-dictation", this.handleVoiceStartDictation);
+      window.addEventListener("voice-stop-dictation", this.handleVoiceStopDictation);
       
       // Start reminder checks
       setInterval(this.checkReminders, 60000);
@@ -650,6 +674,9 @@ const app = createApp({
     window.removeEventListener("ai-delete-note", this.handleAIDeleteNote);
     window.removeEventListener("ai-summarize-notes", this.handleAISummarizeNotes);
     window.removeEventListener("ai-command-executed", this.handleAICommandExecuted);
+    window.removeEventListener("voice-create-note", this.handleVoiceCreateNote);
+    window.removeEventListener("voice-start-dictation", this.handleVoiceStartDictation);
+    window.removeEventListener("voice-stop-dictation", this.handleVoiceStopDictation);
     this.stopWatchingSystemTheme();
     window.onerror = null; // Clean up global error handler
     window.onunhandledrejection = null;

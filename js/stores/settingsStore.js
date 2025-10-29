@@ -20,7 +20,7 @@ export const useSettingsStore = defineStore('settings', {
     // UI settings
     sidebarCollapsed: false,
     currentLayout: 'grid', // 'grid', 'list', 'compact'
-    sortBy: 'updatedAt', // 'updatedAt', 'createdAt', 'summary', 'title'
+    sortBy: 'updatedAt', // 'updatedAt', 'createdAt', 'title'
     sortOrder: 'desc', // 'asc', 'desc'
     
     // Filter settings

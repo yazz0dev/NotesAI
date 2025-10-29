@@ -1,6 +1,6 @@
 import EditorToolbar from "./EditorToolbar.js";
 import { alertService } from "../services/alert-service.js";
-import aiService from "../services/ai-service.js";
+import aiHandler from "../services/ai-handler.js";
 
 export default {
   components: {
@@ -21,20 +21,49 @@ export default {
       debouncedProofread: null,
       isSummarizing: false,
       debouncedAutoSummary: null,
+      activeCorrections: [], // Store active corrections for highlighting
     };
   },
   template: `
       <aside class="note-editor d-flex flex-column border-start">
         <div class="editor-header p-3 border-bottom d-flex align-items-center justify-content-between gap-2">
           <div class="flex-grow-1">
-            <input type="text" class="form-control border-0 px-0 fs-4 mb-2" v-model="editableNote.summary" @input="triggerSave" placeholder="Note Title">
+            <input type="text" class="form-control border-0 px-0 fs-4 mb-2" v-model="editableNote.title" @input="triggerSave" placeholder="Note Title">
+            
+            <!-- AI Action Buttons -->
+            <div class="d-flex gap-2 mb-2">
+              <button 
+                class="btn btn-sm btn-outline-primary" 
+                @click="proofreadNote" 
+                :disabled="isProofreading"
+                title="Proofread this note with AI">
+                <i class="bi bi-magic"></i>
+                <span v-if="!isProofreading">Proofread</span>
+                <span v-else>Proofreading...</span>
+              </button>
+              <button 
+                class="btn btn-sm btn-outline-success" 
+                @click="summarizeNote" 
+                :disabled="isSummarizing"
+                title="Generate AI summary">
+                <i class="bi bi-file-text"></i>
+                <span v-if="!isSummarizing">Summarize</span>
+                <span v-else>Summarizing...</span>
+              </button>
+            </div>
+
             <!-- Proofreading and Word Count Stats -->
             <div class="d-flex align-items-center gap-3 text-muted small mb-2">
-              <span>Words: {{ proofreadStats.words }}</span>
-              <span>Errors: {{ proofreadStats.errors }}</span>
-              <span v-if="isProofreading" class="fst-italic">Proofreading...</span>
-              <span v-if="isSummarizing" class="fst-italic">Summarizing...</span>
+              <span><i class="bi bi-fonts"></i> {{ proofreadStats.words }} words</span>
+              <span :class="proofreadStats.errors > 0 ? 'text-warning' : 'text-success'">
+                <i class="bi bi-exclamation-triangle"></i> {{ proofreadStats.errors }} error{{ proofreadStats.errors !== 1 ? 's' : '' }}
+              </span>
+              <span v-if="isProofreading" class="text-info fst-italic">
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Checking...
+              </span>
             </div>
+
             <!-- AI Summary Status -->
             <div v-if="editableNote.aiSummary" class="ai-summary-indicator d-flex align-items-center gap-2 text-muted small">
               <i class="bi bi-robot"></i>
@@ -119,7 +148,7 @@ export default {
     this.debouncedSave = this.debounce(() => {
       this.$emit('save', this.editableNote);
     }, 1500);
-    this.debouncedProofread = this.debounce(this.runProofreader, 2000); // Create debounced proofreader
+    this.debouncedProofread = this.debounce(this.runProofreader, 3000); // Increased from 2000 to 3000ms - wait longer before proofreading
     this.debouncedAutoSummary = this.debounce(this.runAutoSummary, 10000); // Longer debounce for summarization
     window.addEventListener('ai-execute-command', this.executeVoiceCommand);
   },
@@ -127,7 +156,8 @@ export default {
     if (this.$refs.editor) {
       this.$refs.editor.innerHTML = this.editableNote.content || '';
       this.isContentLoaded = true;
-      this.runProofreader(); // Run on initial load
+      // Don't run proofreader on initial load - wait for user to start typing
+      // this.runProofreader(); // Removed to prevent unnecessary API calls
     }
   },
   beforeUnmount() {
@@ -193,7 +223,7 @@ export default {
     },
     async summarizeNote() {
       try {
-        const summary = await aiService.summarizeText(this.editableNote.content);
+        const summary = await aiHandler.summarizeText(this.editableNote.content);
 
         // Show the summary in a modal with save option
         const shouldSave = await alertService.confirm(
@@ -229,7 +259,7 @@ export default {
         }
 
         // Check proofreader availability first
-        const proofreaderAvailability = await aiService.checkProofreaderAvailability();
+        const proofreaderAvailability = await aiHandler.checkProofreaderAvailability();
         if (!proofreaderAvailability.available && proofreaderAvailability.reason.includes('downloadable')) {
           alertService.info('Downloading AI Model', 'The proofreading AI model is downloading. This may take a few minutes on first use. Please try again shortly.', {
             confirmText: 'OK',
@@ -238,7 +268,7 @@ export default {
           return;
         }
 
-        const result = await aiService.proofreadTextWithDetails(cleanContent);
+        const result = await aiHandler.proofreadTextWithDetails(cleanContent);
 
         if (result.hasCorrections) {
           this.undoStack.push(originalContent); // Save state before changing
@@ -294,6 +324,12 @@ export default {
       if (this.$refs.editor) {
         const currentContent = this.$refs.editor.innerHTML;
         if (this.editableNote.content !== currentContent) {
+          // Clear error highlights when user is actively editing
+          if (this.activeCorrections.length > 0) {
+            this.clearErrorHighlights();
+            this.activeCorrections = [];
+          }
+          
           this.editableNote.content = currentContent;
           if (!this.isUndoRedo) {
             this.undoStack.push(JSON.parse(JSON.stringify(this.editableNote)));
@@ -321,7 +357,7 @@ export default {
 
         this.isSummarizing = true;
         try {
-            const summary = await aiService.summarizeText(this.$refs.editor.innerHTML);
+            const summary = await aiHandler.summarizeText(this.$refs.editor.innerHTML);
             this.editableNote.aiSummary = summary;
             this.triggerSave();
             // The UI will automatically update to show the summary status
@@ -332,23 +368,46 @@ export default {
         }
     },
     async runProofreader() {
-        if (!this.$refs.editor) return;
+        if (!this.$refs.editor || this.isProofreading) return; // Don't run if already proofreading
+        
         const content = this.$refs.editor.innerText; // Use innerText to get clean text
         const wordCount = content.split(' ').filter(Boolean).length;
 
         if (wordCount < 3) {
             this.proofreadStats = { words: wordCount, errors: 0 };
+            this.activeCorrections = [];
             return;
         }
 
         this.isProofreading = true;
         try {
-            const result = await aiService.proofreadTextWithDetails(content);
-            // If the result has stats, use them; otherwise create basic stats
-            this.proofreadStats = result.stats || { words: wordCount, errors: 0 };
+            const result = await aiHandler.proofreadTextWithDetails(content);
+            
+            // Handle different result types
+            if (result.aborted || result.skipped) {
+                // Request was cancelled or throttled, no action needed
+                return;
+            }
+            
+            // Store corrections for highlighting
+            if (result.hasCorrections && result.corrections && result.corrections.length > 0) {
+                this.activeCorrections = result.corrections;
+                this.highlightErrors(result.corrections);
+                this.proofreadStats = { 
+                    words: wordCount, 
+                    errors: result.corrections.length 
+                };
+            } else {
+                this.activeCorrections = [];
+                this.clearErrorHighlights();
+                this.proofreadStats = { words: wordCount, errors: 0 };
+            }
         } catch (error) {
-            console.error("Continuous proofreading failed:", error);
-            // Optionally show a small error indicator in the UI
+            // Only log non-abort errors
+            if (error.name !== 'AbortError' && !error.message.includes('AbortError')) {
+                console.error("Continuous proofreading failed:", error);
+            }
+            // Don't show error indicator for expected errors
         } finally {
             this.isProofreading = false;
         }
@@ -419,6 +478,68 @@ export default {
       const text = event.clipboardData.getData('text/plain');
       document.execCommand('insertText', false, text);
     },
+    highlightErrors(corrections) {
+      const editor = this.$refs.editor;
+      if (!editor || !corrections || corrections.length === 0) return;
+
+      const text = editor.innerText;
+      let html = '';
+      let lastIndex = 0;
+
+      // Sort corrections by position
+      const sortedCorrections = [...corrections].sort((a, b) => (a.startIndex || 0) - (b.startIndex || 0));
+
+      sortedCorrections.forEach((correction, index) => {
+        const start = correction.startIndex || 0;
+        const end = correction.endIndex || start + 1;
+        
+        // Add text before the error
+        if (start > lastIndex) {
+          html += this.escapeHtml(text.substring(lastIndex, start));
+        }
+
+        // Add the error with highlighting
+        const errorText = text.substring(start, end);
+        const tooltip = this.getCorrectionTooltip(correction);
+        html += `<mark class="proofreader-error" data-index="${index}" title="${tooltip}" style="background-color: #fff3cd; cursor: pointer; border-bottom: 2px wavy #dc3545;">${this.escapeHtml(errorText)}</mark>`;
+        
+        lastIndex = end;
+      });
+
+      // Add remaining text
+      if (lastIndex < text.length) {
+        html += this.escapeHtml(text.substring(lastIndex));
+      }
+
+      // Update editor content
+      editor.innerHTML = html;
+
+      // Add click handlers to error marks
+      this.$nextTick(() => {
+        const marks = editor.querySelectorAll('.proofreader-error');
+        marks.forEach((mark, index) => {
+          mark.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showCorrectionDetails(sortedCorrections[index]);
+          });
+        });
+      });
+    },
+    clearErrorHighlights() {
+      const editor = this.$refs.editor;
+      if (!editor) return;
+
+      const marks = editor.querySelectorAll('.proofreader-error');
+      marks.forEach(mark => {
+        const text = document.createTextNode(mark.textContent);
+        mark.parentNode.replaceChild(text, mark);
+      });
+    },
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    },
     showCorrectionsWithHighlights(originalContent, corrections) {
       const editor = this.$refs.editor;
       if (!editor) return;
@@ -477,7 +598,7 @@ export default {
     },
 
     getCorrectionTooltip(correction) {
-      let tooltip = `Error: ${correction.errorType || 'Unknown'}`;
+      let tooltip = `Error: ${correction.errorType || 'Grammar/Spelling'}`;
       if (correction.replacement) {
         tooltip += `\nSuggestion: ${correction.replacement}`;
       }
@@ -488,17 +609,21 @@ export default {
     },
 
     showCorrectionDetails(correction) {
-      let message = `**Error Type:** ${correction.errorType || 'Unknown'}\n\n`;
+      let message = `**Error Type:** ${correction.errorType || 'Grammar/Spelling'}\n\n`;
+
+      if (correction.original) {
+        message += `**Original:** ${correction.original}\n\n`;
+      }
 
       if (correction.replacement) {
-        message += `**Suggested:** ${correction.replacement}\n\n`;
+        message += `**Suggested Correction:** ${correction.replacement}\n\n`;
       }
 
       if (correction.explanation) {
         message += `**Explanation:** ${correction.explanation}`;
       }
 
-      alertService.info('Correction Details', message, {
+      alertService.info('Proofreader Suggestion', message, {
         confirmText: 'Got it',
         cancelText: false
       });

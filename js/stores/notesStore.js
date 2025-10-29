@@ -101,11 +101,9 @@ export const useNotesStore = defineStore('notes', {
     async loadNotes() {
       try {
         const notes = await dbService.getNotes();
-        // Ensure backward compatibility with 'summary' field
         this.notes = notes.map(note => ({
           ...note,
-          title: note.title || note.summary || '',
-          summary: note.summary || note.title || '',
+          title: note.title || '',
           tags: note.tags || []
         }));
         return this.notes;
@@ -117,11 +115,10 @@ export const useNotesStore = defineStore('notes', {
 
     // Create a new note
     async createNote(noteData = {}) {
-      const title = noteData.title || noteData.summary || '';
+      const title = noteData.title || '';
       const newNote = {
         id: Date.now().toString(),
         title: title,
-        summary: title, // Keep for backward compatibility
         content: noteData.content || '',
         tags: noteData.tags || [],
         isFavorite: noteData.isFavorite || false,
@@ -158,13 +155,6 @@ export const useNotesStore = defineStore('notes', {
       const noteIndex = this.notes.findIndex(n => n.id === noteId);
       if (noteIndex === -1) {
         throw new Error('Note not found');
-      }
-
-      // Sync title and summary for backward compatibility
-      if (updates.title && !updates.summary) {
-        updates.summary = updates.title;
-      } else if (updates.summary && !updates.title) {
-        updates.title = updates.summary;
       }
 
       const updatedNote = {
