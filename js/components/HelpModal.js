@@ -145,15 +145,6 @@ export default {
 <li><strong>Sort Options:</strong> Sort by date, title, or custom order</li>
 </ul>
 
-<h4>Keyboard Shortcuts</h4>
-<ul>
-<li><code>Ctrl+N</code> - Create a new note</li>
-<li><code>Ctrl+Shift+A</code> - Toggle AI search mode</li>
-<li><code>Ctrl+Shift+L</code> - Switch between grid and list layouts</li>
-<li><code>Ctrl+Shift+S</code> - Change sort order</li>
-<li><code>Escape</code> - Close modals and overlays</li>
-</ul>
-
 <h4>Storage & Privacy</h4>
 <ul>
 <li>✅ All notes stored locally in your browser (IndexedDB)</li>

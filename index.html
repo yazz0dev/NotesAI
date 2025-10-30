@@ -157,7 +157,7 @@
       </template>
 
       <!-- Modals -->
-      <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="theme" :save-voice-recordings="saveVoiceRecordings" @update:modelValue="setHandsFreeModeInStore" @update:theme="setThemeInStore" @update:save-voice-recordings="setSaveVoiceRecordingsInStore" @close="isSettingsModalVisible = false"></settings-modal>
+      <settings-modal v-if="isSettingsModalVisible" :current-theme="theme" :save-voice-recordings="saveVoiceRecordings" @update:theme="setThemeInStore" @update:save-voice-recordings="setSaveVoiceRecordingsInStore" @close="isSettingsModalVisible = false"></settings-modal>
       <alert-modal></alert-modal>
       <toast></toast>
       <tag-selection-overlay v-if="noteToTag" :note-to-tag="noteToTag" :all-tags="allTags" :trigger-position="tagModalPosition" @close="closeTagModal" @update-tags="handleUpdateTags"></tag-selection-overlay>

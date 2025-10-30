@@ -47,7 +47,40 @@ export default {
         this.$refs.imageInput.value = ""; // Reset input
       },
       insertTask() {
-        const taskHTML = '<div class="task-item" contenteditable="false" data-checked="false"><span class="task-checkbox"></span><span class="task-text" contenteditable="true">Task...</span></div>&nbsp;';
+        const selection = window.getSelection();
+        let taskContent = 'Task...';
+        
+        // Check if selection is inside a task item
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const commonAncestor = range.commonAncestorContainer;
+          const taskItem = commonAncestor.nodeType === Node.TEXT_NODE 
+            ? commonAncestor.parentElement?.closest('.task-item')
+            : commonAncestor.closest?.('.task-item');
+          
+          // If already inside a task, convert it to normal text
+          if (taskItem) {
+            const taskText = taskItem.querySelector('.task-text');
+            if (taskText) {
+              const textContent = taskText.innerHTML;
+              const newContent = document.createElement('div');
+              newContent.innerHTML = textContent;
+              newContent.innerHTML += '<br>';
+              taskItem.replaceWith(newContent);
+            }
+            this.$emit("content-change");
+            return;
+          }
+          
+          // If text is selected, preserve formatting by extracting the inner HTML
+          const fragment = range.extractContents();
+          const tempDiv = document.createElement('div');
+          tempDiv.appendChild(fragment);
+          taskContent = tempDiv.innerHTML;
+        }
+        
+        const taskHTML = `<div class="task-item" contenteditable="false" data-checked="false"><span class="task-checkbox"></span><span class="task-text" contenteditable="true">${taskContent}</span></div><div><br></div>`;
+        
         document.execCommand('insertHTML', false, taskHTML);
         this.$emit("content-change");
       },

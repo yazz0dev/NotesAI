@@ -1,6 +1,11 @@
 class PromptAPIService {
   constructor() {
     this._activeSession = null;
+    this._crashCount = 0;
+    this._maxCrashThreshold = 3;
+    this._isCrashRecovered = false;
+    this._crashDetectionTimeout = null;
+    console.log("[PromptAPIService] Initialized with language specifications (expectedInputs/expectedOutputs)");
   }
 
   async checkAvailability() {
@@ -9,13 +14,20 @@ class PromptAPIService {
       if (!('LanguageModel' in self)) {
         return { available: false, reason: "Chrome Prompt API is not available." };
       }
+      
+      // Check if model has crashed too many times
+      if (this._crashCount >= this._maxCrashThreshold) {
+        console.warn("[PromptAPIService] Model has crashed too many times, disabling AI");
+        return { available: false, reason: "Model process crashed too many times. Please restart the browser." };
+      }
+      
       const availability = await self.LanguageModel.availability();
       if (availability === 'available' || availability === 'downloadable') {
         return { available: true };
       }
       return { available: false, reason: `Prompt API is in an unsupported state: ${availability}` };
     } catch (error) {
-      console.error("AI availability check error:", error);
+      console.error("[PromptAPIService] AI availability check error:", error);
       return { available: false, reason: `AI check failed: ${error.message}` };
     }
   }
@@ -25,9 +37,26 @@ class PromptAPIService {
       if (!('LanguageModel' in self)) { throw new Error("LanguageModel API not available."); }
       return await self.LanguageModel.params();
     } catch (error) {
-      console.warn("Could not get model params, using defaults:", error);
+      console.warn("[PromptAPIService] Could not get model params, using defaults:", error);
       return { defaultTopK: 3, maxTopK: 128, defaultTemperature: 1, maxTemperature: 2 };
     }
+  }
+
+  _recordCrash() {
+    this._crashCount++;
+    console.error(`[PromptAPIService] Model crash detected (${this._crashCount}/${this._maxCrashThreshold})`);
+    
+    // Clear any pending timeout
+    if (this._crashDetectionTimeout) {
+      clearTimeout(this._crashDetectionTimeout);
+    }
+    
+    // Reset crash count after 30 seconds of stability
+    this._crashDetectionTimeout = setTimeout(() => {
+      console.log("[PromptAPIService] Crash counter reset after stability period");
+      this._crashCount = 0;
+      this._isCrashRecovered = false;
+    }, 30000);
   }
 
   async _runStreamingPrompt(session, prompt, options = {}) {
@@ -42,7 +71,8 @@ class PromptAPIService {
       }
       return fullResponse;
     } catch (error) {
-      console.error("Streaming prompt error:", error);
+      console.error("[PromptAPIService] Streaming prompt error:", error);
+      this._recordCrash();
       throw error;
     }
   }
@@ -59,8 +89,13 @@ class PromptAPIService {
         initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
         temperature: options.temperature || modelParams.defaultTemperature,
         topK: options.topK || modelParams.defaultTopK,
-        // Specify output language to avoid Chrome warnings
-        outputLanguage: 'en',
+        // Specify expected inputs and outputs with language codes to avoid Chrome warnings
+        expectedInputs: [
+          { type: 'text', languages: ['en'] }
+        ],
+        expectedOutputs: [
+          { type: 'text', languages: ['en'] }
+        ],
         monitor: (m) => {
           m.addEventListener('downloadprogress', (e) => {
             // Use global flag to show download message only once.
@@ -75,17 +110,15 @@ class PromptAPIService {
         },
         ...options.sessionOptions
       };
-      // Ensure outputLanguage is set even if overridden
-      if (!sessionOptions.outputLanguage) {
-        sessionOptions.outputLanguage = 'en';
-      }
       // Use the top-level `self.LanguageModel` object.
       session = await self.LanguageModel.create(sessionOptions);
       let response;
+      const promptOpts = options.promptOptions || {};
+      
       if (options.stream) {
-        response = await this._runStreamingPrompt(session, prompt, options);
+        response = await this._runStreamingPrompt(session, prompt, { ...options, promptOptions: promptOpts });
       } else {
-        response = await session.prompt(prompt, options.promptOptions);
+        response = await session.prompt(prompt, promptOpts);
       }
       
       this.dispatchEvent("prompt-status-update", { status: "ready", message: "AI processing complete" });
@@ -139,8 +172,13 @@ class PromptAPIService {
       initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
       temperature: options.temperature || modelParams.defaultTemperature,
       topK: options.topK || modelParams.defaultTopK,
-      // Specify output language to avoid Chrome warnings
-      outputLanguage: 'en',
+      // Specify expected inputs and outputs with language codes to avoid Chrome warnings
+      expectedInputs: [
+        { type: 'text', languages: ['en'] }
+      ],
+      expectedOutputs: [
+        { type: 'text', languages: ['en'] }
+      ],
       monitor: (m) => {
         m.addEventListener('downloadprogress', (e) => {
           if (!window._isAiModelDownloading) {
@@ -154,10 +192,6 @@ class PromptAPIService {
       },
       ...options
     };
-    // Ensure outputLanguage is set even if overridden
-    if (!sessionOptions.outputLanguage) {
-      sessionOptions.outputLanguage = 'en';
-    }
     this._activeSession = await self.LanguageModel.create(sessionOptions);
     return this._activeSession;
   }

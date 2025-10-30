@@ -6,6 +6,7 @@ class ProofreaderService {
     this.currentAbortController = null;
     this.lastProofreadTime = 0;
     this.minTimeBetweenRequests = 1000;
+    console.log("[ProofreaderService] Initialized with language specifications (expectedInputLanguages/expectedOutputLanguages)");
   }
 
   async checkAvailability() {
@@ -31,10 +32,7 @@ class ProofreaderService {
     const systemPrompt = "You are a professional proofreader. Correct spelling and grammar errors while preserving the original meaning and style.";
     const prompt = `Proofread and correct the following text. Return ONLY the corrected text without any explanations:\n\n${cleanContent}`;
     try {
-      // FIX: Add sessionOptions with outputLanguage to the fallback call
-      const correctedText = await this.promptAPIService.runPrompt(prompt, systemPrompt, {
-        sessionOptions: { outputLanguage: 'en' }
-      });
+      const correctedText = await this.promptAPIService.runPrompt(prompt, systemPrompt);
       return correctedText.trim().replace(/^["']|["']$/g, '');
     } catch (error) {
       console.error("Proofreading fallback error:", error);
@@ -85,10 +83,10 @@ class ProofreaderService {
     let session = null;
     try {
       if (signal && signal.aborted) { throw new DOMException('Request was aborted', 'AbortError'); }
-      // Use the minimal, officially supported parameters to ensure stability.
+      // Specify expected inputs and outputs with language codes to avoid Chrome warnings
       session = await Proofreader.create({
         expectedInputLanguages: ["en"],
-        outputLanguage: 'en',
+        expectedOutputLanguages: ["en"],
         monitor: (m) => {
           m.addEventListener("downloadprogress", e => {
             if (!window._isAiModelDownloading) {

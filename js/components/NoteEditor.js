@@ -1,3 +1,5 @@
+// js/components/NoteEditor.js
+
 import EditorToolbar from "./EditorToolbar.js";
 import { alertService } from "../services/alert-service.js";
 import { toastService } from "../services/toast-service.js";
@@ -23,15 +25,18 @@ export default {
       debouncedProofread: null,
       isSummarizing: false,
       debouncedAutoSummary: null,
-      isExecutingCommand: false, 
+      isExecutingCommand: false,
+      // Popover state management
+      activePopover: null,
+      hidePopoverTimeout: null,
     };
   },
   computed: {
     isNoteLongEnoughToSummarize() {
       if (!this.editableNote || !this.$refs.editor) return false;
       const content = this.$refs.editor.innerText || '';
-      const charCount = content.replace(/\s/g, '').length;
-      return charCount >= 50;
+      const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+      return wordCount >= 50; // Enable button after 50 words
     }
   },
   watch: {
@@ -40,34 +45,12 @@ export default {
         this.resetEditorState();
       }
     },
-    /**
-     * **THE KEY FIX IS HERE.**
-     * This watcher now specifically listens for changes to the note's content from the parent.
-     * This is what happens when the dictation service updates the main state.
-     */
     'note.content'(newContent) {
         if (!this.$refs.editor || !this.isContentLoaded) return;
-
-        // CRITICAL CHECK: Only update the editor if the incoming content
-        // is different from what's already displayed. This prevents infinite loops.
         if (newContent !== this.$refs.editor.innerHTML) {
-            console.log("External content change detected. Updating editor view.");
-
-            // Store cursor position before changing the DOM
-            const selection = window.getSelection();
-            const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-            const oldLength = this.$refs.editor.textContent.length;
-            const cursorPosition = range ? range.startOffset : oldLength;
-
-            // Update the local data and the editor's display
             this.editableNote.content = newContent;
             this.$refs.editor.innerHTML = newContent;
-
-            // Restore the cursor position to the end of the new text,
-            // which is the expected behavior for dictation.
             this.setCursorToEnd();
-            
-            // Update other reactive properties
             this.updateWordCount();
         }
     }
@@ -80,14 +63,11 @@ export default {
     this.resetEditorState();
   },
   mounted() {
-    if (this.$refs.editor && this.editableNote) {
-        this.$refs.editor.innerHTML = this.editableNote.content || '';
-        this.isContentLoaded = true;
-        this.updateWordCount();
-    }
+    this.initializeEditorContent();
   },
   beforeUnmount() {
     window.removeEventListener('editor-command', this.handleVoiceCommand);
+    this.clearProofreadPopover(); // Clean up popover on component destruction
   },
   template: `
       <aside v-if="editableNote" class="note-editor d-flex flex-column border-start">
@@ -98,14 +78,13 @@ export default {
               <button class="btn btn-sm btn-outline-primary" @click="manualProofread" :disabled="isProofreading" title="Proofread this note with AI">
                 <i class="bi bi-magic"></i> {{ isProofreading ? 'Checking...' : 'Proofread' }}
               </button>
-              <button class="btn btn-sm btn-outline-success" @click="manualSummarize" :disabled="isSummarizing || !isNoteLongEnoughToSummarize" title="Generate AI summary (minimum 50 characters)">
+              <button class="btn btn-sm btn-outline-success" @click="manualSummarize" :disabled="isSummarizing || !isNoteLongEnoughToSummarize" title="Generate AI summary (minimum 50 words, auto-generates at 100 words)">
                 <i class="bi bi-file-text"></i> {{ isSummarizing ? 'Summarizing...' : 'Summarize' }}
               </button>
             </div>
             <div class="d-flex align-items-center gap-3 text-muted small mb-2">
               <span><i class="bi bi-fonts"></i> {{ wordCount }} words</span>
-              <!-- Compact header badge for proofreader suggestions. Actual hints appear inline on hover. -->
-              <div v-if="editableNote.aiProofread && editableNote.aiProofread.corrections && editableNote.aiProofread.corrections.length > 0" class="d-flex align-items-center gap-2">
+              <div v-if="editableNote.aiProofread && editableNote.aiProofread.corrections.length > 0" class="d-flex align-items-center gap-2">
                 <span class="text-warning fw-bold" :title="editableNote.aiProofread.corrections.length + ' suggestions'">
                   <i class="bi bi-exclamation-triangle-fill"></i>
                   {{ editableNote.aiProofread.corrections.length }} suggestion{{ editableNote.aiProofread.corrections.length !== 1 ? 's' : '' }}
@@ -122,12 +101,9 @@ export default {
           <button class="btn btn-sm btn-outline-secondary" @click="$emit('close')"><i class="bi bi-x-lg"></i></button>
         </div>
 
-    <!-- Proofreader suggestions are displayed inline as highlights with hover tooltips.
-       The large suggestions panel was removed to avoid taking header space. -->
-
         <div class="editor-content-wrapper d-flex flex-column flex-fill overflow-hidden">
           <editor-toolbar @content-change="handleInput" @undo="undo" @redo="redo" :can-undo="undoStack.length > 0" :can-redo="redoStack.length > 0"></editor-toolbar>
-          <div ref="editor" class="note-content-editable flex-fill p-3 overflow-auto" contenteditable="true" @input="handleInput" @paste="handlePaste" placeholder="Start writing..."></div>
+          <div ref="editor" class="note-content-editable flex-fill p-3 overflow-auto" contenteditable="true" @input="handleInput" @paste="handlePaste" @click="handleEditorClick" placeholder="Start writing..."></div>
         </div>
 
         <div class="editor-footer py-2 px-3 border-top text-muted d-flex align-items-center gap-2">
@@ -139,464 +115,306 @@ export default {
           </small>
         </div>
       </aside>
-      `,
+  `,
   methods: {
-  resetEditorState() {
-    this.isContentLoaded = false;
-    this.editableNote = JSON.parse(JSON.stringify(this.note));
-    this.undoStack = [];
-    this.redoStack = [];
-    this.wordCount = 0;
-    this.isExecutingCommand = false;
-
-    // Load any stored AI proofread info into the editor state
-    if (this.note && this.note.aiProofread) {
-      // keep as part of editableNote so it will save with the note
-      this.editableNote.aiProofread = JSON.parse(JSON.stringify(this.note.aiProofread));
-    } else {
-      this.editableNote.aiProofread = null;
-    }
-
-    this.$nextTick(() => {
-      if (this.$refs.editor) {
-        this.$refs.editor.innerHTML = this.editableNote.content || '';
-        this.isContentLoaded = true;
-        this.updateWordCount();
-        // Apply inline highlights for any stored proofread corrections
-        this.$nextTick(() => this.markProofreadCorrections());
-        this.pushToUndoStack();
+    initializeEditorContent() {
+      if (this.$refs.editor && this.editableNote) {
+          this.$refs.editor.innerHTML = this.editableNote.content || '';
+          this.isContentLoaded = true;
+          this.updateWordCount();
+          this.$nextTick(() => this.markProofreadCorrections());
       }
-    });
-  },
+    },
+    resetEditorState() {
+      this.isContentLoaded = false;
+      this.editableNote = JSON.parse(JSON.stringify(this.note));
+      this.undoStack = [];
+      this.redoStack = [];
+      this.wordCount = 0;
+      this.isExecutingCommand = false;
+      this.editableNote.aiProofread = this.note.aiProofread ? JSON.parse(JSON.stringify(this.note.aiProofread)) : null;
 
+      this.$nextTick(() => {
+        this.initializeEditorContent();
+        this.pushToUndoStack();
+      });
+    },
     handleInput() {
       if (!this.isContentLoaded || !this.$refs.editor) return;
       const currentContent = this.$refs.editor.innerHTML;
       if (this.editableNote.content !== currentContent) {
         this.editableNote.content = currentContent;
-        if (!this.isUndoRedo) {
-          this.pushToUndoStack();
-        }
+        if (!this.isUndoRedo) this.pushToUndoStack();
         this.isUndoRedo = false;
         this.triggerSave();
         this.updateWordCount();
-        this.debouncedProofread();
+        // Proofreading disabled - only trigger on manual click
+        // this.debouncedProofread();
         this.debouncedAutoSummary();
       }
     },
-    
     updateWordCount() {
         if (this.$refs.editor) {
             const text = this.$refs.editor.innerText || '';
             this.wordCount = text.trim().split(/\s+/).filter(Boolean).length;
         }
     },
-
     pushToUndoStack() {
         this.undoStack.push(this.editableNote.content);
         if (this.undoStack.length > 50) this.undoStack.shift();
         this.redoStack = [];
     },
-
-    async handleVoiceCommand(event) {
-        if (this.isExecutingCommand) return;
-        this.isExecutingCommand = true;
-        
-        const { command } = event.detail;
-        const editor = this.$refs.editor;
-        if (!command || !editor) {
-            this.isExecutingCommand = false;
-            return;
-        }
-
-        editor.focus();
-        
-        try {
-            if (command.method && typeof this[command.method] === 'function') {
-                await this[command.method](command.value);
-            } else {
-                console.warn(`Editor method not found: ${command.method}`);
-            }
-        } catch(e) {
-            console.error("Failed to execute voice command:", e);
-        } finally {
-            // CRITICAL: Sync state after every command
-            this.$nextTick(() => {
-                this.handleInput();
-                this.isExecutingCommand = false;
-            });
-        }
-    },
-    
-    // --- Voice Command Implementations ---
-    insertParagraph() { document.execCommand('insertHTML', false, '<div><br></div>'); },
-    insertLineBreak() { document.execCommand('insertLineBreak'); },
-    insertTask() { this.insertTaskHTML(); },
-    insertUnorderedList() { document.execCommand('insertUnorderedList'); },
-    insertOrderedList() { document.execCommand('insertOrderedList'); },
-    insertHorizontalRule() { document.execCommand('insertHorizontalRule'); },
-    toggleBold() { document.execCommand('bold'); },
-    toggleUnderline() { document.execCommand('underline'); },
-    toggleItalic() { document.execCommand('italic'); },
-    clearFormatting() { document.execCommand('removeFormat'); },
-
-    deleteLastUnit(unit) {
-        const editor = this.$refs.editor;
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        
-        const range = selection.getRangeAt(0);
-        range.collapse(true); // Go to start of selection
-        
-        // This is a simplified implementation. A real-world one would be more complex.
-        if (unit === 'word') {
-            selection.modify('extend', 'backward', 'word');
-        } else if (unit === 'sentence') {
-            // No standard execCommand for sentence, this is a placeholder
-            console.warn("Delete sentence is not fully implemented");
-            selection.modify('extend', 'backward', 'lineboundary');
-        } else if (unit === 'paragraph') {
-            selection.modify('extend', 'backward', 'paragraphboundary');
-        }
-        
-        range.deleteContents();
-    },
-    summarizeNote() { this.manualSummarize(); },
-    proofreadNote() { this.manualProofread(); },
-    
-    insertTaskHTML() {
-      const taskHTML = '<div class="task-item" contenteditable="false" data-checked="false"><span class="task-checkbox"></span><span class="task-text" contenteditable="true">Task...</span></div>&nbsp;';
-      document.execCommand('insertHTML', false, taskHTML);
-    },
-
     manualProofread() { this.runProofreader(true); },
     async runProofreader(isManual = false) {
-        if (this.isProofreading || !this.$refs.editor) return;
-        const content = this.$refs.editor.innerText;
-        const charCount = content.replace(/\s/g, '').length;
-
-        if (!isManual && charCount < 50) return;
-        if (isManual && charCount < 3) {
-            alertService.info("Not enough text", "Please write a little more before proofreading.");
-            return;
-        }
-
-    this.isProofreading = true;
-    // Clear current inline highlights while processing
-    this.clearProofreadHighlights();
-        try {
-            const result = await aiHandler.proofreadTextWithDetails(this.$refs.editor.innerHTML);
-      // Store results on the note so each note has its own proofread info
-      this.editableNote.aiProofread = {
-        corrected: result.corrected || null,
-        corrections: Array.isArray(result.corrections) ? result.corrections.slice() : [],
-        hasCorrections: !!result.hasCorrections,
-        updatedAt: new Date().toISOString()
-      };
-
-      // Add inline highlights for quick hover-access to suggestions
-      if (this.editableNote.aiProofread.corrections && this.editableNote.aiProofread.corrections.length > 0) {
-        this.markProofreadCorrections();
-      } else if (isManual) {
-        toastService.success("Looks Good!", "No proofreading suggestions found.");
+      if (this.isProofreading || !this.$refs.editor) return;
+      
+      // *** FIX 1: Send innerText, not innerHTML, to the proofreader API ***
+      const content = this.$refs.editor.innerText;
+      
+      if (!isManual && content.trim().length < 50) return;
+      if (isManual && content.trim().length < 3) {
+          toastService.info("Not enough text", "Please write a little more before proofreading.");
+          return;
       }
 
-      // Persist the proofread metadata with the note (do not auto-apply corrections)
-      this.triggerSave();
-        } catch (e) {
-            console.error("Proofreading failed:", e);
-            if (isManual) alertService.error("AI Error", "Could not proofread the note.");
-        } finally {
-            this.isProofreading = false;
-        }
-    },
-
-    applyCorrection(index) {
-        const pr = this.editableNote.aiProofread;
-        if (!pr || !pr.corrections || !pr.corrections[index]) return;
-        const suggestion = pr.corrections[index];
-        const editor = this.$refs.editor;
-
-        // Use DOM TreeWalker to find and replace text safely
-        const walker = document.createTreeWalker(
-            editor,
-            NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-
-        let node;
-        let applied = false;
-        while ((node = walker.nextNode()) && !applied) {
-            const text = node.textContent;
-            const origIndex = text.indexOf(suggestion.original);
-            if (origIndex !== -1) {
-                // Found it; replace using DOM Range
-                const range = document.createRange();
-                range.setStart(node, origIndex);
-                range.setEnd(node, origIndex + suggestion.original.length);
-                range.deleteContents();
-                const newText = document.createTextNode(suggestion.replacement);
-                range.insertNode(newText);
-                applied = true;
-            }
-        }
-
-        // Remove the applied suggestion and update stored proofread info
-        pr.corrections.splice(index, 1);
-        if (pr.corrections.length === 0) {
-            this.editableNote.aiProofread = null;
-        }
-
-        // Refresh highlights and save
-        this.clearProofreadHighlights();
-        if (this.editableNote.aiProofread && this.editableNote.aiProofread.corrections.length > 0) {
-            this.markProofreadCorrections();
-        }
-        this.handleInput();
-        this.triggerSave();
-    },
-
-    applyAllCorrections() {
-        const pr = this.editableNote.aiProofread;
-        const editor = this.$refs.editor;
-        if (!pr || !pr.corrections || pr.corrections.length === 0) return;
-
-        // Apply all corrections using DOM TreeWalker for safety
-        pr.corrections.forEach((suggestion) => {
-            const walker = document.createTreeWalker(
-                editor,
-                NodeFilter.SHOW_TEXT,
-                null,
-                false
-            );
-
-            let node;
-            while ((node = walker.nextNode())) {
-                const text = node.textContent;
-                const origIndex = text.indexOf(suggestion.original);
-                if (origIndex !== -1) {
-                    const range = document.createRange();
-                    range.setStart(node, origIndex);
-                    range.setEnd(node, origIndex + suggestion.original.length);
-                    range.deleteContents();
-                    const newText = document.createTextNode(suggestion.replacement);
-                    range.insertNode(newText);
-                    break; // Apply only once per suggestion
-                }
-            }
-        });
-
-        // Clear stored proofread metadata after applying all
-        this.editableNote.aiProofread = null;
-        this.clearProofreadHighlights();
-        this.handleInput();
-        this.triggerSave();
-    },
-
-    // HTML-aware replacement: Uses DOM TreeWalker to find text nodes and Range API for safe substitution.
-    // This avoids breaking HTML structure by working with actual text nodes, not regex on innerHTML.
-    markProofreadCorrections() {
-        if (!this.$refs.editor) return;
-        const pr = this.editableNote.aiProofread;
-        if (!pr || !pr.corrections || pr.corrections.length === 0) return;
-
-        // Clear any existing highlights first
-        this.clearProofreadHighlights();
-
-        const editor = this.$refs.editor;
-        const walker = document.createTreeWalker(
-            editor,
-            NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-
-        const nodesToReplace = [];
-        let node;
-        while ((node = walker.nextNode())) {
-            nodesToReplace.push(node);
-        }
-
-        // Process each correction against all text nodes
-        pr.corrections.forEach((sugg, idx) => {
-            const original = String(sugg.original || '').trim();
-            if (!original) return;
-
-            // Search all text nodes for the original text
-            nodesToReplace.forEach((textNode) => {
-                const text = textNode.textContent;
-                const index = text.indexOf(original);
-                if (index !== -1) {
-                    // Found the text in this node; replace with a span
-                    const range = document.createRange();
-                    range.setStart(textNode, index);
-                    range.setEnd(textNode, index + original.length);
-
-                    const replacement = String(sugg.replacement || '').trim();
-                    const span = document.createElement('span');
-                    span.className = 'proofreader-error';
-                    span.setAttribute('data-pr-idx', idx);
-                    span.setAttribute('title', `Replace with: ${replacement || 'No suggestion'}`);
-                    span.textContent = original;
-
-                    // Add inline action button that will be shown on hover
-                    span.setAttribute('data-pr-original', original);
-                    span.setAttribute('data-pr-replacement', replacement);
-
-                    range.insertNode(span);
-                    
-                    // Update the text node to remove the replaced text since insertNode doesn't replace
-                    const after = text.substring(index + original.length);
-                    const before = text.substring(0, index);
-                    if (before) {
-                        textNode.textContent = before;
-                        span.parentNode.insertBefore(textNode, span);
-                    }
-                    if (after) {
-                        const afterNode = document.createTextNode(after);
-                        span.parentNode.insertBefore(afterNode, span.nextSibling);
-                    }
-                }
+      this.isProofreading = true;
+      this.clearProofreadHighlights();
+      try {
+          const result = await aiHandler.proofreadTextWithDetails(content);
+          
+          // Debug: Log the result to understand what's being returned
+          console.log('[NoteEditor] Proofreading result:', result);
+          
+          // Transform API response format to internal format
+          // API returns: { startIndex, endIndex, correction }
+          // We need: { original, replacement }
+          const normalizedCorrections = (result.corrections || [])
+            .map(correction => {
+              if (correction.startIndex !== undefined && correction.endIndex !== undefined) {
+                // Extract original text from content using indices
+                const original = content.substring(correction.startIndex, correction.endIndex);
+                return {
+                  original: original,
+                  replacement: correction.correction || '',
+                  startIndex: correction.startIndex,
+                  endIndex: correction.endIndex
+                };
+              }
+              // Already in correct format
+              return correction;
+            })
+            .filter(correction => {
+              // Skip empty ranges (insertions, not replacements)
+              if (correction.startIndex === correction.endIndex) {
+                return false;
+              }
+              
+              // Filter out whitespace-only and empty corrections
+              const hasValidReplacement = correction.replacement && correction.replacement.trim().length > 0;
+              const isNotWhitespaceChange = !(correction.original && correction.original.trim() === '' && 
+                                              (!correction.replacement || correction.replacement.trim() === ''));
+              return hasValidReplacement && isNotWhitespaceChange;
             });
-        });
+          
+          this.editableNote.aiProofread = {
+            corrections: normalizedCorrections,
+            hasCorrections: normalizedCorrections.length > 0,
+          };
 
-        // Attach event listeners for hover actions
-        this.$nextTick(() => {
-            this.attachProofreadHoverListeners();
-        });
+          if (this.editableNote.aiProofread.hasCorrections) {
+            console.log('[NoteEditor] Marking corrections, count:', this.editableNote.aiProofread.corrections.length);
+            this.markProofreadCorrections();
+          } else if (isManual) {
+            toastService.success("Looks Good!", "No proofreading suggestions found.");
+          }
+          this.triggerSave(); // Save the proofread metadata
+      } catch (e) {
+          console.error("Proofreading failed:", e);
+          if (isManual) alertService.error("AI Error", "Could not proofread the note.");
+      } finally {
+          this.isProofreading = false;
+      }
     },
 
-    attachProofreadHoverListeners() {
-        const editor = this.$refs.editor;
-        const errorSpans = editor.querySelectorAll('.proofreader-error');
-        errorSpans.forEach((span) => {
+    // *** FIX 2: Rewritten logic for highlighting and popovers for reliability ***
+    markProofreadCorrections() {
+      if (!this.$refs.editor || !this.editableNote.aiProofread?.hasCorrections) return;
+
+      const editor = this.$refs.editor;
+      const corrections = this.editableNote.aiProofread.corrections;
+      
+      // Ensure corrections array has valid data
+      if (!Array.isArray(corrections) || corrections.length === 0) return;
+
+      const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      const textNodes = [];
+      while(walker.nextNode()) textNodes.push(walker.currentNode);
+
+      // Iterate backwards to avoid issues with range modification
+      for (let i = textNodes.length - 1; i >= 0; i--) {
+        const node = textNodes[i];
+        let text = node.textContent;
+        
+        corrections.forEach((correction, index) => {
+          // Ensure correction has required properties
+          if (!correction.original || typeof correction.original !== 'string') return;
+          
+          const original = correction.original;
+          let matchIndex = text.lastIndexOf(original);
+          while (matchIndex !== -1) {
+            const range = document.createRange();
+            range.setStart(node, matchIndex);
+            range.setEnd(node, matchIndex + original.length);
+
+            const span = document.createElement('span');
+            span.className = 'proofreader-error';
+            span.dataset.prIdx = index;
+            // Use arrow functions to preserve 'this' context
             span.addEventListener('mouseenter', (e) => this.showProofreadPopover(e));
             span.addEventListener('mouseleave', (e) => this.hideProofreadPopover(e));
+            
+            range.surroundContents(span);
+
+            // Rescan the remaining part of the text node
+            text = text.substring(0, matchIndex);
+            matchIndex = text.lastIndexOf(original);
+          }
         });
+      }
     },
-
+    clearProofreadHighlights() {
+      if (!this.$refs.editor) return;
+      const highlights = this.$refs.editor.querySelectorAll('.proofreader-error');
+      highlights.forEach(span => {
+        const parent = span.parentNode;
+        parent.replaceChild(document.createTextNode(span.textContent), span);
+        parent.normalize(); // Merges adjacent text nodes
+      });
+      this.clearProofreadPopover();
+    },
     showProofreadPopover(event) {
+        clearTimeout(this.hidePopoverTimeout);
         const span = event.target;
-        const idx = parseInt(span.getAttribute('data-pr-idx'), 10);
-        const original = span.getAttribute('data-pr-original');
-        const replacement = span.getAttribute('data-pr-replacement');
-
-        // Create a small popover with Apply/Ignore buttons
-        let popover = span._prPopover;
-        if (!popover) {
-            popover = document.createElement('div');
-            popover.className = 'proofreader-popover';
-            popover.innerHTML = `
-                <div class="proofreader-popover-content">
-                    <small class="proofreader-popover-label">Replace with:</small>
-                    <strong>${replacement || 'No suggestion'}</strong>
-                    <div class="proofreader-popover-actions">
-                        <button class="btn btn-xs btn-success" title="Apply this suggestion">
-                            <i class="bi bi-check"></i>
-                        </button>
-                        <button class="btn btn-xs btn-secondary" title="Ignore this suggestion">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
+        const index = parseInt(span.dataset.prIdx, 10);
+        
+        // Validate correction data
+        if (!this.editableNote.aiProofread?.corrections) {
+            console.warn('[NoteEditor] No corrections found');
+            return;
+        }
+        const correction = this.editableNote.aiProofread.corrections[index];
+        if (!correction || !correction.original || !correction.replacement) {
+            console.warn(`[NoteEditor] Invalid correction data at index ${index}:`, correction);
+            return;
+        }
+        
+        // Additional validation: skip if replacement is just whitespace
+        if (correction.replacement.trim().length === 0) {
+            console.warn(`[NoteEditor] Correction has empty/whitespace replacement at index ${index}`);
+            return;
+        }
+        
+        this.clearProofreadPopover(); // Clear any existing popover
+        
+        const popover = document.createElement('div');
+        popover.className = 'proofreader-popover';
+        popover.innerHTML = `
+            <div class="proofreader-popover-content">
+                <small class="proofreader-popover-label">Replace with:</small>
+                <strong>${correction.replacement}</strong>
+                <div class="proofreader-popover-actions">
+                    <button class="btn btn-xs btn-success" title="Apply"><i class="bi bi-check"></i></button>
+                    <button class="btn btn-xs btn-secondary" title="Ignore"><i class="bi bi-x"></i></button>
                 </div>
-            `;
-            span._prPopover = popover;
-            span.parentNode.insertBefore(popover, span.nextSibling);
+            </div>
+        `;
 
-            // Attach action listeners
-            const applyBtn = popover.querySelector('.btn-success');
-            const ignoreBtn = popover.querySelector('.btn-secondary');
+        document.body.appendChild(popover);
+        this.activePopover = popover;
 
-            applyBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.applyCorrection(idx);
-            });
-
-            ignoreBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.ignoreCorrection(idx);
-            });
-        }
-
+        const rect = span.getBoundingClientRect();
+        popover.style.left = `${rect.left}px`;
+        popover.style.top = `${rect.bottom + 4}px`;
         popover.style.display = 'block';
-    },
 
-    hideProofreadPopover(event) {
-        const span = event.target;
-        const popover = span._prPopover;
-        if (popover) {
-            popover.style.display = 'none';
+        const successBtn = popover.querySelector('.btn-success');
+        const rejectBtn = popover.querySelector('.btn-secondary');
+        
+        if (successBtn) {
+            successBtn.addEventListener('click', () => this.applyCorrection(span, index));
+        }
+        if (rejectBtn) {
+            rejectBtn.addEventListener('click', () => this.ignoreCorrection(span, index));
+        }
+        
+        // Keep popover open if mouse moves onto it
+        popover.addEventListener('mouseenter', () => clearTimeout(this.hidePopoverTimeout));
+        popover.addEventListener('mouseleave', () => this.hideProofreadPopover());
+    },
+    hideProofreadPopover() {
+        this.hidePopoverTimeout = setTimeout(() => {
+            this.clearProofreadPopover();
+        }, 200);
+    },
+    clearProofreadPopover() {
+        if (this.activePopover) {
+            this.activePopover.remove();
+            this.activePopover = null;
         }
     },
-
-    ignoreCorrection(index) {
-        const pr = this.editableNote.aiProofread;
-        if (!pr || !pr.corrections || !pr.corrections[index]) return;
-
-        // Remove this correction from the list
-        pr.corrections.splice(index, 1);
-
-        // Rebuild highlights without this one
-        if (pr.corrections.length === 0) {
+    applyCorrection(span, index) {
+        const correction = this.editableNote.aiProofread.corrections[index];
+        span.replaceWith(document.createTextNode(correction.replacement));
+        this.editableNote.aiProofread.corrections.splice(index, 1);
+        if (this.editableNote.aiProofread.corrections.length === 0) {
             this.editableNote.aiProofread = null;
         }
-
-        this.clearProofreadHighlights();
-        if (this.editableNote.aiProofread) {
-            this.markProofreadCorrections();
+        this.clearProofreadPopover();
+        this.handleInput(); // Trigger save and update UI
+    },
+    ignoreCorrection(span, index) {
+        span.replaceWith(document.createTextNode(span.textContent)); // Remove highlight
+        this.editableNote.aiProofread.corrections.splice(index, 1);
+        if (this.editableNote.aiProofread.corrections.length === 0) {
+            this.editableNote.aiProofread = null;
         }
-
-        this.triggerSave();
+        this.clearProofreadPopover();
+        this.handleInput();
     },
-
-    clearProofreadHighlights() {
-        if (!this.$refs.editor) return;
-        const editor = this.$refs.editor;
-        const errorSpans = editor.querySelectorAll('.proofreader-error');
-        errorSpans.forEach((span) => {
-            // Remove popover if it exists
-            if (span._prPopover) {
-                span._prPopover.remove();
-                delete span._prPopover;
-            }
-            // Unwrap the span but keep the text
-            const parent = span.parentNode;
-            while (span.firstChild) {
-                parent.insertBefore(span.firstChild, span);
-            }
-            parent.removeChild(span);
+    applyAllCorrections() {
+      const corrections = [...this.editableNote.aiProofread.corrections];
+      corrections.reverse().forEach(correction => {
+        const spans = this.$refs.editor.querySelectorAll(`.proofreader-error`);
+        spans.forEach(span => {
+          if (span.textContent === correction.original) {
+            span.replaceWith(document.createTextNode(correction.replacement));
+          }
         });
+      });
+      this.editableNote.aiProofread = null;
+      this.handleInput();
     },
 
+    // --- Other methods (unchanged or minor tweaks) ---
     manualSummarize() { this.runAutoSummary(true); },
     async runAutoSummary(isManual = false) {
         if (this.isSummarizing || this.editableNote.aiSummary || !this.$refs.editor) return;
-        
         const content = this.$refs.editor.innerText;
-        const charCount = content.replace(/\s/g, '').length;
-
-        if (!isManual && charCount < 250) return;
-        if (isManual && charCount < 50) {
-            alertService.info("Not enough text", "Please write more to generate a meaningful summary.");
+        const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+        
+        // Auto-summarize after 100 words
+        if (!isManual && wordCount < 100) return;
+        // Manual summarize requires at least 50 words
+        if (isManual && wordCount < 50) {
+            toastService.info("Not enough text", "Please write at least 50 words to generate a summary.");
             return;
         }
-
         this.isSummarizing = true;
         try {
-            const summary = await aiHandler.summarizeText(this.$refs.editor.innerHTML);
-            if (isManual) {
-                const shouldSave = await alertService.confirm('AI Summary', `Would you like to attach this summary to the note?<br><br><em>${StringUtils.truncate(summary, 150)}</em>`, { confirmText: 'Attach Summary' });
-                if (shouldSave) {
-                    this.editableNote.aiSummary = summary;
-                    this.triggerSave();
-                }
-            } else {
-                this.editableNote.aiSummary = summary;
-                this.triggerSave();
-            }
+            const summary = await aiHandler.summarizeText(content);
+            this.editableNote.aiSummary = summary;
+            this.triggerSave();
+            if (isManual) this.viewSummary();
         } catch (e) {
             console.error("Summarization failed:", e);
             if (isManual) alertService.error("AI Error", "Could not summarize the note.");
@@ -604,10 +422,8 @@ export default {
             this.isSummarizing = false;
         }
     },
-
-    viewSummary() { if (this.editableNote.aiSummary) alertService.infoMarkdown('AI Summary', this.editableNote.aiSummary); },
+    viewSummary() { if (this.editableNote.aiSummary) alertService.infoMarkdown('AI Summary', this.editableNote.aiSummary, { confirmText: false, cancelText: false }); },
     removeSummary() { this.editableNote.aiSummary = null; this.triggerSave(); },
-
     triggerSave() { if (this.isContentLoaded) this.debouncedSave(); },
     undo() {
       if (this.undoStack.length > 1) {
@@ -634,6 +450,18 @@ export default {
       const text = event.clipboardData.getData('text/plain');
       document.execCommand('insertText', false, text);
     },
+    handleEditorClick(event) {
+      // Check if clicked on a task checkbox
+      if (event.target.classList.contains('task-checkbox')) {
+        const taskItem = event.target.closest('.task-item');
+        if (taskItem) {
+          const isChecked = taskItem.dataset.checked === 'true';
+          // Simply toggle the checked state
+          taskItem.dataset.checked = isChecked ? 'false' : 'true';
+          this.handleInput(); // Trigger save
+        }
+      }
+    },
     debounce(func, delay) {
       let timeout;
       return (...args) => {
@@ -646,17 +474,387 @@ export default {
       const editor = this.$refs.editor;
       if (editor) {
         editor.focus();
-        try {
-            const range = document.createRange();
-            const selection = window.getSelection();
-            range.selectNodeContents(editor);
-            range.collapse(false); // false to collapse to the end
-            selection.removeAllRanges();
-            selection.addRange(range);
-        } catch(e) {
-            console.error("Failed to set cursor to end:", e);
-        }
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
       }
+    },
+    
+    // Voice command handlers with improved async execution
+    async handleVoiceCommand(event) {
+        if (this.isExecutingCommand) {
+            console.warn('[NoteEditor] Command already executing, skipping');
+            return;
+        }
+        
+        const { command } = event.detail;
+        console.log('[NoteEditor] Voice command received:', command);
+        
+        if (!command || !this.$refs.editor) {
+            console.warn('[NoteEditor] Editor ref not available or no command');
+            return;
+        }
+        
+        this.isExecutingCommand = true;
+        
+        try {
+            // Save current selection/cursor position
+            const selection = window.getSelection();
+            let savedRange = null;
+            if (selection.rangeCount > 0) {
+                savedRange = selection.getRangeAt(0).cloneRange();
+            }
+            
+            // Execute the command method if it exists
+            if (command.method && typeof this[command.method] === 'function') {
+                console.log('[NoteEditor] Executing command method:', command.method);
+                
+                // Execute command with proper context
+                const result = await Promise.resolve(this[command.method](command.value));
+                
+                // Allow DOM to update
+                await this.$nextTick();
+                
+                // Restore or set cursor position intelligently
+                if (!savedRange) {
+                    // No previous selection, set cursor to end
+                    this.setCursorToEnd();
+                } else {
+                    // Restore previous selection if still valid
+                    try {
+                        selection.removeAllRanges();
+                        selection.addRange(savedRange);
+                    } catch (e) {
+                        // If range is no longer valid, set to end
+                        this.setCursorToEnd();
+                    }
+                }
+                
+                // Trigger input event to save changes
+                this.handleInput();
+                
+                console.log('[NoteEditor] Voice command executed successfully:', command.method);
+            } else {
+                console.warn('[NoteEditor] Command method not found:', command.method);
+            }
+        } catch(e) {
+            console.error("[NoteEditor] Voice command failed:", e);
+            toastService.error('Command Failed', 'Could not execute voice command');
+        } finally {
+            // Always reset flag
+            this.isExecutingCommand = false;
+        }
+    },
+    insertParagraph() { 
+      console.log('[NoteEditor] insertParagraph');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      
+      // Create new paragraph element
+      const newParagraph = document.createElement('div');
+      newParagraph.innerHTML = '<br>';
+      
+      // Insert at cursor position
+      range.deleteContents();
+      range.insertNode(newParagraph);
+      
+      // Move cursor into new paragraph
+      range.setStart(newParagraph, 0);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    },
+    insertLineBreak() { 
+      console.log('[NoteEditor] insertLineBreak');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      
+      // Insert line break at cursor
+      const br = document.createElement('br');
+      range.deleteContents();
+      range.insertNode(br);
+      
+      // Move cursor after the break
+      range.setStartAfter(br);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    },
+    insertTask() { 
+      console.log('[NoteEditor] insertTask');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      this.insertTaskHTML(); 
+    },
+    insertUnorderedList() { 
+      console.log('[NoteEditor] insertUnorderedList');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      // Get current selection
+      const selection = window.getSelection();
+      const hasSelection = selection.rangeCount > 0 && !selection.isCollapsed;
+      
+      if (hasSelection) {
+        // Apply list to selected text
+        document.execCommand('insertUnorderedList');
+      } else {
+        // Create new list at cursor
+        const range = selection.getRangeAt(0);
+        const ul = document.createElement('ul');
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ul.appendChild(li);
+        
+        range.deleteContents();
+        range.insertNode(ul);
+        
+        // Set cursor inside list item
+        range.setStart(li, 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    },
+    insertOrderedList() { 
+      console.log('[NoteEditor] insertOrderedList');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      const hasSelection = selection.rangeCount > 0 && !selection.isCollapsed;
+      
+      if (hasSelection) {
+        document.execCommand('insertOrderedList');
+      } else {
+        const range = selection.getRangeAt(0);
+        const ol = document.createElement('ol');
+        const li = document.createElement('li');
+        li.innerHTML = '<br>';
+        ol.appendChild(li);
+        
+        range.deleteContents();
+        range.insertNode(ol);
+        
+        range.setStart(li, 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    },
+    insertHorizontalRule() { 
+      console.log('[NoteEditor] insertHorizontalRule');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+      
+      // Create horizontal rule
+      const hr = document.createElement('hr');
+      const newLine = document.createElement('div');
+      newLine.innerHTML = '<br>';
+      
+      range.deleteContents();
+      range.insertNode(hr);
+      
+      // Insert new line after HR
+      hr.parentNode.insertBefore(newLine, hr.nextSibling);
+      
+      // Move cursor to new line
+      range.setStart(newLine, 0);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    },
+    toggleBold() { 
+      console.log('[NoteEditor] toggleBold');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      document.execCommand('bold', false, null);
+    },
+    toggleUnderline() { 
+      console.log('[NoteEditor] toggleUnderline');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      document.execCommand('underline', false, null);
+    },
+    toggleItalic() { 
+      console.log('[NoteEditor] toggleItalic');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      document.execCommand('italic', false, null);
+    },
+    clearFormatting() { 
+      console.log('[NoteEditor] clearFormatting');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      
+      if (selection.rangeCount > 0 && !selection.isCollapsed) {
+        // Clear formatting on selected text
+        document.execCommand('removeFormat', false, null);
+        document.execCommand('unlink', false, null);
+      }
+    },
+    deleteLastUnit(unit) { 
+      console.log('[NoteEditor] deleteLastUnit:', unit);
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      
+      if (!selection.rangeCount) {
+        console.warn('[NoteEditor] No selection range for deletion');
+        return;
+      }
+      
+      const range = selection.getRangeAt(0);
+      
+      // If there's selected text, just delete it
+      if (!selection.isCollapsed) {
+        range.deleteContents();
+        return;
+      }
+      
+      // Collapse to start and extend backward
+      range.collapse(true);
+      
+      try {
+        if (unit === 'word') {
+          // Delete last word
+          selection.modify('extend', 'backward', 'word');
+        } else if (unit === 'sentence') {
+          // Delete to line start
+          selection.modify('extend', 'backward', 'lineboundary');
+        } else if (unit === 'paragraph') {
+          // Delete to paragraph start
+          selection.modify('extend', 'backward', 'paragraphboundary');
+        }
+        
+        // Delete the selected content
+        if (!selection.isCollapsed) {
+          selection.getRangeAt(0).deleteContents();
+        }
+      } catch (e) {
+        console.error('[NoteEditor] Delete unit failed:', e);
+      }
+      
+      editor.focus();
+    },
+    async summarizeNote() { 
+      console.log('[NoteEditor] summarizeNote - voice command');
+      await this.manualSummarize();
+      return Promise.resolve();
+    },
+    async proofreadNote() { 
+      console.log('[NoteEditor] proofreadNote - voice command');
+      await this.manualProofread();
+      return Promise.resolve();
+    },
+    insertTaskHTML() {
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      
+      const range = selection.getRangeAt(0);
+      let taskContent = 'Task...';
+      
+      // Check if selection is inside a task item
+      const commonAncestor = range.commonAncestorContainer;
+      const existingTask = commonAncestor.nodeType === Node.TEXT_NODE 
+        ? commonAncestor.parentElement?.closest('.task-item')
+        : commonAncestor.closest?.('.task-item');
+      
+      // If already inside a task, convert it to normal text
+      if (existingTask) {
+        const taskText = existingTask.querySelector('.task-text');
+        if (taskText) {
+          const textContent = taskText.innerHTML;
+          const newContent = document.createElement('div');
+          newContent.innerHTML = textContent + '<br>';
+          existingTask.replaceWith(newContent);
+          
+          // Set cursor in the new content
+          const newRange = document.createRange();
+          newRange.setStart(newContent, 0);
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+        return;
+      }
+      
+      // If text is selected, use it as task content
+      if (!selection.isCollapsed) {
+        const fragment = range.cloneContents();
+        const tempDiv = document.createElement('div');
+        tempDiv.appendChild(fragment);
+        taskContent = tempDiv.innerHTML || 'Task...';
+        range.deleteContents();
+      }
+      
+      // Create task element
+      const taskItem = document.createElement('div');
+      taskItem.className = 'task-item';
+      taskItem.contentEditable = 'false';
+      taskItem.dataset.checked = 'false';
+      
+      const checkbox = document.createElement('span');
+      checkbox.className = 'task-checkbox';
+      
+      const taskText = document.createElement('span');
+      taskText.className = 'task-text';
+      taskText.contentEditable = 'true';
+      taskText.innerHTML = taskContent;
+      
+      taskItem.appendChild(checkbox);
+      taskItem.appendChild(taskText);
+      
+      // Insert task into editor
+      range.insertNode(taskItem);
+      
+      // Create new line after task
+      const newLine = document.createElement('div');
+      newLine.innerHTML = '<br>';
+      taskItem.parentNode.insertBefore(newLine, taskItem.nextSibling);
+      
+      // Set cursor inside task text
+      const newRange = document.createRange();
+      newRange.selectNodeContents(taskText);
+      newRange.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      
+      // Focus the task text
+      taskText.focus();
     },
   }
 };

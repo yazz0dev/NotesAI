@@ -45,6 +45,11 @@ const app = createApp({
       currentSearchText: '',
       debouncedUpdateNoticeBoard: null,
       tagModalPosition: null,
+      // Notice Board regeneration tracking
+      lastSignificantChangeTime: 0,
+      lastNoticeboardSignature: null,
+      significantChangeThreshold: 50, // Characters changed required to trigger update
+      minimumUpdateInterval: 5000, // Minimum 5 seconds between regenerations
     };
   },
   computed: {
@@ -52,7 +57,7 @@ const app = createApp({
     ...mapWritableState(useNotesStore, ['editingNote']),
     ...mapState(useTagsStore, ['allTags']),
     ...mapState(useSettingsStore, [
-        'theme', 'sidebarCollapsed', 'handsFreeMode', 'saveVoiceRecordings', 
+        'theme', 'sidebarCollapsed', 'saveVoiceRecordings', 
         'currentLayout', 'isNoticeBoardVisible', 'noticeBoardContent',
         'isNoticeBoardAvailable'
     ]),
@@ -156,7 +161,6 @@ const app = createApp({
       initializeSettingsStore: 'initialize',
       setNoticeBoardVisibility: 'setNoticeBoardVisibility',
       setNoticeBoardAvailability: 'setNoticeBoardAvailability',
-      setHandsFreeModeInStore: 'setHandsFreeMode',
       setSaveVoiceRecordingsInStore: 'setSaveVoiceRecordings'
     }),
 
@@ -305,6 +309,48 @@ const app = createApp({
     refreshNoticeBoard() {
         this.updateContextualNoticeBoard(this.filteredNotes);
     },
+    
+    /**
+     * Check if there's a significant change in note content (50+ characters)
+     * This prevents regenerating on every keystroke
+     */
+    hasSignificantChange(oldSignature, newSignature) {
+      if (!oldSignature || !newSignature) return true;
+      
+      // Parse signatures to get note data
+      const oldNotes = oldSignature === 'empty' ? {} : Object.fromEntries(
+        oldSignature.split('|').map(item => {
+          const [id, ...rest] = item.split('-');
+          return [id, rest.join('-')];
+        })
+      );
+      
+      const newNotes = newSignature === 'empty' ? {} : Object.fromEntries(
+        newSignature.split('|').map(item => {
+          const [id, ...rest] = item.split('-');
+          return [id, rest.join('-')];
+        })
+      );
+      
+      // Check if notes were added or removed
+      if (Object.keys(oldNotes).length !== Object.keys(newNotes).length) {
+        return true;
+      }
+      
+      // Check for significant content changes in existing notes
+      let totalChanges = 0;
+      for (const noteId in newNotes) {
+        if (oldNotes[noteId] !== newNotes[noteId]) {
+          // This note changed, but we can't measure by how much from the signature
+          // So we count any change as significant if there's a time gap
+          totalChanges += this.significantChangeThreshold;
+          break;
+        }
+      }
+      
+      return totalChanges >= this.significantChangeThreshold;
+    },
+    
     toggleNoticeBoard() { 
         this.setNoticeBoardVisibility(!this.isNoticeBoardVisible); 
     },
@@ -449,32 +495,63 @@ const app = createApp({
     }
   },
   watch: {
-    handsFreeMode(newValue) { newValue ? aiHandler.startAmbientListening() : aiHandler.stopAmbientListening(); },
-
     /**
-     * **NEW**: This is the single, intelligent watcher for the Notice Board.
-     * It triggers only when the underlying data of the current view actually changes.
+     * **OPTIMIZED**: Intelligent watcher for the Notice Board.
+     * Only regenerates on significant content changes (50+ characters) and respects a 5-second minimum interval.
      */
     filteredNotesSignature: {
       handler(newSignature, oldSignature) {
-        // Only run if the signature has actually changed, and it's not the initial load (oldSignature is null)
-        if (newSignature !== oldSignature) {
-             console.log("Notice Board context has changed. Regenerating...");
-             // FIX: Add a guard to ensure the debounced function exists before calling it.
-             // This prevents a race condition on initial load.
-             if (this.debouncedUpdateNoticeBoard) {
-                this.debouncedUpdateNoticeBoard(this.filteredNotes);
-             }
+        const now = Date.now();
+        
+        // Skip if: initial load (oldSignature is null)
+        if (oldSignature === null) {
+          this.lastNoticeboardSignature = newSignature;
+          this.setNoticeBoardAvailability(this.filteredNotes.length > 0);
+          return;
+        }
+        
+        // Skip if: not enough time has passed since last update (5 second minimum)
+        if (now - this.lastSignificantChangeTime < this.minimumUpdateInterval) {
+          console.log(`[main.js] Skipping notice board update (throttled - only ${now - this.lastSignificantChangeTime}ms since last update)`);
+          this.setNoticeBoardAvailability(this.filteredNotes.length > 0);
+          return;
+        }
+        
+        // Skip if: signature hasn't actually changed
+        if (newSignature === this.lastNoticeboardSignature) {
+          console.log(`[main.js] Skipping notice board update (signature unchanged)`);
+          this.setNoticeBoardAvailability(this.filteredNotes.length > 0);
+          return;
+        }
+        
+        // Check if there's a significant change
+        if (!this.hasSignificantChange(this.lastNoticeboardSignature, newSignature)) {
+          console.log(`[main.js] Skipping notice board update (change not significant - <50 characters)`);
+          this.lastNoticeboardSignature = newSignature;
+          this.setNoticeBoardAvailability(this.filteredNotes.length > 0);
+          return;
+        }
+        
+        // Update tracking
+        this.lastSignificantChangeTime = now;
+        this.lastNoticeboardSignature = newSignature;
+        
+        console.log("[main.js] Notice Board context has changed significantly. Regenerating...");
+        // FIX: Add a guard to ensure the debounced function exists before calling it.
+        if (this.debouncedUpdateNoticeBoard) {
+           this.debouncedUpdateNoticeBoard(this.filteredNotes);
         }
         
         // Always update availability based on the current number of notes.
         this.setNoticeBoardAvailability(this.filteredNotes.length > 0);
       },
-      immediate: true // Run on initial load to set the first state
+      immediate: false // Don't run on initial load - let created() handle it
     }
   },
   created() {
-    this.debouncedUpdateNoticeBoard = this.debounce(this.updateContextualNoticeBoard, 1000); // Increased debounce time
+    // Debounce with 3 seconds to allow user to finish typing/editing
+    // Combined with the 5-second minimum interval in watcher, this prevents excessive regenerations
+    this.debouncedUpdateNoticeBoard = this.debounce(this.updateContextualNoticeBoard, 3000);
     this.initializeApp();
   },
   mounted() {

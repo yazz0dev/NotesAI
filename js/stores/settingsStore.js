@@ -6,7 +6,6 @@ export const useSettingsStore = defineStore('settings', {
     theme: 'light', // 'light', 'dark', 'auto'
     
     // Voice settings
-    handsFreeMode: false,
     saveVoiceRecordings: false,
     voiceLanguage: 'en-US',
     
@@ -85,7 +84,6 @@ export const useSettingsStore = defineStore('settings', {
     // Get voice settings
     voiceSettings: (state) => {
       return {
-        handsFreeMode: state.handsFreeMode,
         saveVoiceRecordings: state.saveVoiceRecordings,
         voiceLanguage: state.voiceLanguage
       };
@@ -173,13 +171,6 @@ export const useSettingsStore = defineStore('settings', {
     // Update notice board content
     setNoticeBoardContent(content) {
       this.noticeBoardContent = content;
-      this.saveToLocalStorage();
-    },
-
-    // Update hands-free mode
-    setHandsFreeMode(enabled) {
-      this.handsFreeMode = enabled;
-      localStorage.setItem('handsFreeMode', enabled.toString());
       this.saveToLocalStorage();
     },
 

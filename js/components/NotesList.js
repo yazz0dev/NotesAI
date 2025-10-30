@@ -70,7 +70,38 @@ export default {
                                 <h6 class="card-title fw-semibold text-dark mb-2 line-clamp-2">
                                     {{ note.title || 'Untitled Note' }}
                                 </h6>
-                                <p class="card-text text-muted small line-clamp-3 mb-3">{{ getSnippet(note.content) }}</p>
+                                
+                                <!-- Smart Content Preview - shows based on actual content -->
+                                <div class="card-content-preview mb-3">
+                                    <!-- Show tasks if content has task items -->
+                                    <div v-if="hasTaskItems(note.content)" class="task-list-preview">
+                                        <div v-for="(item, index) in getTaskItems(note.content).slice(0, 3)" 
+                                             :key="index" 
+                                             class="task-item-preview"
+                                             :class="{ 'task-completed': item.checked }">
+                                            <span class="task-checkbox-preview"></span>
+                                            <span class="task-text-preview">{{ item.text }}</span>
+                                        </div>
+                                        <small v-if="getTaskItems(note.content).length > 3" class="text-muted d-block mt-1">
+                                            +{{ getTaskItems(note.content).length - 3 }} more tasks
+                                        </small>
+                                    </div>
+                                    <!-- Show lists if content has list items -->
+                                    <div v-else-if="hasListMarkup(note.content)" class="list-preview">
+                                        <div v-for="(item, index) in getListMarkupItems(note.content).slice(0, 3)" 
+                                             :key="index"
+                                             class="list-item-preview">
+                                            {{ item }}
+                                        </div>
+                                        <small v-if="getListMarkupItems(note.content).length > 3" class="text-muted d-block mt-1">
+                                            +{{ getListMarkupItems(note.content).length - 3 }} more items
+                                        </small>
+                                    </div>
+                                    <!-- Otherwise show text preview -->
+                                    <div v-else class="text-preview">
+                                        <p class="card-text text-muted small line-clamp-3 mb-0">{{ getSnippet(note.content) }}</p>
+                                    </div>
+                                </div>
 
                                 <div v-if="note.tags && note.tags.length" class="mb-0">
                                     <div class="d-flex flex-wrap gap-1">
@@ -122,7 +153,14 @@ export default {
          * @returns {string} - Plain text snippet
          */
         getSnippet(content) {
-            return MarkdownHandler.getPreview(content, 120);
+            // Remove all HTML tags and clean up text
+            let text = content
+                .replace(/<[^>]*>/g, '')  // Remove all HTML tags
+                .replace(/&nbsp;/g, ' ')   // Replace nbsp entities
+                .replace(/\s+/g, ' ')      // Collapse multiple spaces
+                .trim();
+            
+            return text.length > 120 ? text.substring(0, 120) + '...' : text;
         },
         /**
          * Formats date relative to now using DateUtils
@@ -159,6 +197,81 @@ export default {
          */
         hasMarkdown(content) {
             return MarkdownHandler.isMarkdown(content);
+        },
+        /**
+         * Detects if content contains task items (div.task-item elements)
+         * @param {string} content - Content to check
+         * @returns {boolean} - True if task items detected
+         */
+        hasTaskItems(content) {
+            if (!content) return false;
+            return /class="task-item"/i.test(content);
+        },
+        /**
+         * Extracts task items from HTML content
+         * @param {string} content - HTML content to extract from
+         * @returns {Array} - Array of {text, checked} objects
+         */
+        getTaskItems(content) {
+            if (!content) return [];
+            const items = [];
+            
+            // Match: <div class="task-item" ... data-checked="true/false" ...><span class="task-checkbox"></span><span class="task-text" ...>TEXT</span></div>
+            const taskRegex = /<div\s+class="task-item"[^>]*data-checked="([^"]*)"[^>]*>.*?<span\s+class="task-text"[^>]*>([^<]*)<\/span>.*?<\/div>/gi;
+            let match;
+            
+            while ((match = taskRegex.exec(content)) !== null) {
+                const checked = match[1].toLowerCase() === 'true';
+                let text = match[2]
+                    .replace(/&nbsp;/g, ' ')  // Replace &nbsp; entities
+                    .replace(/&amp;/g, '&')   // Replace &amp; entities
+                    .replace(/&lt;/g, '<')    // Replace &lt; entities
+                    .replace(/&gt;/g, '>')    // Replace &gt; entities
+                    .replace(/&quot;/g, '"')  // Replace &quot; entities
+                    .replace(/&#39;/g, "'")   // Replace &#39; entities
+                    .trim();
+                    
+                if (text && text !== 'Task...') {
+                    items.push({ checked, text });
+                }
+            }
+            return items;
+        },
+        /**
+         * Detects if content contains list markup (ul, ol, or li elements)
+         * @param {string} content - Content to check
+         * @returns {boolean} - True if list items detected
+         */
+        hasListMarkup(content) {
+            if (!content) return false;
+            return /<(?:ul|ol|li)[^>]*>/i.test(content);
+        },
+        /**
+         * Extracts list items from HTML content
+         * @param {string} content - HTML content to extract from
+         * @returns {Array} - Array of list item text strings
+         */
+        getListMarkupItems(content) {
+            if (!content) return [];
+            const items = [];
+            
+            // Extract from li elements
+            const liRegex = /<li[^>]*>([^<]*)<\/li>/gi;
+            let match;
+            while ((match = liRegex.exec(content)) !== null) {
+                let text = match[1]
+                    .replace(/&nbsp;/g, ' ')  // Replace &nbsp; entities
+                    .replace(/&amp;/g, '&')   // Replace &amp; entities
+                    .replace(/&lt;/g, '<')    // Replace &lt; entities
+                    .replace(/&gt;/g, '>')    // Replace &gt; entities
+                    .replace(/&quot;/g, '"')  // Replace &quot; entities
+                    .replace(/&#39;/g, "'")   // Replace &#39; entities
+                    .trim();
+                    
+                if (text) items.push(text);
+            }
+            
+            return items;
         }
     }
 };

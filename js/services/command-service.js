@@ -43,9 +43,6 @@ class CommandService {
 
     this.ambientRecognition.onend = () => {
       this.isAmbientListening = false;
-      if (localStorage.getItem("handsFreeMode") === "true" && !this.isActive) {
-        setTimeout(() => this.startAmbientListening(), 500);
-      }
     };
 
     this.ambientRecognition.onerror = (e) => {
@@ -241,11 +238,7 @@ class CommandService {
     this.activeRecognition = null;
     this.mediaRecorder = null;
     this.audioChunks = [];
-    if (localStorage.getItem("handsFreeMode") === "true") {
-      this.startAmbientListening();
-    } else {
-      this.dispatchEvent("command-status-update", { status: "ready", message: "Voice commands ready" });
-    }
+    this.dispatchEvent("command-status-update", { status: "ready", message: "Voice commands ready" });
   }
 
   dispatchEvent(name, detail) {

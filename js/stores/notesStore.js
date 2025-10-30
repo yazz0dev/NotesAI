@@ -339,11 +339,9 @@ export const useNotesStore = defineStore('notes', {
 
       } catch (error) {
           console.error('Failed to generate notice board:', error);
-          settingsStore.setNoticeBoardContent("### Oops!\nCould not generate the notice board due to an AI error.");
-          alertService.error(
-            'Notice Board Failed',
-            'The AI could not generate the notice board. Check your connection and try again.'
-          );
+          // Silently set error message without alert to avoid spamming user
+          // The UI will show the error message in the notice board area
+          settingsStore.setNoticeBoardContent("### Notice Board Unavailable\nThe AI service is currently unavailable. Please check that:\n- Chrome experimental AI features are enabled\n- Your internet connection is stable\n- Try again in a moment");
       }
     },
 

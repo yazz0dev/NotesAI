@@ -108,87 +108,35 @@
   }
   .task-text { flex-grow: 1; outline: none; }
 
-  /* --- Correction Highlights --- */
-  .correction-highlight {
+  /* --- Proofreader Error Highlights --- */
+  .proofreader-error {
     background-color: rgba(255, 193, 7, 0.2);
     border-bottom: 2px wavy #ffc107;
     cursor: pointer;
-    position: relative;
     transition: background-color 0.2s ease;
     border-radius: 2px;
     padding: 0 1px;
-  }
-
-  .correction-highlight:hover {
-    background-color: rgba(255, 193, 7, 0.4);
-  }
-
-  .correction-highlight::after {
-    content: '!';
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background-color: #ffc107;
-    color: #000;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    border: 1px solid #fff;
-  }
-
-  /* --- Proofreader Error Highlights --- */
-  .proofreader-error {
-    background-color: rgba(255, 243, 205, 0.4) !important;
-    border-bottom: 2px wavy #dc3545 !important;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    padding: 2px 4px;
-    border-radius: 3px;
-    animation: pulse-error 2s ease-in-out;
-    position: relative;
+    /* *** KEY FIX: This makes the popover position relative to the highlighted text *** */
+    position: relative; 
   }
 
   .proofreader-error:hover {
-    background-color: rgba(255, 193, 7, 0.6) !important;
-    border-bottom-color: #c82333 !important;
-  }
-
-  @keyframes pulse-error {
-    0%, 100% {
-      background-color: rgba(255, 243, 205, 0.4);
-    }
-    50% {
-      background-color: rgba(255, 193, 7, 0.5);
-    }
-  }
-
-  /* Dark theme adjustments for error highlights */
-  [data-bs-theme="dark"] .proofreader-error {
-    background-color: rgba(220, 53, 69, 0.2) !important;
-    border-bottom-color: #dc3545 !important;
-  }
-
-  [data-bs-theme="dark"] .proofreader-error:hover {
-    background-color: rgba(220, 53, 69, 0.4) !important;
+    background-color: rgba(255, 193, 7, 0.4);
   }
 
   /* ===== PROOFREADER INLINE POPOVER ===== */
   .proofreader-popover {
     display: none;
-    position: absolute;
-    z-index: 1000;
+    position: fixed; /* Use fixed positioning to escape the editor's scroll container */
+    z-index: 1080; /* High z-index to appear above everything */
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
     padding: 0;
-    margin-top: 2px;
     animation: popoverFadeIn 0.2s ease-out;
+    width: max-content;
+    min-width: 180px;
   }
 
   @keyframes popoverFadeIn {
@@ -207,7 +155,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 180px;
   }
 
   .proofreader-popover-label {
@@ -218,7 +165,7 @@
   }
 
   .proofreader-popover-content strong {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
     word-break: break-word;
     padding: 4px 0;
@@ -231,70 +178,34 @@
   }
 
   .btn-xs {
-    padding: 2px 6px;
-    font-size: 0.75rem;
+    padding: 2px 8px;
+    font-size: 0.8rem;
     line-height: 1.2;
     height: auto;
-    border-radius: 3px;
-  }
-
-  .btn-xs i {
-    font-size: 0.65rem;
-    margin: 0;
-  }
-
-/* ===== AI SUMMARY INDICATOR ===== */
-.ai-summary-indicator {
-  font-size: 0.75rem;
-}
-
-.ai-summary-indicator .btn-sm-custom {
-  padding: 0.125rem 0.375rem;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  border-radius: 0.25rem;
-}
-
-.ai-summary-indicator .btn-sm-custom i {
-  font-size: 0.65rem;
-}
-
-/* ===== NEW: PROOFREADER SUGGESTIONS PANEL ===== */
-.proofreader-suggestions-panel {
-    background-color: var(--bg-tertiary);
-    max-height: 250px;
-    overflow-y: auto;
-    animation: slideInDown 0.3s ease-out;
-}
-
-@keyframes slideInDown {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-.suggestion-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.suggestion-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.75rem;
-    background-color: var(--bg-primary);
+    border-radius: 4px;
     border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 0.85rem;
-    transition: background-color 0.2s ease;
-}
+  }
+  .btn-xs:hover {
+    transform: translateY(-1px);
+  }
+  .btn-xs i {
+    font-size: 0.9rem;
+  }
 
-.suggestion-card:hover {
-    background-color: var(--bg-secondary);
-}
+  /* Dark theme adjustments for highlights */
+  [data-theme="dark"] .proofreader-error {
+    background-color: rgba(220, 53, 69, 0.2);
+    border-bottom-color: #dc3545;
+  }
 
-.suggestion-text {
-    flex-grow: 1;
-    margin-right: 0.75rem;
-}
+  [data-theme="dark"] .proofreader-error:hover {
+    background-color: rgba(220, 53, 69, 0.4);
+  }
+
+  /* --- Other styles --- */
+  .ai-summary-indicator {
+    font-size: 0.75rem;
+  }
+  .ai-summary-indicator .btn-sm-custom {
+    padding: 0.125rem 0.375rem; font-size: 0.7rem;
+  }

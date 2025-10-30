@@ -4,16 +4,12 @@ export default {
     data() {
         return {
             selectedTheme: this.currentTheme,
-            handsFreeEnabled: this.modelValue,
             voiceRecordingsEnabled: this.saveVoiceRecordings
         };
     },
     watch: {
         currentTheme(newVal) {
             this.selectedTheme = newVal;
-        },
-        modelValue(newVal) {
-            this.handsFreeEnabled = newVal;
         },
         saveVoiceRecordings(newVal) {
             this.voiceRecordingsEnabled = newVal;
@@ -58,15 +54,6 @@ export default {
                                   </div>
                               </div>
                               <small class="text-muted">Choose your preferred theme or let the system decide.</small>
-                          </div>
-
-                          <!-- Hands-Free Mode -->
-                          <div class="mb-3">
-                              <label for="hands-free-toggle" class="form-check-label fw-semibold">Hands-Free Mode</label>
-                              <div class="form-check form-switch">
-                                  <input class="form-check-input" type="checkbox" id="hands-free-toggle" v-model="handsFreeEnabled" @change="$emit('update:modelValue', handsFreeEnabled)">
-                              </div>
-                              <small class="text-muted">Enable "Hey Notes" voice commands.</small>
                           </div>
 
                           <!-- Save Voice Recordings -->
