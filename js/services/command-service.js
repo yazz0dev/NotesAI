@@ -1,4 +1,7 @@
+// File to edit: NotesAi/js/services/command-service.js
+
 import voiceCommands from './voice-commands.js';
+import { aiToolsService } from './ai-tools-service.js';
 
 class CommandService {
   constructor() {
@@ -54,7 +57,9 @@ class CommandService {
     this.ambientRecognition.onresult = (event) => {
       const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
       if (transcript.includes("hey notes")) {
-        this.processTranscript(transcript, 'command');
+        console.log("Wake word 'Hey Notes' detected.");
+        this.stopAmbientListening();
+        this.startListening({ mode: 'command' });
       }
     };
   }
@@ -105,7 +110,7 @@ class CommandService {
       this.activeRecognition.continuous = true;
       this.activeRecognition.interimResults = true;
 
-      this.activeRecognition.onresult = (event) => {
+      this.activeRecognition.onresult = async (event) => {
         let interimTranscript = '';
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -126,9 +131,15 @@ class CommandService {
         }
 
         if (finalTranscript) {
-          const processed = this.processTranscript(finalTranscript.trim(), mode);
-          if (!processed && mode === 'dictation') {
-            this.dispatchEvent("dictation-finalized", { transcript: finalTranscript.trim() });
+          const trimmedFinalTranscript = finalTranscript.trim();
+          const wasSpecificCommand = this.processTranscript(trimmedFinalTranscript, mode);
+          
+          if (!wasSpecificCommand && mode === 'command') {
+            console.log(`Unrecognized command, sending to AI tools: "${trimmedFinalTranscript}"`);
+            await aiToolsService.processQueryWithTools(trimmedFinalTranscript);
+            this.stopListening();
+          } else if (!wasSpecificCommand && mode === 'dictation') {
+            this.dispatchEvent("dictation-finalized", { transcript: trimmedFinalTranscript });
           }
         }
       };
@@ -146,10 +157,7 @@ class CommandService {
       };
 
       this.activeRecognition.onend = () => {
-        // If we are supposed to be active but stopped unexpectedly, try to restart
-        // UNLESS we manually stopped it (isActive would be false then)
         if (this.isActive) {
-             // Simple auto-restart for continuous listening
              try { this.activeRecognition.start(); } catch(e) { /* ignore if already started */ }
              return;
         }
@@ -182,48 +190,32 @@ class CommandService {
     const now = Date.now();
 
     for (const command of voiceCommands) {
-      const isAppCommand = command.scope === 'app';
-      const isEditorCommand = command.scope === 'editor' && mode === 'dictation';
+        const isAppCommand = command.scope === 'app' && mode === 'command';
+        const isEditorCommand = command.scope === 'editor' && mode === 'dictation';
 
-      if (!isAppCommand && !isEditorCommand) continue;
+        if (!isAppCommand && !isEditorCommand) continue;
 
-      for (const keyword of command.keywords) {
-        let argument = null;
-        let match = false;
+        for (const keyword of command.keywords) {
+            const keywordRegex = new RegExp(`^${keyword.toLowerCase()}\\b`, 'i');
+            if (keywordRegex.test(lowerTranscript)) {
+                if (this.lastCommand === keyword && (now - this.lastCommandTime) < 1500) {
+                    console.log(`Duplicate command ignored: ${keyword}`);
+                    return true;
+                }
 
-        if (command.requiresArgument) {
-            const keywordRegex = new RegExp(`\\b${keyword.toLowerCase()}\\b`, 'i');
-            const matchResult = lowerTranscript.match(keywordRegex);
-            if (matchResult) {
-                argument = transcript.substring(matchResult.index + keyword.length).trim();
-                if (argument) match = true;
+                console.log(`Specific command matched: ${keyword}`);
+                this.lastCommand = keyword;
+                this.lastCommandTime = now;
+
+                if (isAppCommand) {
+                    command.action();
+                }
+                if (isEditorCommand) {
+                    this.dispatchEvent('editor-command', { command, value: command.value });
+                }
+                return true;
             }
-        } else {
-          const keywordRegex = new RegExp(`\\b${keyword.toLowerCase()}\\b`);
-          if (keywordRegex.test(lowerTranscript)) {
-            match = true;
-          }
         }
-
-        if (match) {
-          if (this.lastCommand === keyword && (now - this.lastCommandTime) < 1500) {
-               console.log(`Duplicate command ignored: ${keyword}`);
-               return true; 
-          }
-
-          console.log(`Command matched: ${keyword}`, { argument });
-          this.lastCommand = keyword;
-          this.lastCommandTime = now;
-
-          if (isAppCommand) {
-            command.action(argument, transcript);
-          }
-          if (isEditorCommand) {
-            this.dispatchEvent('editor-command', { command, value: argument });
-          }
-          return true;
-        }
-      }
     }
     return false;
   }

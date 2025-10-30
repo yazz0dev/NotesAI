@@ -20,6 +20,7 @@
     
     <link rel="stylesheet" href="styles/theme.css" />
     <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="styles/components/tag-selection-overlay.css" />
   </head>
   <body>
     <div id="app" class="app-layout">
@@ -44,8 +45,8 @@
           </template>
 
           <template #toolbar>
-            <div class="header-toolbar d-flex align-items-center px-4">
-              <div class="search-container position-relative flex-grow-1 me-3" :class="{ 'ai-active': isAiSearchActive }">
+            <div class="header-toolbar">
+              <div class="search-container position-relative" :class="{ 'ai-active': isAiSearchActive }">
                 <div class="input-group">
                   <span class="input-group-text border-end-0">
                     <i class="bi bi-search"></i>
@@ -56,36 +57,43 @@
                     contenteditable="true"
                     @input="handleSearchInput($event.target.textContent)"
                     @keydown.enter.prevent="submitSearch($event.target.textContent)"
-                    placeholder="Search notes or ask AI...">
+                    placeholder="Search notes or ask AI..."
+                    role="searchbox"
+                    aria-label="Search notes or ask AI">
                   </div>
                   <button
                     class="btn btn-outline-secondary border-start-0"
                     :class="{ 'active': isAiSearchActive }"
                     @click="toggleAiSearch"
-                    title="Toggle AI-powered Search"
+                    title="Toggle AI-powered Search (Ctrl+Shift+A)"
                     id="ai-search-toggle"
+                    aria-label="Toggle AI search"
                   >
                     <i class="bi bi-stars"></i>
                   </button>
                 </div>
               </div>
-              <div class="toolbar-right d-flex gap-2">
-                <div class="btn-group" role="group">
-                  <button @click="toggleLayout" class="btn btn-outline-secondary" :title="`Switch to ${currentLayout === 'grid' ? 'list' : 'grid'} view`">
-                    <i :class="['bi', currentLayout === 'grid' ? 'bi-list' : 'bi-grid-3x3-gap']"></i>
-                    <span class="d-none d-lg-inline ms-1">{{ currentLayout === 'grid' ? 'List' : 'Grid' }}</span>
-                  </button>
-                  <button @click="handleSortChange" class="btn btn-outline-secondary" title="Change Sort Order">
-                    <i class="bi bi-sort-down"></i>
-                    <span class="d-none d-lg-inline ms-1">{{ getSortLabel() }}</span>
-                  </button>
-                </div>
+              <div class="toolbar-right d-flex gap-3">
+                <button @click="toggleLayout" 
+                        class="btn btn-outline-secondary" 
+                        :title="`Switch to ${currentLayout === 'grid' ? 'list' : 'grid'} view (Ctrl+Shift+L)`"
+                        aria-label="Toggle layout view">
+                  <i :class="['bi', currentLayout === 'grid' ? 'bi-list' : 'bi-grid-3x3-gap']"></i>
+                  <span class="d-none d-lg-inline ms-1">{{ currentLayout === 'grid' ? 'List' : 'Grid' }}</span>
+                </button>
+                <button @click="handleSortChange" 
+                        class="btn btn-outline-secondary" 
+                        title="Change Sort Order (Ctrl+Shift+S)"
+                        aria-label="Change sort order">
+                  <i class="bi bi-sort-down"></i>
+                  <span class="d-none d-lg-inline ms-1">{{ getSortLabel() }}</span>
+                </button>
               </div>
             </div>
           </template>
         </app-header>
 
-        <div class="d-flex">
+        <div class="d-flex" style="flex: 1; overflow: hidden;">
           <app-sidebar
             :current-view="currentView"
             :all-tags="allTags"
@@ -96,6 +104,7 @@
             @create-note="createNewNote"
             @tag-click="handleTagClick"
             @create-tag="handleCreateTag"
+            @delete-tag="handleDeleteTag"
           ></app-sidebar>
 
           <div class="main-content-wrapper">
@@ -108,12 +117,15 @@
                       :content="noticeBoardContent"
                       :is-loading="isNoticeBoardLoading"
                       :is-editor-open="!!editingNote"
+                      :view-id="currentView"
+                      :notes-signature="filteredNotesSignature"
                       @toggle-visibility="toggleNoticeBoard"
                       @refresh="refreshNoticeBoard"
                       @navigate-to-note="handleNavigateToNote"
+                      @cache-updated="handleNoticeBoardCacheUpdated"
                     ></notice-board>
                     
-                    <main class="main-content flex-fill">
+                    <main class="main-content flex-fill" role="main">
                       <notes-list
                         :notes="filteredNotes"
                         :layout="currentLayout"
@@ -130,7 +142,7 @@
                     </main>
                 </div>
 
-                <div class="editor-resizer" v-if="editingNote" @mousedown="startResize"></div>
+                <div class="editor-resizer" v-if="editingNote" @mousedown="startResize" title="Resize editor" role="separator" aria-orientation="vertical"></div>
 
                 <note-editor
                     v-if="editingNote"
@@ -145,11 +157,15 @@
       </template>
 
       <!-- Modals -->
-      <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="currentTheme" :save-voice-recordings="saveVoiceRecordings" @update:theme="setTheme" @update:save-voice-recordings="saveVoiceRecordings = $event" @close="isSettingsModalVisible = false"></settings-modal>
+      <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="theme" :save-voice-recordings="saveVoiceRecordings" @update:modelValue="setHandsFreeModeInStore" @update:theme="setThemeInStore" @update:save-voice-recordings="setSaveVoiceRecordingsInStore" @close="isSettingsModalVisible = false"></settings-modal>
       <alert-modal></alert-modal>
-      <tag-selection-modal v-if="noteToTag" :note-to-tag="noteToTag" :all-tags="allTags" @close="closeTagModal" @update-tags="handleUpdateTags" @create-tag="handleCreateTag"></tag-selection-modal>
+      <toast></toast>
+      <tag-selection-overlay v-if="noteToTag" :note-to-tag="noteToTag" :all-tags="allTags" :trigger-position="tagModalPosition" @close="closeTagModal" @update-tags="handleUpdateTags"></tag-selection-overlay>
       
       <help-modal :is-visible="isHelpModalVisible" @close="isHelpModalVisible = false"></help-modal>
+      
+      <!-- AI Response Modal -->
+      <ai-response-modal></ai-response-modal>
     </div>
     
     <!-- Load Vue and Pinia synchronously before the module scripts -->

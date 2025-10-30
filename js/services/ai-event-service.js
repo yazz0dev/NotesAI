@@ -1,5 +1,6 @@
+// File to edit: NotesAi/js/services/ai-event-service.js
+
 // js/services/ai-event-service.js
-import { aiToolsService } from './ai-tools-service.js';
 import aiHandler from './ai-handler.js';
 
 let vueInstance = null;
@@ -99,22 +100,6 @@ function handleVoiceSaveNote() {
     if (vueInstance && vueInstance.editingNote) vueInstance.saveNote(vueInstance.editingNote);
 }
 
-async function handleVoiceAIQuery(event) {
-    if (vueInstance && event.detail.query) {
-        const fullQuery = event.detail.originalTranscript;
-        const searchInput = document.getElementById("search-input");
-        if (searchInput) {
-            searchInput.textContent = fullQuery;
-        }
-
-        await aiToolsService.processQueryWithTools(fullQuery);
-
-        if (searchInput) {
-            searchInput.textContent = '';
-        }
-    }
-}
-
 const listeners = {
     "command-status-update": handleAIStatusUpdate,
     "listening-started": handleAIListeningStarted,
@@ -126,7 +111,6 @@ const listeners = {
     "voice-stop-dictation": handleVoiceStopDictation,
     "voice-close-editor": handleVoiceCloseEditor,
     "voice-save-note": handleVoiceSaveNote,
-    "voice-ai-query": handleVoiceAIQuery,
 };
 
 export const aiEventService = {

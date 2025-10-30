@@ -1,6 +1,8 @@
 // js/services/ai-tools-service.js
 import { useNotesStore, useTagsStore } from '../stores/index.js';
 import { alertService } from './alert-service.js';
+import { toastService } from './toast-service.js';
+import { aiResponseService } from './ai-response-service.js'; // IMPORT THE NEW SERVICE
 import promptAPIService from './promptapi-service.js';
 import summaryService from './summary-service.js';
 import { noteActionsService } from './note-actions-service.js';
@@ -289,7 +291,7 @@ Analyze the user's request and call the correct tool. If no action is needed, us
         switch (toolName) {
             case 'createNote':
                 const newNote = await this.vueInstance.createNewNote({ title: args.title, content: args.content || '' });
-                alertService.success('Note Created', `Successfully created note: "${newNote.title}"`);
+                toastService.success('Note Created', `"${newNote.title}" was created successfully`);
                 break;
             
             case 'searchNotes':
@@ -299,7 +301,7 @@ Analyze the user's request and call the correct tool. If no action is needed, us
             case 'findAndOpenNote':
                 note = this._findMostRelevantNote(args.query);
                 if (note) this.vueInstance.editNote(note);
-                else alertService.warning('Not Found', `Could not find a note matching "${args.query}".`);
+                else toastService.warning('Not Found', `Could not find a note matching "${args.query}".`);
                 break;
 
             case 'appendToNote':
@@ -307,8 +309,8 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                 if (note) {
                     const newContent = note.content + `\n\n${args.content}`;
                     await notesStore.updateNote(note.id, { content: newContent });
-                    alertService.success('Note Updated', `Appended content to "${note.title}".`);
-                } else alertService.warning('Not Found', `Could not find a note matching "${args.query}" to append to.`);
+                    toastService.success('Note Updated', `Appended content to "${note.title}".`);
+                } else toastService.warning('Not Found', `Could not find a note matching "${args.query}" to append to.`);
                 break;
 
             case 'addTagsToNote':
@@ -324,9 +326,9 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                         existingTags.add(tag.id);
                     }
                     await notesStore.updateNote(note.id, { tags: Array.from(existingTags) });
-                    alertService.success('Tags Updated', `Updated tags for "${note.title}".`);
+                    toastService.success('Tags Updated', `Updated tags for "${note.title}".`);
                 } else {
-                    alertService.warning('Not Found', `Could not find a note matching "${args.query}" to tag.`);
+                    toastService.warning('Not Found', `Could not find a note matching "${args.query}" to tag.`);
                 }
                 break;
 
@@ -335,7 +337,7 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                 if (note) {
                     await noteActionsService.setReminder(note);
                 } else {
-                    alertService.warning('Not Found', `Could not find a note matching "${args.query}" to set a reminder for.`);
+                    toastService.warning('Not Found', `Could not find a note matching "${args.query}" to set a reminder for.`);
                 }
                 break;
 
@@ -343,16 +345,16 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                 note = this._findMostRelevantNote(args.query);
                 if (note) {
                     await noteActionsService.toggleFavorite(note);
-                    alertService.success('Favorite Toggled', `Toggled favorite status for "${note.title}".`);
-                } else alertService.warning('Not Found', `Could not find a note matching "${args.query}".`);
+                    toastService.success('Favorite Toggled', `Toggled favorite status for "${note.title}".`);
+                } else toastService.warning('Not Found', `Could not find a note matching "${args.query}".`);
                 break;
 
             case 'archiveNote':
                 note = this._findMostRelevantNote(args.query);
                 if (note) {
                     await noteActionsService.archiveNote(note);
-                    alertService.success('Note Archived', `Archived note: "${note.title}".`);
-                } else alertService.warning('Not Found', `Could not find a note matching "${args.query}".`);
+                    toastService.success('Note Archived', `Archived note: "${note.title}".`);
+                } else toastService.warning('Not Found', `Could not find a note matching "${args.query}".`);
                 break;
 
             case 'deleteNote':
@@ -360,23 +362,37 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                 if (note) {
                     await noteActionsService.deleteNote(note.id, notesStore.editingNote, { force: args.confirm === true });
                 } else {
-                    alertService.warning('Not Found', `Could not find a note to delete matching "${args.query}".`);
+                    toastService.warning('Not Found', `Could not find a note to delete matching "${args.query}".`);
                 }
                 break;
 
             case 'findAndSummarizeNote':
                 note = this._findMostRelevantNote(args.query);
                 if (note) {
-                    const summary = await summaryService.summarizeText(note.content);
-                    alertService.infoMarkdown(`Summary of "${note.title}"`, summary);
-                } else alertService.warning('Not Found', `Could not find a note to summarize matching "${args.query}".`);
+                    aiResponseService.show({ title: `Summary of "${note.title}"`, type: 'summary' });
+                    try {
+                        const summary = await summaryService.summarizeText(note.content);
+                        aiResponseService.updateContent(summary);
+                    } catch (e) {
+                        aiResponseService.updateContent("Sorry, I couldn't generate a summary for this note.");
+                    }
+                } else {
+                    toastService.warning('Not Found', `Could not find a note to summarize matching "${args.query}".`);
+                }
                 break;
             
             case 'summarizeCurrentNote':
                  if (notesStore.editingNote) {
-                    const summary = await summaryService.summarizeText(notesStore.editingNote.content);
-                    alertService.infoMarkdown(`Summary of "${notesStore.editingNote.title}"`, summary);
-                } else alertService.warning('No Note Open', 'Please open a note first to summarize it.');
+                    aiResponseService.show({ title: `Summary of "${notesStore.editingNote.title}"`, type: 'summary' });
+                    try {
+                        const summary = await summaryService.summarizeText(notesStore.editingNote.content);
+                        aiResponseService.updateContent(summary);
+                    } catch (e) {
+                         aiResponseService.updateContent("Sorry, I couldn't generate a summary for this note.");
+                    }
+                } else {
+                    toastService.warning('No Note Open', 'Please open a note first to summarize it.');
+                }
                 break;
 
             case 'changeNoteTone':
@@ -385,9 +401,9 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                     const prompt = `Rewrite the following text to have a ${args.tone} tone. Return only the rewritten text:\n\n${note.content.replace(/<[^>]*>/g, " ")}`;
                     const rewrittenContent = await promptAPIService.runPrompt(prompt);
                     await notesStore.updateNote(note.id, { content: rewrittenContent });
-                    alertService.success('Note Rewritten', `The tone of "${note.title}" has been changed to ${args.tone}.`);
+                    toastService.success('Note Rewritten', `The tone of "${note.title}" has been changed to ${args.tone}.`);
                 } else {
-                    alertService.warning('Not Found', `Could not find a note matching "${args.query}".`);
+                    toastService.warning('Not Found', `Could not find a note matching "${args.query}".`);
                 }
                 break;
 
@@ -396,16 +412,21 @@ Analyze the user's request and call the correct tool. If no action is needed, us
                     const tagsStore = useTagsStore();
                     const tag = tagsStore.getTagByName(args.tagName);
                     if (tag) this.vueInstance.handleTagClick(tag.id);
-                    else alertService.warning('Tag Not Found', `Could not find a tag named "${args.tagName}".`);
+                    else toastService.warning('Tag Not Found', `Could not find a tag named "${args.tagName}".`);
                 } else {
                     this.vueInstance.switchView(args.view);
                 }
                 break;
 
             case 'answerGeneralQuestion':
-                const context = notesStore.activeNotes.map(n => `Title: ${n.title}\nContent: ${n.content.replace(/<[^>]*>/g, " ").substring(0, 200)}`).join('\n---\n');
-                const answer = await promptAPIService.customPrompt(args.question, context);
-                alertService.infoMarkdown('AI Answer', answer);
+                aiResponseService.show({ title: "AI Assistant's Answer", type: 'answer' });
+                try {
+                    const context = notesStore.activeNotes.map(n => `Title: ${n.title}\nContent: ${n.content.replace(/<[^>]*>/g, " ").substring(0, 200)}`).join('\n---\n');
+                    const answer = await promptAPIService.customPrompt(args.question, context);
+                    aiResponseService.updateContent(answer);
+                } catch (e) {
+                    aiResponseService.updateContent("Sorry, I encountered an error while trying to answer your question.");
+                }
                 break;
 
             case 'no_op':

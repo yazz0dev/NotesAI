@@ -42,6 +42,10 @@ export default {
   methods: {
     handleKeydown(event) {
       if (event.key === 'Escape' && this.alertState.isVisible) {
+        // For error-only mode, don't allow escape to dismiss
+        if (this.alertState.errorOnly) {
+          return;
+        }
         this.handleCancel();
       }
     },
@@ -63,6 +67,22 @@ export default {
       }
     },
 
+    getModalIconBackground() {
+      const type = this.alertState.type || 'info';
+      switch (type) {
+        case 'success':
+          return 'rgba(16, 185, 129, 0.1)';
+        case 'error':
+        case 'danger':
+          return 'rgba(239, 68, 68, 0.1)';
+        case 'warning':
+          return 'rgba(245, 158, 11, 0.1)';
+        case 'info':
+        default:
+          return 'rgba(59, 130, 246, 0.1)';
+      }
+    },
+
     getConfirmButtonClass() {
       if (this.alertState.showInput) {
         return 'btn-primary';
@@ -79,25 +99,40 @@ export default {
         default:
           return 'btn-primary';
       }
+    },
+
+    shouldShowButtons() {
+      // Hide buttons for error-only mode
+      if (this.alertState.errorOnly) {
+        return false;
+      }
+      // Hide footer if neither confirm nor cancel text is set
+      return this.alertState.confirmText || this.alertState.cancelText;
     }
   },
   template: `
     <!-- Enhanced Alert Modal with improved animations and styling -->
     <div v-if="alertState.isVisible"
          class="modal-backdrop-enhanced"
-         @click.self="handleCancel">
+         :class="{ 'modal-backdrop-lock': alertState.errorOnly }"
+         @click.self="!alertState.errorOnly && handleCancel()"
+         role="dialog"
+         aria-modal="true"
+         :aria-labelledby="'modal-title-' + alertState.type">
 
       <div class="modal-enhanced"
-           :class="{ 'modal-shake': alertState.shake }">
+           :class="{ 'modal-shake': alertState.shake, 'modal-error-only': alertState.errorOnly }">
 
         <!-- Modal Header -->
         <div class="modal-header-enhanced">
-          <div class="modal-icon-container">
+          <div class="modal-icon-container" 
+               :style="{ backgroundColor: getModalIconBackground() }">
             <i :class="getModalIcon()" class="modal-icon"></i>
           </div>
           <div class="modal-title-container">
-            <h5 class="modal-title-enhanced">{{ alertState.title }}</h5>
-            <button type="button"
+            <h5 class="modal-title-enhanced" :id="'modal-title-' + alertState.type">{{ alertState.title }}</h5>
+            <button v-if="!alertState.errorOnly"
+                    type="button"
                     class="btn-close-enhanced"
                     @click="handleCancel"
                     aria-label="Close modal">
@@ -109,7 +144,7 @@ export default {
         <!-- Modal Body -->
         <div class="modal-body-enhanced">
           <div class="modal-message-container">
-            <!-- KEY CHANGE: Use v-html to allow formatted help text -->
+            <!-- Using v-html to allow formatted help text -->
             <div class="modal-message" v-html="alertState.message"></div>
           </div>
 
@@ -122,11 +157,12 @@ export default {
                 :placeholder="alertState.inputPlaceholder"
                 class="form-control-enhanced"
                 @keyup.enter="handleConfirm"
-                @keyup.esc="handleCancel"
+                @keyup.esc="!alertState.errorOnly && handleCancel()"
                 ref="inputField"
                 :class="{ 'input-error': alertState.inputError }"
+                aria-describedby="input-error-message"
               >
-              <div v-if="alertState.inputError" class="input-error-message">
+              <div v-if="alertState.inputError" class="input-error-message" id="input-error-message">
                 <i class="bi bi-exclamation-triangle me-1"></i>
                 {{ alertState.inputError }}
               </div>
@@ -135,12 +171,13 @@ export default {
         </div>
 
         <!-- Modal Footer -->
-        <div class="modal-footer-enhanced">
+        <div v-if="shouldShowButtons()" class="modal-footer-enhanced">
           <button v-if="alertState.cancelText"
                   type="button"
                   class="btn-enhanced btn-cancel-enhanced"
                   @click="handleCancel"
-                  :disabled="alertState.loading">
+                  :disabled="alertState.loading"
+                  aria-label="Cancel">
             <span v-if="alertState.loading && !alertState.showInput" class="spinner me-2"></span>
             {{ alertState.cancelText }}
           </button>
@@ -149,7 +186,8 @@ export default {
                   class="btn-enhanced btn-confirm-enhanced"
                   :class="getConfirmButtonClass()"
                   @click="handleConfirm"
-                  :disabled="alertState.loading || (alertState.showInput && !alertState.inputValue.trim())">
+                  :disabled="alertState.loading || (alertState.showInput && !alertState.inputValue.trim())"
+                  :aria-label="'Confirm: ' + alertState.confirmText">
             <span v-if="alertState.loading && !alertState.showInput" class="spinner me-2"></span>
             {{ alertState.confirmText }}
           </button>

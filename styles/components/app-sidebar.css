@@ -1,89 +1,264 @@
 /* --- Sidebar Base & Collapsed States --- */
 .sidebar {
-    /* KEY FIX: Removed position: fixed and related properties */
-    /* position: fixed; top: 0; left: 0; bottom: 0; */
-    
-    /* KEY FIX: Make the sidebar a flex item that doesn't shrink */
     flex-shrink: 0;
-    height: 100%; /* Fill the height of its parent flex container */
+    height: 100%;
     z-index: 1020;
     width: var(--sidebar-width);
     transition: width 0.3s var(--ease-out-quint);
     background-color: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
-    /* Add display: flex to allow its children to be arranged */
     display: flex;
     flex-direction: column;
-  }
-  
-  body.sidebar-collapsed .sidebar {
+    box-shadow: none;
+}
+
+body.sidebar-collapsed .sidebar {
     width: var(--sidebar-compact-width);
-  }
-  
-  /* This new rule is needed to make the inner nav container scrollable */
-  .sidebar-nav {
-      flex: 1;
-      overflow-y: hidden; /* Hide scrollbar here */
-      display: flex;
-      flex-direction: column;
-  }
-  
-  /* --- Sidebar Content (Text, Icons) --- */
-  .sidebar .nav-text {
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
+    flex: 1;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Quick Actions Section */
+.sidebar-quick-actions {
+    flex-shrink: 0;
+}
+
+.btn-create-note {
+    border-radius: 10px;
+    padding: 12px !important;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.btn-create-note:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.btn-create-note:active {
+    transform: translateY(0);
+}
+
+/* Navigation Menu */
+.sidebar-menu {
+    flex-shrink: 0;
+}
+
+.nav-link-item {
+    color: var(--text-primary);
+    font-weight: 500;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    padding: 10px 12px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+.nav-link-item:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--primary-color);
+    transform: translateX(2px);
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.nav-link-item.active {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Sidebar Content (Text, Icons) */
+.sidebar .nav-text {
     opacity: 1;
     transition: opacity 0.3s ease, width 0.3s ease;
     white-space: nowrap;
     overflow: hidden;
-  }
-  body.sidebar-collapsed .sidebar .nav-text {
+}
+
+body.sidebar-collapsed .sidebar .nav-text {
     opacity: 0;
     width: 0;
-  }
-  
-  .sidebar .nav-link,
-  .sidebar .btn-primary {
-    justify-content: flex-start !important;
-    transition: all 0.3s ease;
-  }
-  .sidebar .nav-link .me-2,
-  .sidebar .btn-primary .me-2 {
+}
+
+.sidebar .nav-link .me-2,
+.sidebar .btn-primary .me-2 {
     margin-right: 0.5rem !important;
     transition: margin-right 0.3s ease;
-  }
-  body.sidebar-collapsed .sidebar .nav-link,
-  body.sidebar-collapsed .sidebar .btn-primary {
-    justify-content: center !important;
-  }
-  body.sidebar-collapsed .sidebar .nav-link .me-2,
-  body.sidebar-collapsed .sidebar .btn-primary .me-2 {
+}
+
+body.sidebar-collapsed .sidebar .nav-link .me-2,
+body.sidebar-collapsed .sidebar .btn-primary .me-2 {
     margin-right: 0 !important;
-  }
-  
-  /* --- Sidebar Theming & States --- */
-  .sidebar {
-    background: var(--sidebar-bg);
-    border-color: var(--border-color);
-    box-shadow: none;
-  }
-  
-  .sidebar .nav-link {
-    color: var(--text-primary);
-    font-weight: 500;
+}
+
+body.sidebar-collapsed .sidebar .nav-link,
+body.sidebar-collapsed .sidebar .btn-primary {
+    justify-content: center !important;
+}
+
+/* Tags Section */
+.sidebar-tags-section {
+    flex: 1;
+    min-height: 0;
+}
+
+.sidebar-tags-header {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.badge-tags {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-add-tag {
+    transition: all 0.15s ease;
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.btn-add-tag:hover {
+    color: white !important;
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* Tag Input */
+.tag-input-wrapper {
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tag-input {
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.tag-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.btn-tag-confirm,
+.btn-tag-cancel {
     border-radius: 8px;
     transition: all 0.2s ease;
-  }
-  
-  .sidebar .nav-link:hover {
-      background-color: rgba(0, 123, 255, 0.08);
-      color: var(--bs-primary);
-      transform: translateX(2px);
-  }
-  
-  .sidebar .nav-link.active {
-    background-color: var(--bs-primary);
+}
+
+.btn-tag-confirm:hover:not(:disabled) {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: white !important;
+    transform: translateY(-1px);
+}
+
+.btn-tag-cancel:hover {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Tag List */
+.tag-list-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-right: 0.25rem;
+}
+
+.tag-item {
+    color: var(--text-primary);
+    font-weight: 500;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    padding: 10px 12px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.tag-item:hover {
+    background-color: var(--bg-tertiary);
+    transform: translateX(2px);
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.tag-item.active {
+    background-color: var(--primary-color);
     color: white;
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
-  }
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Delete button - hidden by default, shown on hover */
+.btn-delete-tag {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.85rem;
+}
+
+.tag-item:hover .btn-delete-tag {
+    opacity: 1;
+    visibility: visible;
+}
+
+.btn-delete-tag:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    transform: scale(1.1);
+}
+
+.tag-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+    flex-shrink: 0;
+    text-align: center;
+    padding: 1rem 0.75rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
   
 /* --- NEW: Notice Board Smart Header & Panel --- */
 .notice-board-wrapper {

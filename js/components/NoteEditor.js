@@ -1,5 +1,6 @@
 import EditorToolbar from "./EditorToolbar.js";
 import { alertService } from "../services/alert-service.js";
+import { toastService } from "../services/toast-service.js";
 import aiHandler from "../services/ai-handler.js";
 import { ValidationUtils, StringUtils, DateUtils, MarkdownHandler } from "../utils/index.js";
 
@@ -266,7 +267,7 @@ export default {
       if (this.editableNote.aiProofread.corrections && this.editableNote.aiProofread.corrections.length > 0) {
         this.markProofreadCorrections();
       } else if (isManual) {
-        alertService.success("Looks Good!", "No proofreading suggestions found.");
+        toastService.success("Looks Good!", "No proofreading suggestions found.");
       }
 
       // Persist the proofread metadata with the note (do not auto-apply corrections)

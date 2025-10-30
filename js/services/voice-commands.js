@@ -1,3 +1,5 @@
+// File to edit: NotesAi/js/services/voice-commands.js
+
 // js/services/voice-commands.js
 import aiHandler from './ai-handler.js';
 import { alertService } from './alert-service.js';
@@ -21,15 +23,12 @@ const insertHTML = (editor, html) => {
 };
 
 const commands = [
-    // --- AI-Powered App-level Commands ---
+    // --- Specific App-level Commands ---
     {
-        keywords: ['hey notes', 'search for', 'find', 'search', 'create', 'summarize', 'open', 'what are', 'do I have', 'can you', 'show me', 'add', 'remind me', 'delete'],
-        action: (query, originalTranscript) => window.dispatchEvent(new CustomEvent('voice-ai-query', { detail: { query, originalTranscript } })),
-        requiresArgument: true,
+        keywords: ['create a new note', 'make a new note', 'new note'],
+        action: () => window.dispatchEvent(new CustomEvent('voice-create-note')),
         scope: 'app'
     },
-    
-    // --- Specific App-level Commands ---
     {
         keywords: ['start writing', 'start dictating', 'begin writing', 'begin dictating', 'start dictation'],
         action: () => window.dispatchEvent(new CustomEvent('voice-start-dictation')),

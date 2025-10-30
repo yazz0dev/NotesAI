@@ -31,7 +31,10 @@ class ProofreaderService {
     const systemPrompt = "You are a professional proofreader. Correct spelling and grammar errors while preserving the original meaning and style.";
     const prompt = `Proofread and correct the following text. Return ONLY the corrected text without any explanations:\n\n${cleanContent}`;
     try {
-      const correctedText = await this.promptAPIService.runPrompt(prompt, systemPrompt);
+      // FIX: Add sessionOptions with outputLanguage to the fallback call
+      const correctedText = await this.promptAPIService.runPrompt(prompt, systemPrompt, {
+        sessionOptions: { outputLanguage: 'en' }
+      });
       return correctedText.trim().replace(/^["']|["']$/g, '');
     } catch (error) {
       console.error("Proofreading fallback error:", error);

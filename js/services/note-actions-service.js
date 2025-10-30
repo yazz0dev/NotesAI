@@ -1,5 +1,6 @@
 // js/services/note-actions-service.js
 import { alertService } from './alert-service.js';
+import { toastService } from './toast-service.js';
 import { ValidationUtils, StringUtils, DateUtils } from '../utils/index.js';
 import { useNotesStore } from '../stores/notesStore.js';
 
@@ -25,7 +26,7 @@ async function saveNote(noteToSave) {
         return savedNote;
     } catch (error) {
         console.error("Failed to save note:", error);
-        alertService.error('Save Failed', `There was an issue saving your note: ${error.message}`);
+        toastService.error('Save Failed', `There was an issue saving your note: ${error.message}`);
         return null;
     }
 }
@@ -42,7 +43,7 @@ async function deleteNote(noteId, currentEditingNote) {
         return false;
     } catch (error) {
         console.error("Failed to delete note:", error);
-        alertService.error('Delete Failed', 'Could not delete the note. Please try again.');
+        toastService.error('Delete Failed', 'Could not delete the note. Please try again.');
         return false;
     }
 }

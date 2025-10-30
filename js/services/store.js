@@ -92,6 +92,16 @@ function saveTag(tag) {
     });
 }
 
+function deleteTag(tagId) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([TAGS_STORE], "readwrite");
+        const store = transaction.objectStore(TAGS_STORE);
+        const request = store.delete(tagId);
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => reject("Error deleting tag: " + event.target.error);
+    });
+}
+
 export default {
   initDB,
   getNotes,
@@ -99,4 +109,5 @@ export default {
   deleteNote,
   getTags,
   saveTag,
+  deleteTag,
 };

@@ -5,7 +5,9 @@
 @import url('./components/note-editor.css');
 @import url('./components/modals.css');
 @import url('./components/notice-board.css');
-@import url('./components/help-modal.css'); /* ADD THIS LINE */
+@import url('./components/help-modal.css'); 
+@import url('./components/ai-response-modal.css');
+@import url('./components/toast.css');
 
 
 /* --- Global Styles --- */

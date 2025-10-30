@@ -1,9 +1,11 @@
 import { alertService } from "./services/alert-service.js";
+import { toastService } from "./services/toast-service.js";
 import { pinia, initializeStores, useNotesStore, useTagsStore, useSettingsStore } from "./stores/index.js";
 import { noteActionsService } from "./services/note-actions-service.js";
 import { aiEventService } from "./services/ai-event-service.js";
 import { aiToolsService } from "./services/ai-tools-service.js";
 import { editorResizeService } from "./services/editor-resize-service.js";
+import { noticeBoardCacheService } from "./services/notice-board-cache-service.js";
 import aiHandler from "./services/ai-handler.js";
 import { DateUtils } from "./utils/index.js";
 import { ArrayUtils } from "./utils/index.js";
@@ -15,16 +17,19 @@ import NoteEditor from "./components/NoteEditor.js";
 import SettingsModal from "./components/SettingsModal.js";
 import SkeletonLoader from "./components/SkeletonLoader.js";
 import AlertModal from "./components/AlertModal.js";
-import TagSelectionModal from "./components/TagSelectionModal.js";
+import Toast from "./components/Toast.js";
+import TagSelectionOverlay from "./components/TagSelectionOverlay.js";
 import NoticeBoard from "./components/NoticeBoard.js";
 import HelpModal from "./components/HelpModal.js";
+import AIResponseModal from "./components/AIResponseModal.js";
 
 const { createApp } = Vue;
 const { mapState, mapActions, mapWritableState } = window.Pinia;
 
 const app = createApp({
   components: {
-    AppHeader, AppSidebar, NotesList, NoteEditor, SettingsModal, SkeletonLoader, AlertModal, TagSelectionModal, NoticeBoard, HelpModal
+    AppHeader, AppSidebar, NotesList, NoteEditor, SettingsModal, SkeletonLoader, AlertModal, Toast, TagSelectionOverlay, NoticeBoard, HelpModal,
+    AIResponseModal
   },
   data() {
     return {
@@ -39,6 +44,7 @@ const app = createApp({
       isAiSearchActive: false,
       currentSearchText: '',
       debouncedUpdateNoticeBoard: null,
+      tagModalPosition: null,
     };
   },
   computed: {
@@ -46,8 +52,8 @@ const app = createApp({
     ...mapWritableState(useNotesStore, ['editingNote']),
     ...mapState(useTagsStore, ['allTags']),
     ...mapState(useSettingsStore, [
-        'sidebarCollapsed', 'handsFreeMode', 'saveVoiceRecordings', 
-        'currentTheme', 'currentLayout', 'isNoticeBoardVisible', 'noticeBoardContent',
+        'theme', 'sidebarCollapsed', 'handsFreeMode', 'saveVoiceRecordings', 
+        'currentLayout', 'isNoticeBoardVisible', 'noticeBoardContent',
         'isNoticeBoardAvailable'
     ]),
     ...mapWritableState(useSettingsStore, ['searchQuery', 'currentFilter', 'currentTag', 'sortBy', 'sortOrder']),
@@ -91,8 +97,30 @@ const app = createApp({
           return searchKeywords.every(keyword => note._searchText.includes(keyword));
         });
       }
-      // Note: The main sort order is not part of the signature to prevent regeneration on sort changes.
-      return [...notesToFilter];
+      
+      // Apply sorting
+      const sorted = [...notesToFilter].sort((a, b) => {
+        let compareValue = 0;
+        const sortBy = settingsStore.sortBy || 'updatedAt';
+        const sortOrder = settingsStore.sortOrder || 'desc';
+        
+        switch (sortBy) {
+          case 'title':
+            compareValue = (a.title || '').localeCompare(b.title || '');
+            break;
+          case 'createdAt':
+            compareValue = new Date(a.createdAt) - new Date(b.createdAt);
+            break;
+          case 'updatedAt':
+          default:
+            compareValue = new Date(a.updatedAt) - new Date(b.updatedAt);
+            break;
+        }
+        
+        return sortOrder === 'desc' ? -compareValue : compareValue;
+      });
+      
+      return sorted;
     },
     
     /**
@@ -127,7 +155,9 @@ const app = createApp({
       setLayoutInStore: 'setLayout',
       initializeSettingsStore: 'initialize',
       setNoticeBoardVisibility: 'setNoticeBoardVisibility',
-      setNoticeBoardAvailability: 'setNoticeBoardAvailability'
+      setNoticeBoardAvailability: 'setNoticeBoardAvailability',
+      setHandsFreeModeInStore: 'setHandsFreeMode',
+      setSaveVoiceRecordingsInStore: 'setSaveVoiceRecordings'
     }),
 
     async saveNote(noteToSave) {
@@ -244,11 +274,30 @@ const app = createApp({
     
     // --- Notice Board Logic ---
     async updateContextualNoticeBoard(notesContext) {
+        const settingsStore = useSettingsStore();
+
         if (!notesContext || notesContext.length === 0) {
             this.setNoticeBoardAvailability(false);
+            settingsStore.setNoticeBoardContent(null);
             return;
         }
         this.setNoticeBoardAvailability(true);
+
+        const currentViewId = this.currentView;
+        const currentSignature = this.filteredNotesSignature;
+
+        // Check cache before doing anything else
+        const { valid, cached } = await noticeBoardCacheService.isValidCache(currentViewId, currentSignature);
+
+        if (valid && cached) {
+            console.log(`[main.js] Using cached notice board for view: ${currentViewId}`);
+            settingsStore.setNoticeBoardContent(cached.content);
+            this.isNoticeBoardLoading = false;
+            return; // Cache hit, we are done.
+        }
+        
+        // Cache miss, proceed with generation
+        console.log(`[main.js] No valid cache for view: ${currentViewId}. Regenerating...`);
         this.isNoticeBoardLoading = true;
         await this.generateNoticeBoardInStore(notesContext);
         this.isNoticeBoardLoading = false;
@@ -263,20 +312,72 @@ const app = createApp({
         const note = useNotesStore().getNoteById(noteId);
         if (note) this.editNote(note);
     },
+    /**
+     * Handle notice board cache updates
+     * Called when the NoticeBoard component successfully caches content
+     */
+    handleNoticeBoardCacheUpdated(payload) {
+        console.log(`Notice board cached for view: ${payload.viewId}`);
+        // You can add analytics or logging here if needed
+    },
     
     // ... Other methods remain unchanged
-    openTagModal(note) { this.noteToTag = note; },
+    openTagModal(note, event) { 
+      this.noteToTag = note;
+      if (event && event.target) {
+        const rect = event.target.getBoundingClientRect();
+        this.tagModalPosition = {
+          top: rect.top,
+          left: rect.left,
+          right: rect.right,
+          bottom: rect.bottom
+        };
+      }
+    },
     closeTagModal() { this.noteToTag = null; },
     handleTagClick(tagId) { this.currentView = `tag:${tagId}`; },
     async handleCreateTag(tagName = null) {
+      // tagName comes from the emit, or fall back to newTagName
       const name = (tagName || this.newTagName || '').trim();
-      if (!name) return;
+      console.log('[main.js] handleCreateTag called with:', { tagName, newTagName: this.newTagName, finalName: name });
+      if (!name) {
+        console.log('[main.js] Tag name is empty, returning');
+        return;
+      }
       try {
+        console.log('[main.js] Creating tag:', name);
         await this.createTagInStore({ name });
         this.newTagName = "";
+        toastService.success('Tag Created', `"${name}" was created successfully`);
+        console.log('[main.js] Tag created successfully');
       } catch (error) { 
         console.error("Failed to save tag:", error); 
         alertService.error('Error', 'Could not save the new tag. Please try again.'); 
+      }
+    },
+    async handleDeleteTag(tagId) {
+      const tagsStore = useTagsStore();
+      const tag = tagsStore.getTagById(tagId);
+      if (!tag) return;
+      
+      const confirmed = await alertService.confirm(
+        'Delete Tag',
+        `Are you sure you want to delete the tag "${tag.name}"? Notes with this tag will not be deleted.`,
+        { confirmText: 'Delete', cancelText: 'Cancel' }
+      );
+      
+      if (confirmed) {
+        try {
+          await tagsStore.deleteTag(tagId);
+          // If we're viewing this tag, switch to all notes
+          if (this.currentView === `tag:${tagId}`) {
+            this.currentView = 'all-notes';
+          }
+          toastService.success('Tag Deleted', `"${tag.name}" was deleted.`);
+        } catch (error) {
+          console.error('Failed to delete tag:', error);
+          toastService.error('Error', 'Could not delete the tag. Please try again.');
+        }
       }
     },
     handleVoiceToggle() {
@@ -305,10 +406,27 @@ const app = createApp({
       const statusMap = { ready: 'text-success', error: 'text-danger', checking: 'text-warning' };
       return statusMap[this.aiStatus.status] || 'text-info';
     },
+    /**
+     * Clear notice board cache for all views or a specific view
+     * Useful when settings change or when you want to force regeneration
+     */
+    async clearNoticeBoardCache(viewId = null) {
+      try {
+        if (viewId) {
+          await noticeBoardCacheService.deleteCached(viewId);
+          console.log(`Cleared notice board cache for view: ${viewId}`);
+        } else {
+          await noticeBoardCacheService.clearAll();
+          console.log('Cleared all notice board caches');
+        }
+      } catch (error) {
+        console.error('Error clearing notice board cache:', error);
+      }
+    },
     async initializeApp() {
       try {
         await initializeStores();
-        this.setTheme(this.currentTheme);
+        this.setThemeInStore(this.theme);
         await aiHandler.init();
         
         aiEventService.setup(this);
@@ -319,6 +437,13 @@ const app = createApp({
         console.error('Failed to initialize app:', error);
         alertService.error('Initialization Failed', 'Could not initialize the application. Please refresh the page.');
       }
+    },
+    debounce(func, delay) {
+      let timeout;
+      return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+      };
     }
   },
   watch: {
@@ -333,7 +458,11 @@ const app = createApp({
         // Only run if the signature has actually changed, and it's not the initial load (oldSignature is null)
         if (newSignature !== oldSignature) {
              console.log("Notice Board context has changed. Regenerating...");
-             this.debouncedUpdateNoticeBoard(this.filteredNotes);
+             // FIX: Add a guard to ensure the debounced function exists before calling it.
+             // This prevents a race condition on initial load.
+             if (this.debouncedUpdateNoticeBoard) {
+                this.debouncedUpdateNoticeBoard(this.filteredNotes);
+             }
         }
         
         // Always update availability based on the current number of notes.
@@ -353,17 +482,6 @@ const app = createApp({
     aiEventService.teardown();
     window.onerror = null;
     window.onunhandledrejection = null;
-  },
-  // Add debounce method if not present
-  methods: {
-    // ... all your other methods
-    debounce(func, delay) {
-      let timeout;
-      return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), delay);
-      };
-    },
   }
 });
 

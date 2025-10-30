@@ -1,4 +1,7 @@
+// File to edit: NotesAi/js/components/NoticeBoard.js
+
 import { alertService } from "../services/alert-service.js";
+import { noticeBoardCacheService } from "../services/notice-board-cache-service.js";
 
 export default {
     name: 'NoticeBoard',
@@ -18,13 +21,23 @@ export default {
         isEditorOpen: {
             type: Boolean,
             default: false
+        },
+        viewId: {
+            type: String,
+            default: 'default'
+        },
+        notesSignature: {
+            type: String,
+            default: null
         }
     },
-    emits: ['toggle-visibility', 'refresh', 'navigate-to-note'],
+    emits: ['toggle-visibility', 'refresh', 'navigate-to-note', 'cache-updated'],
     data() {
         return {
             isExpanded: true,
-            lastToggleTime: 0
+            lastToggleTime: 0,
+            isDisplayingCachedVersion: false, // For the lightning bolt icon
+            userManuallyCollapsed: false, // Track if user manually collapsed the notice board
         };
     },
     watch: {
@@ -32,12 +45,23 @@ export default {
             // Auto-collapse when editor opens
             if (newVal && this.isExpanded) {
                 this.isExpanded = false;
+                this.userManuallyCollapsed = false; // Reset flag when auto-collapsing
             }
-            // Auto-expand when editor closes
-            if (!newVal && !this.isExpanded) {
+            // Auto-expand when editor closes ONLY if user didn't manually collapse it
+            if (!newVal && !this.isExpanded && !this.userManuallyCollapsed) {
                 this.isExpanded = true;
             }
-        }
+        },
+        async content(newContent, oldContent) {
+            // When new content arrives from parent, cache it.
+            if (newContent && newContent !== oldContent && this.notesSignature && !this.isLoading) {
+                await this.cacheContent(newContent);
+            }
+            // After content is set, re-check cache status for icon.
+            this.checkIfCached();
+        },
+        // Watch signature to update icon status when view changes
+        notesSignature: 'checkIfCached',
     },
     computed: {
         processedContent() {
@@ -53,6 +77,36 @@ export default {
         }
     },
     methods: {
+        async cacheContent(contentToCache) {
+            if (!this.viewId || !this.notesSignature || !contentToCache) {
+                return;
+            }
+            try {
+                const success = await noticeBoardCacheService.setCached(
+                    this.viewId,
+                    contentToCache,
+                    this.notesSignature
+                );
+                if (success) {
+                    this.$emit('cache-updated', {
+                        viewId: this.viewId,
+                        timestamp: Date.now()
+                    });
+                    console.log(`[NoticeBoard] Cached content for view: ${this.viewId}`);
+                }
+            } catch (error) {
+                console.error('[NoticeBoard] Error caching content:', error);
+            }
+        },
+        async checkIfCached() {
+            // This method is only for UI purposes (the lightning icon)
+            if (this.isLoading || !this.notesSignature || !this.viewId) {
+                this.isDisplayingCachedVersion = false;
+                return;
+            }
+            const { valid } = await noticeBoardCacheService.isValidCache(this.viewId, this.notesSignature);
+            this.isDisplayingCachedVersion = valid;
+        },
         handleContentClick(event) {
             const link = event.target.closest('.notice-board-link');
             if (link && link.dataset.noteId) {
@@ -69,12 +123,19 @@ export default {
             this.lastToggleTime = now;
             
             this.isExpanded = !this.isExpanded;
+            // Mark as manually collapsed/expanded by user
+            if (!this.isExpanded) {
+                this.userManuallyCollapsed = true;
+            } else {
+                this.userManuallyCollapsed = false;
+            }
             event.preventDefault();
             event.stopPropagation();
         },
         handleRefresh(event) {
             event.preventDefault();
             event.stopPropagation();
+            this.isDisplayingCachedVersion = false; // Force remove icon before refresh
             this.$emit('refresh');
         },
         handleTitleClick(event) {
@@ -83,13 +144,21 @@ export default {
             this.toggleExpanded(event);
         }
     },
+    mounted() {
+        this.checkIfCached(); // Initial check on mount
+    },
     template: `
         <div class="notice-board-wrapper" :class="{ 'editor-open': isEditorOpen }">
             <div class="notice-board-container">
                 <div class="notice-board-header">
                     <div class="d-flex align-items-center gap-2" @click="handleTitleClick" style="flex: 1; cursor: pointer;">
                         <i class="bi bi-pin-angle-fill text-primary"></i>
-                        <h6 class="mb-0 fw-semibold">Notice Board</h6>
+                        <h6 class="mb-0 fw-semibold">
+                            Notice Board
+                            <span v-if="isDisplayingCachedVersion && !isLoading" class="badge bg-success ms-1" title="Loaded from cache">
+                                <i class="bi bi-lightning-charge-fill"></i>
+                            </span>
+                        </h6>
                     </div>
                     <div class="d-flex align-items-center gap-2">
                         <button class="btn btn-sm btn-icon" @click="handleRefresh" :disabled="isLoading" title="Refresh Notice Board" type="button">

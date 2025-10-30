@@ -187,32 +187,14 @@ export const useTagsStore = defineStore('tags', {
           }
         }
 
-        // Delete from database (if deleteTag method exists)
-        // Since store.js doesn't have deleteTag, we'll implement it
-        await this.deleteTagFromDB(tagId);
+        // Delete from database using dbService
+        await dbService.deleteTag(tagId);
         
         this.tags = this.tags.filter(t => t.id !== tagId);
       } catch (error) {
         console.error('Failed to delete tag:', error);
         throw error;
       }
-    },
-
-    // Helper method to delete tag from IndexedDB
-    async deleteTagFromDB(tagId) {
-      return new Promise((resolve, reject) => {
-        const transaction = window.db?.transaction(['tags'], 'readwrite');
-        if (!transaction) {
-          reject(new Error('Database not initialized'));
-          return;
-        }
-        
-        const store = transaction.objectStore('tags');
-        const request = store.delete(tagId);
-        
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject('Error deleting tag: ' + event.target.error);
-      });
     },
 
     // Update tag name in all notes

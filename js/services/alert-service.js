@@ -19,6 +19,7 @@ const state = reactive({
   shake: false, // For shake animation on errors
   loading: false, // Loading state for buttons
   inputError: "", // Input validation error message
+  errorOnly: false, // Error-only mode (no buttons, no dismiss)
 });
 
 /**
@@ -117,6 +118,7 @@ function resetState() {
   state.shake = false;
   state.loading = false;
   state.showInput = false;
+  state.errorOnly = false;
 }
 
 // Utility functions for enhanced UX
@@ -196,6 +198,41 @@ function infoMarkdown(title, markdownMessage, options = {}) {
   return confirm(title, htmlMessage, { ...options, type: "info" });
 }
 
+/**
+ * Show an error-only dialog (no buttons, no dismiss, can only close with timeout or programmatically)
+ * @param {string} title - The title of the alert
+ * @param {string} message - The body text of the alert
+ * @param {object} [options] - Optional settings
+ * @returns {Promise<void>}
+ */
+function errorOnly(title, message, options = {}) {
+  state.title = title;
+  state.message = message;
+  state.confirmText = "";
+  state.cancelText = "";
+  state.type = options.type || "danger";
+  state.showInput = false;
+  state.inputValue = "";
+  state.inputType = "text";
+  state.inputPlaceholder = "";
+  state.inputError = "";
+  state.shake = false;
+  state.loading = false;
+  state.errorOnly = true;
+  state.isVisible = true;
+
+  return new Promise((resolve) => {
+    state.resolve = resolve;
+    // Auto-close after 5 seconds if not manually closed
+    setTimeout(() => {
+      if (state.isVisible) {
+        state.resolve?.();
+        resetState();
+      }
+    }, 5000);
+  });
+}
+
 export const alertService = {
   state,
   confirm,
@@ -211,5 +248,6 @@ export const alertService = {
   warning,
   info,
   infoMarkdown,
+  errorOnly,
   markdownToHtml, // Export the improved function
 };

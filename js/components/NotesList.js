@@ -88,14 +88,14 @@ export default {
                             <!-- Card Footer with Quick Actions -->
                             <div class="card-footer bg-transparent border-top-0 pt-0">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div class="btn-group btn-group-sm" role="group">
+                                    <div class="d-flex gap-2">
                                         <button class="btn btn-outline-light border-0 text-muted"
                                                 @click.stop="$emit('toggle-favorite', note)"
                                                 :title="note.isFavorite ? 'Unfavorite' : 'Favorite'">
                                             <i class="bi" :class="note.isFavorite ? 'bi-star-fill text-warning' : 'bi-star'"></i>
                                         </button>
                                         <button class="btn btn-outline-light border-0 text-muted"
-                                                @click.stop="$emit('open-tag-modal', note)"
+                                                @click.stop="$emit('open-tag-modal', note, $event)"
                                                 title="Edit Tags">
                                             <i class="bi bi-tags"></i>
                                         </button>
