@@ -1,27 +1,11 @@
 // File to edit: NotesAi/js/services/voice-commands.js
 
 // js/services/voice-commands.js
-import aiHandler from './ai-handler.js';
-import { alertService } from './alert-service.js';
 
 /**
  * A utility to manage voice command definitions for the note editor.
  * Each command has keywords, a type, and an action/method to call.
  */
-
-// Helper to execute standard document commands
-const exec = (editor, command, value = null) => {
-    editor.focus();
-    document.execCommand(command, false, value);
-};
-
-// Helper to insert custom HTML
-const insertHTML = (editor, html) => {
-    editor.focus();
-    // A more robust way to insert a new block element
-    exec(editor, 'insertHTML', html);
-};
-
 const commands = [
     // --- Specific App-level Commands ---
     {
@@ -30,14 +14,9 @@ const commands = [
         scope: 'app'
     },
     {
-        keywords: ['start writing', 'start dictating', 'begin writing', 'begin dictating', 'start dictation'],
-        action: () => window.dispatchEvent(new CustomEvent('voice-start-dictation')),
-        scope: 'app'
-    },
-    {
-        keywords: ['stop writing', 'stop dictating', 'end writing', 'end dictating', 'stop dictation', 'done writing'],
+        keywords: ['stop dictating', 'end dictation', 'stop writing', 'done writing'],
         action: () => window.dispatchEvent(new CustomEvent('voice-stop-dictation')),
-        scope: 'app'
+        scope: 'app' // This can be called from anywhere
     },
     {
         keywords: ['close editor', 'done editing', 'finish note', 'close note'],
@@ -52,52 +31,58 @@ const commands = [
 
     // --- Editor-level Commands ---
     {
-        keywords: ['next line', 'new line', 'enter', 'break line'],
-        action: (editor) => insertHTML(editor, '<div><br></div>'),
+        keywords: ['next paragraph', 'new paragraph'],
+        method: 'insertParagraph',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
+    },
+    {
+        keywords: ['next line', 'new line', 'enter', 'break line'],
+        method: 'insertLineBreak',
+        scope: 'editor',
+        type: 'editorMethod'
     },
     {
         keywords: ['add a task', 'new task', 'insert task', 'checkbox', 'task item'],
-        action: (editor) => insertHTML(editor, '<div class="task-item" contenteditable="false" data-checked="false"><span class="task-checkbox"></span><span class="task-text" contenteditable="true">New Task...</span></div>&nbsp;'),
+        method: 'insertTask',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['add bullet list', 'start bullets', 'bullet points', 'unordered list'],
-        action: (editor) => exec(editor, 'insertUnorderedList'),
+        method: 'insertUnorderedList',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['add number list', 'start numbering', 'numbered list', 'ordered list'],
-        action: (editor) => exec(editor, 'insertOrderedList'),
+        method: 'insertOrderedList',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['add a line', 'insert divider', 'horizontal rule', 'line separator'],
-        action: (editor) => exec(editor, 'insertHorizontalRule'),
+        method: 'insertHorizontalRule',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['make it bold', 'start bold', 'bold this', 'stop bold', 'end bold', 'bold'],
-        action: (editor) => exec(editor, 'bold'),
+        method: 'toggleBold',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['underline this', 'start underline', 'add underline', 'stop underline', 'end underline', 'underline'],
-        action: (editor) => exec(editor, 'underline'),
+        method: 'toggleUnderline',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['italicize', 'make it italic', 'start italic', 'italic'],
-        action: (editor) => exec(editor, 'italic'),
+        method: 'toggleItalic',
         scope: 'editor',
-        type: 'dom'
+        type: 'editorMethod'
     },
     {
         keywords: ['clear formatting', 'remove style', 'normal text', 'clear style'],

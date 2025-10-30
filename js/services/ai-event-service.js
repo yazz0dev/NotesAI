@@ -97,7 +97,14 @@ function handleVoiceCloseEditor() {
 }
 
 function handleVoiceSaveNote() {
-    if (vueInstance && vueInstance.editingNote) vueInstance.saveNote(vueInstance.editingNote);
+    if (vueInstance && vueInstance.editingNote) {
+        // First, ensure the editor's content is synced to the data model
+        const editorEl = document.querySelector('.note-content-editable');
+        if (editorEl) {
+            vueInstance.editingNote.content = editorEl.innerHTML;
+        }
+        vueInstance.saveNote(vueInstance.editingNote);
+    }
 }
 
 const listeners = {

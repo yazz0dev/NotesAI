@@ -248,12 +248,13 @@
    ============================================ */
 
 .ai-status-container {
-    font-size: 0.7rem;
-    line-height: 1.2;
+    font-size: 0.85rem; /* Increased font size */
+    line-height: 1.4;
     opacity: 0.9;
-    margin-top: 0;
-    padding: 0 0.5rem;
-    min-height: auto;
+    margin-top: 4px; /* Added some space */
+    padding: 2px 0.5rem;
+    min-height: 24px; /* Ensure it has height */
+    font-weight: 500; /* Bolder text */
 }
 
 .ai-status-container small {

@@ -21,10 +21,18 @@ export default {
       wordCount: 0,
       isProofreading: false,
       debouncedProofread: null,
-  isSummarizing: false,
-  debouncedAutoSummary: null,
+      isSummarizing: false,
+      debouncedAutoSummary: null,
       isExecutingCommand: false, 
     };
+  },
+  computed: {
+    isNoteLongEnoughToSummarize() {
+      if (!this.editableNote || !this.$refs.editor) return false;
+      const content = this.$refs.editor.innerText || '';
+      const charCount = content.replace(/\s/g, '').length;
+      return charCount >= 50;
+    }
   },
   watch: {
     'note.id'(newId, oldId) {
@@ -90,7 +98,7 @@ export default {
               <button class="btn btn-sm btn-outline-primary" @click="manualProofread" :disabled="isProofreading" title="Proofread this note with AI">
                 <i class="bi bi-magic"></i> {{ isProofreading ? 'Checking...' : 'Proofread' }}
               </button>
-              <button class="btn btn-sm btn-outline-success" @click="manualSummarize" :disabled="isSummarizing" title="Generate AI summary">
+              <button class="btn btn-sm btn-outline-success" @click="manualSummarize" :disabled="isSummarizing || !isNoteLongEnoughToSummarize" title="Generate AI summary (minimum 50 characters)">
                 <i class="bi bi-file-text"></i> {{ isSummarizing ? 'Summarizing...' : 'Summarize' }}
               </button>
             </div>
@@ -204,40 +212,63 @@ export default {
         editor.focus();
         
         try {
-            if (command.type === 'dom') {
-                this.executeDOMCommand(command);
-            } else if (command.type === 'editorMethod' && this[command.method]) {
+            if (command.method && typeof this[command.method] === 'function') {
                 await this[command.method](command.value);
+            } else {
+                console.warn(`Editor method not found: ${command.method}`);
             }
         } catch(e) {
             console.error("Failed to execute voice command:", e);
         } finally {
-            this.$nextTick(() => this.handleInput());
-            this.isExecutingCommand = false;
+            // CRITICAL: Sync state after every command
+            this.$nextTick(() => {
+                this.handleInput();
+                this.isExecutingCommand = false;
+            });
         }
     },
     
-    executeDOMCommand(command) {
-        const editor = this.$refs.editor;
-        const sel = window.getSelection();
-        if (!sel.rangeCount) return;
-        const range = sel.getRangeAt(0);
+    // --- Voice Command Implementations ---
+    insertParagraph() { document.execCommand('insertHTML', false, '<div><br></div>'); },
+    insertLineBreak() { document.execCommand('insertLineBreak'); },
+    insertTask() { this.insertTaskHTML(); },
+    insertUnorderedList() { document.execCommand('insertUnorderedList'); },
+    insertOrderedList() { document.execCommand('insertOrderedList'); },
+    insertHorizontalRule() { document.execCommand('insertHorizontalRule'); },
+    toggleBold() { document.execCommand('bold'); },
+    toggleUnderline() { document.execCommand('underline'); },
+    toggleItalic() { document.execCommand('italic'); },
+    clearFormatting() { document.execCommand('removeFormat'); },
 
-        if (command.keywords.includes('next line')) {
-            const br = document.createElement('br');
-            const placeholderDiv = document.createElement('div');
-            placeholderDiv.appendChild(br);
-            range.deleteContents();
-            range.insertNode(placeholderDiv);
-            range.setStartAfter(placeholderDiv);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-        } else {
-            document.execCommand(command.action, false, null);
+    deleteLastUnit(unit) {
+        const editor = this.$refs.editor;
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        
+        const range = selection.getRangeAt(0);
+        range.collapse(true); // Go to start of selection
+        
+        // This is a simplified implementation. A real-world one would be more complex.
+        if (unit === 'word') {
+            selection.modify('extend', 'backward', 'word');
+        } else if (unit === 'sentence') {
+            // No standard execCommand for sentence, this is a placeholder
+            console.warn("Delete sentence is not fully implemented");
+            selection.modify('extend', 'backward', 'lineboundary');
+        } else if (unit === 'paragraph') {
+            selection.modify('extend', 'backward', 'paragraphboundary');
         }
+        
+        range.deleteContents();
     },
+    summarizeNote() { this.manualSummarize(); },
+    proofreadNote() { this.manualProofread(); },
     
+    insertTaskHTML() {
+      const taskHTML = '<div class="task-item" contenteditable="false" data-checked="false"><span class="task-checkbox"></span><span class="task-text" contenteditable="true">Task...</span></div>&nbsp;';
+      document.execCommand('insertHTML', false, taskHTML);
+    },
+
     manualProofread() { this.runProofreader(true); },
     async runProofreader(isManual = false) {
         if (this.isProofreading || !this.$refs.editor) return;

@@ -10,7 +10,7 @@ class CommandService {
     this.mediaRecorder = null;
     this.audioChunks = [];
     this.isAmbientListening = false;
-    this.isActive = false;
+    this.isActive = false; // CRITICAL: This flag controls the recognition lifecycle
     this.currentMode = 'command';
     // NEW: Track last command to prevent rapid-fire duplicates
     this.lastCommand = null;
@@ -81,10 +81,10 @@ class CommandService {
         // If we are switching modes, we might need to restart.
         if (this.currentMode !== mode) {
              this.stopListening();
-             // Allow a tiny setImmediate-like pause for cleanup before restarting
+             // Allow a tiny pause for cleanup before restarting
              await new Promise(resolve => setTimeout(resolve, 50));
         } else {
-             return;
+             return; // Already active in the correct mode
         }
     }
     
@@ -123,7 +123,8 @@ class CommandService {
 
         const currentText = (finalTranscript + interimTranscript).trim();
         if (currentText) {
-          this.dispatchEvent("command-status-update", { status: "recording", message: `"${currentText}"` });
+          const statusMessage = this.currentMode === 'dictation' ? `"${currentText}"` : `Heard: "${currentText}"`;
+          this.dispatchEvent("command-status-update", { status: "recording", message: statusMessage });
         }
 
         if (mode === 'dictation' && interimTranscript) {
@@ -132,10 +133,11 @@ class CommandService {
 
         if (finalTranscript) {
           const trimmedFinalTranscript = finalTranscript.trim();
+          // CORE CHANGE: processTranscript now returns true if a local command was matched
           const wasSpecificCommand = this.processTranscript(trimmedFinalTranscript, mode);
           
           if (!wasSpecificCommand && mode === 'command') {
-            console.log(`Unrecognized command, sending to AI tools: "${trimmedFinalTranscript}"`);
+            console.log(`Unrecognized command, passing to AI tools: "${trimmedFinalTranscript}"`);
             await aiToolsService.processQueryWithTools(trimmedFinalTranscript);
             this.stopListening();
           } else if (!wasSpecificCommand && mode === 'dictation') {
@@ -145,23 +147,23 @@ class CommandService {
       };
 
       this.activeRecognition.onstart = () => {
-        this.isActive = true;
+        this.isActive = true; // Set active flag HERE
         this.dispatchEvent("listening-started", { mode });
-        this.dispatchEvent("command-status-update", {
-          status: "recording",
-          message: mode === 'dictation' ? "Dictating..." : "Listening for command..."
-        });
+        const message = mode === 'dictation' ? "Dictating... Speak now." : "Listening for a command...";
+        this.dispatchEvent("command-status-update", { status: "recording", message });
         if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
             this.mediaRecorder.start();
         }
       };
 
       this.activeRecognition.onend = () => {
+        // Only restart if the session is supposed to be active
         if (this.isActive) {
              try { this.activeRecognition.start(); } catch(e) { /* ignore if already started */ }
              return;
         }
 
+        // If not active, proceed with cleanup
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
           this.mediaRecorder.onstop = async () => {
             const audioBlob = new Blob(this.audioChunks, { type: "audio/webm" });
@@ -190,7 +192,8 @@ class CommandService {
     const now = Date.now();
 
     for (const command of voiceCommands) {
-        const isAppCommand = command.scope === 'app' && mode === 'command';
+        // Match command scope to current recognition mode
+        const isAppCommand = command.scope === 'app' && (mode === 'command' || mode === 'dictation'); // App commands can be global
         const isEditorCommand = command.scope === 'editor' && mode === 'dictation';
 
         if (!isAppCommand && !isEditorCommand) continue;
@@ -198,30 +201,36 @@ class CommandService {
         for (const keyword of command.keywords) {
             const keywordRegex = new RegExp(`^${keyword.toLowerCase()}\\b`, 'i');
             if (keywordRegex.test(lowerTranscript)) {
+                // Prevent duplicate command execution
                 if (this.lastCommand === keyword && (now - this.lastCommandTime) < 1500) {
                     console.log(`Duplicate command ignored: ${keyword}`);
-                    return true;
+                    return true; // Consume the transcript
                 }
-
-                console.log(`Specific command matched: ${keyword}`);
+                
+                console.log(`Local command matched: "${keyword}"`);
                 this.lastCommand = keyword;
                 this.lastCommandTime = now;
 
-                if (isAppCommand) {
+                if (command.action) { // App-level command
                     command.action();
+                } else if (command.method) { // Editor-level command
+                    this.dispatchEvent('editor-command', { command });
                 }
-                if (isEditorCommand) {
-                    this.dispatchEvent('editor-command', { command, value: command.value });
+                
+                // Special case for commands that should stop listening
+                if (['stop dictating', 'close editor'].some(k => keyword.includes(k))) {
+                    this.stopListening();
                 }
-                return true;
+                
+                return true; // IMPORTANT: Indicate that the command was handled
             }
         }
     }
-    return false;
+    return false; // No local command matched
   }
 
   stopListening() {
-    this.isActive = false; // Mark as inactive so onend doesn't auto-restart
+    this.isActive = false; // CRITICAL: This prevents onend from restarting
     if (this.activeRecognition) {
       try { this.activeRecognition.stop(); } catch(e) {}
     }

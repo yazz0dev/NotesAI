@@ -66,3 +66,390 @@
     border-radius: 4px;
     font-weight: 600;
 }
+
+/* --- Fullscreen Help Overlay --- */
+
+.help-overlay-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background-color: var(--bg-primary);
+    overflow: hidden;
+    animation: fadeIn 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.help-fullscreen-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+
+.help-close-btn-fullscreen {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 2001;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    line-height: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.help-close-btn-fullscreen:hover {
+    color: var(--text-primary);
+}
+
+.help-fullscreen-header {
+    padding: 2rem 2rem 1rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.help-fullscreen-header h1 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.help-fullscreen-header .lead {
+    font-size: 1.1rem;
+    margin-bottom: 0;
+}
+
+.help-fullscreen-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+}
+
+/* --- Sidebar Navigation --- */
+
+.help-notes-sidebar {
+    width: 280px;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+    flex-shrink: 0;
+}
+
+.help-sidebar-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.help-notes-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.help-nav-btn {
+    background: none;
+    border: 1px solid transparent;
+    padding: 0.75rem 0.875rem;
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.help-nav-btn:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.help-nav-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.help-nav-title {
+    display: block;
+    font-weight: 500;
+}
+
+.help-nav-category {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+/* --- Main Content Area --- */
+
+.help-notes-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 2rem;
+}
+
+.help-note-viewer {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 2rem;
+    padding-right: 1rem;
+}
+
+.help-note-viewer::-webkit-scrollbar {
+    width: 8px;
+}
+
+.help-note-viewer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.help-note-viewer::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.help-note-viewer::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.help-note-content {
+    color: var(--text-primary);
+    line-height: 1.7;
+}
+
+.help-note-content h3 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+}
+
+.help-note-content h4 {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.help-note-content p {
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.help-note-content ul {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.help-note-content li {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.help-note-content code {
+    background-color: var(--bg-tertiary);
+    color: var(--primary-color);
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 0.9em;
+    font-family: 'Courier New', monospace;
+}
+
+.help-note-content blockquote {
+    border-left: 4px solid var(--primary-color);
+    background-color: var(--bg-tertiary);
+    padding: 1rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* --- Footer Navigation --- */
+
+.help-fullscreen-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.help-fullscreen-footer .btn {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.help-fullscreen-footer .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.help-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    max-width: 300px;
+}
+
+.help-progress-text {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.help-progress-bar {
+    flex: 1;
+    height: 4px;
+    background-color: var(--bg-tertiary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.help-progress-fill {
+    height: 100%;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+/* --- Responsive Design --- */
+
+@media (max-width: 768px) {
+    .help-overlay-fullscreen {
+        padding: 0;
+    }
+
+    .help-fullscreen-header {
+        padding: 1.5rem 1rem 1rem 1rem;
+    }
+
+    .help-fullscreen-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .help-fullscreen-content {
+        flex-direction: column;
+    }
+
+    .help-notes-sidebar {
+        width: 100%;
+        max-height: 150px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem;
+        display: flex;
+        overflow-x: auto;
+        gap: 0.5rem;
+    }
+
+    .help-sidebar-title {
+        min-width: 100px;
+        flex-shrink: 0;
+    }
+
+    .help-notes-nav {
+        flex-direction: row;
+        gap: 0.75rem;
+    }
+
+    .help-nav-btn {
+        flex-shrink: 0;
+        min-width: 180px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    .help-notes-main {
+        padding: 1rem;
+    }
+
+    .help-note-viewer {
+        margin-bottom: 1rem;
+    }
+
+    .help-fullscreen-footer {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .help-progress {
+        order: -1;
+        width: 100%;
+    }
+
+    .help-note-content h3 {
+        font-size: 1.25rem;
+    }
+
+    .help-note-content h4 {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .help-fullscreen-header {
+        padding: 1rem;
+    }
+
+    .help-fullscreen-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .help-notes-main {
+        padding: 0.75rem;
+    }
+
+    .help-note-viewer {
+        margin-bottom: 0.75rem;
+        padding-right: 0.5rem;
+    }
+
+    .help-note-content {
+        font-size: 0.95rem;
+    }
+
+    .help-note-content h3 {
+        font-size: 1.1rem;
+    }
+
+    .help-fullscreen-footer {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .help-fullscreen-footer .btn {
+        width: 100%;
+        font-size: 0.9rem;
+    }
+
+    .help-progress {
+        width: 100%;
+        max-width: 100%;
+    }
+}

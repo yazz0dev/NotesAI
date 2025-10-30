@@ -384,10 +384,12 @@ const app = createApp({
       if (this.isVoiceActive) {
         aiHandler.stopListening();
       } else {
+        // If an editor is open, start dictation immediately.
         if (this.editingNote) {
           this.contentBeforeDictation = this.editingNote.content || '';
           aiHandler.startListening({ mode: 'dictation' });
         } else {
+          // Otherwise, start command mode.
           aiHandler.startListening({ mode: 'command' });
         }
       }
