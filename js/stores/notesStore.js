@@ -1,4 +1,7 @@
 import dbService from '../services/store.js';
+import ValidationUtils from '../utils/validation-utils.js';
+import StringUtils from '../utils/string-utils.js';
+import DateUtils from '../utils/date-utils.js';
 
 const { defineStore } = window.Pinia;
 
@@ -118,10 +121,14 @@ export const useNotesStore = defineStore('notes', {
 
     // Create a new note
     async createNote(noteData = {}) {
-      const title = noteData.title || '';
+      // Validate title
+      if (!ValidationUtils.isValidTitle(noteData.title)) {
+        throw new Error('Invalid note title. Title must be between 1-200 characters');
+      }
+
       const newNote = {
         id: Date.now().toString(),
-        title: title,
+        title: StringUtils.capitalize(noteData.title.trim()),
         content: noteData.content || '',
         tags: noteData.tags || [],
         isFavorite: noteData.isFavorite || false,
@@ -160,6 +167,16 @@ export const useNotesStore = defineStore('notes', {
       const noteIndex = this.notes.findIndex(n => n.id === noteId);
       if (noteIndex === -1) {
         throw new Error('Note not found');
+      }
+
+      // Validate title if being updated
+      if (updates.title && !ValidationUtils.isValidTitle(updates.title)) {
+        throw new Error('Invalid note title. Title must be between 1-200 characters');
+      }
+
+      // Normalize title if being updated
+      if (updates.title) {
+        updates.title = StringUtils.capitalize(updates.title.trim());
       }
 
       const updatedNote = {

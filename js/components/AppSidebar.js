@@ -1,5 +1,5 @@
 export default {
-  props: ["currentView", "allTags", "newTagName", "isSidebarCollapsed"],
+  props: ["currentView", "allTags", "newTagName", "sidebarCollapsed"],
   emits: ['update:new-tag-name', 'create-tag', 'tag-click', 'create-note', 'switch-view'],
   data() {
     return {
@@ -51,11 +51,11 @@ export default {
         <!-- Quick Actions -->
         <div class="p-3">
           <button class="btn btn-primary w-100 d-flex align-items-center gap-2"
-                  :class="{ 'justify-content-center': isSidebarCollapsed }"
+                  :class="{ 'justify-content-center': sidebarCollapsed }"
                   @click="$emit('create-note')"
-                  :style="isSidebarCollapsed ? 'padding: 12px;' : 'border-radius: 8px; padding: 12px;'">
+                  :style="sidebarCollapsed ? 'padding: 12px;' : 'border-radius: 8px; padding: 12px;'">
             <i class="bi bi-plus-lg"></i>
-            <span class="nav-text" :class="{ 'd-none': isSidebarCollapsed }">New Note</span>
+            <span class="nav-text" :class="{ 'd-none': sidebarCollapsed }">New Note</span>
           </button>
         </div>
 
@@ -91,7 +91,7 @@ export default {
 
         <!-- Tags Section -->
         <div class="flex-fill px-3 pb-3 d-flex flex-column overflow-hidden">
-            <div class="d-flex align-items-center justify-content-between mb-2" :class="{ 'd-none': isSidebarCollapsed }">
+            <div class="d-flex align-items-center justify-content-between mb-2" :class="{ 'd-none': sidebarCollapsed }">
                 <h6 class="mb-0 fw-semibold small">TAGS</h6>
                 <div class="d-flex align-items-center">
                   <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">{{ allTags.length }}</span>
@@ -101,7 +101,7 @@ export default {
                 </div>
             </div>
             
-            <div v-if="isCreatingTag && !isSidebarCollapsed" class="input-group input-group-sm mb-2">
+            <div v-if="isCreatingTag && !sidebarCollapsed" class="input-group input-group-sm mb-2">
               <input
                   ref="newTagInput"
                   type="text"
@@ -127,7 +127,7 @@ export default {
                           :style="{ backgroundColor: tag.color }"></span>
                     <span class="nav-text flex-fill text-truncate">{{ tag.name }}</span>
                 </a>
-                <div v-if="allTags.length === 0 && !isSidebarCollapsed" class="text-center py-4 text-muted small">
+                <div v-if="allTags.length === 0 && !sidebarCollapsed" class="text-center py-4 text-muted small">
                     <p class="mb-0">No tags yet.</p>
                 </div>
             </div>
@@ -135,7 +135,7 @@ export default {
       </div>
 
       <div class="sidebar-footer border-top p-3">
-          <small class="nav-text d-block text-center" :class="{ 'd-none': isSidebarCollapsed }">© 2025 Notes & Tasks</small>
+          <small class="nav-text d-block text-center" :class="{ 'd-none': sidebarCollapsed }">© 2025 Notes & Tasks</small>
       </div>
     </nav>
     `,

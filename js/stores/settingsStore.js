@@ -137,7 +137,14 @@ export const useSettingsStore = defineStore('settings', {
     applyTheme() {
       const effectiveTheme = this.effectiveTheme;
       document.documentElement.setAttribute('data-theme', effectiveTheme);
-      document.body.className = effectiveTheme === 'dark' ? 'dark-mode' : '';
+      
+      // KEY FIX: This is the correct way to manage the theme class
+      // It ensures other classes on the body (like .sidebar-collapsed) are not removed.
+      if (effectiveTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+      } else {
+        document.body.classList.remove('dark-mode');
+      }
     },
 
     // Setup watcher for auto theme changes

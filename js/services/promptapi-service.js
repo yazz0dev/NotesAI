@@ -5,7 +5,7 @@ class PromptAPIService {
 
   async checkAvailability() {
     try {
-      // FINAL FIX: Use the top-level `self.LanguageModel` object.
+      // Use the top-level `self.LanguageModel` object.
       if (!('LanguageModel' in self)) {
         return { available: false, reason: "Chrome Prompt API is not available." };
       }
@@ -58,11 +58,11 @@ class PromptAPIService {
         initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
         temperature: options.temperature || modelParams.defaultTemperature,
         topK: options.topK || modelParams.defaultTopK,
-        // FINAL FIX: Add the required `outputLanguage` parameter.
+        // Add the required `outputLanguage` parameter.
         outputLanguage: 'en',
         monitor: (m) => {
           m.addEventListener('downloadprogress', (e) => {
-            // FINAL FIX: Use global flag to show download message only once.
+            // Use global flag to show download message only once.
             if (!window._isAiModelDownloading) {
               window._isAiModelDownloading = true;
               this.dispatchEvent("prompt-status-update", { status: "checking", message: `Downloading AI model...` });
@@ -74,7 +74,7 @@ class PromptAPIService {
         },
         ...options.sessionOptions
       };
-      // FINAL FIX: Use the top-level `self.LanguageModel` object.
+      // Use the top-level `self.LanguageModel` object.
       const session = await self.LanguageModel.create(sessionOptions);
       let response;
       if (options.stream) {
@@ -87,7 +87,7 @@ class PromptAPIService {
       return response;
     } catch (error) {
       console.error("AI execution error:", error);
-      // **KEY CHANGE**: Provide a more specific error message in the AI status header.
+      // Provide a more specific error message in the AI status header.
       this.dispatchEvent("prompt-status-update", { status: "error", message: `AI Error: Model failed to run.` });
       if (window._isAiModelDownloading) window._isAiModelDownloading = false;
       throw error;

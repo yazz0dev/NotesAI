@@ -10,7 +10,7 @@ class ProofreaderService {
 
   async checkAvailability() {
     try {
-      // FINAL FIX: Robustly check for the API and catch any crashes.
+      // Robustly check for the API and catch any crashes.
       if (!('Proofreader' in self)) {
         return { available: false, reason: "Proofreader API is not available." };
       }
@@ -82,7 +82,7 @@ class ProofreaderService {
     let session = null;
     try {
       if (signal && signal.aborted) { throw new DOMException('Request was aborted', 'AbortError'); }
-      // FINAL FIX: Use the minimal, officially supported parameters to ensure stability.
+      // Use the minimal, officially supported parameters to ensure stability.
       session = await Proofreader.create({
         expectedInputLanguages: ["en"],
         monitor: (m) => {

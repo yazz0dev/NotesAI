@@ -31,7 +31,7 @@ class SummaryService {
       const summarizerAvailability = await this.checkSummarizerAvailability();
       if (summarizerAvailability.available) {
         const summarizerType = type === 'concise' ? 'tldr' : 'key-points';
-        // FINAL FIX: Added `expectedInputLanguages` and global download flag logic.
+        // Added `expectedInputLanguages` and global download flag logic.
         const summarizer = await Summarizer.create({
           type: summarizerType,
           format: 'markdown',
@@ -76,8 +76,8 @@ class SummaryService {
     const systemPrompt = `You are an assistant creating a summary for a user's notice board. Extract actionable items, deadlines, and key info. Format output using simple markdown (headings, bold, lists). When mentioning an item from a note, you MUST reference it using the format [Note ID: note-id-here] at the end of the line. If notes are empty, say so.`;
 
     const notesContent = notes.map(note => {
-        const cleanContent = note.content.replace(/<[^>]*>/g, " ").trim().substring(0, 500);
-        return `
+      const cleanContent = note.content.replace(/<[^>]*>/g, " ").trim().substring(0, 500);
+      return `
 ---
 Note ID: ${note.id}
 Title: ${note.title}
@@ -91,13 +91,13 @@ ${cleanContent}
 
     this.dispatchEvent("summary-status-update", { status: "processing", message: "Updating Notice Board..." });
     try {
-        const summary = await this.promptAPIService.runPrompt(userPrompt, systemPrompt);
-        this.dispatchEvent("summary-status-update", { status: "ready", message: "Notice Board updated" });
-        return summary;
+      const summary = await this.promptAPIService.runPrompt(userPrompt, systemPrompt);
+      this.dispatchEvent("summary-status-update", { status: "ready", message: "Notice Board updated" });
+      return summary;
     } catch (error) {
-        console.error("Notice board generation error:", error);
-        this.dispatchEvent("summary-status-update", { status: "error", message: `AI Error: ${error.message}` });
-        throw error;
+      console.error("Notice board generation error:", error);
+      this.dispatchEvent("summary-status-update", { status: "error", message: `AI Error: ${error.message}` });
+      throw error;
     }
   }
 

@@ -1,3 +1,7 @@
+import MarkdownHandler from '../utils/markdown-handler.js';
+import StringUtils from '../utils/string-utils.js';
+import DateUtils from '../utils/date-utils.js';
+
 export default {
     props: ["notes", "layout", "allTags"],
     emits: ['edit-note', 'delete-note', 'toggle-favorite', 'archive-note', 'open-tag-modal', 'set-reminder', 'remove-reminder', 'create-note'],
@@ -114,24 +118,49 @@ export default {
         getTagById(tagId) {
             return this.allTags.find(t => t.id === tagId);
         },
+        /**
+         * Gets a snippet of the note content with markdown support
+         * @param {string} content - The note content
+         * @returns {string} - Plain text snippet
+         */
         getSnippet(content) {
-            if (!content) return 'No content';
-            return content.replace(/<[^>]*>/g, "").substring(0, 120) + (content.length > 120 ? '...' : '');
+            return MarkdownHandler.getPreview(content, 120);
         },
+        /**
+         * Formats date relative to now using DateUtils
+         * @param {string} dateString - The date string
+         * @returns {string} - Formatted relative date
+         */
         formatDate(dateString) {
             if (!dateString) return '';
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffInHours = (now - date) / (1000 * 60 * 60);
-
-            if (diffInHours < 1) return 'Just now';
-            if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
-            if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-            return date.toLocaleDateString();
+            return DateUtils.formatRelative(dateString);
         },
+        /**
+         * Gets word count from note content
+         * @param {string} content - The note content
+         * @returns {string} - Word count
+         */
         getWordCount(content) {
             if (!content) return '0';
-            return content.replace(/<[^>]*>/g, "").trim().split(/\s+/).length;
+            return StringUtils.wordCount(MarkdownHandler.htmlToPlainText(content)).toString();
+        },
+        /**
+         * Renders markdown content to HTML for preview
+         * @param {string} content - The content to render
+         * @returns {string} - Rendered HTML
+         */
+        renderMarkdown(content) {
+            if (!content) return '';
+            const html = MarkdownHandler.markdownToHtml(content);
+            return MarkdownHandler.sanitizeHtml(html);
+        },
+        /**
+         * Checks if content contains markdown
+         * @param {string} content - Content to check
+         * @returns {boolean} - True if markdown detected
+         */
+        hasMarkdown(content) {
+            return MarkdownHandler.isMarkdown(content);
         }
     }
 };

@@ -1,4 +1,7 @@
 import { alertService } from "../services/alert-service.js";
+import ValidationUtils from "../utils/validation-utils.js";
+import StringUtils from "../utils/string-utils.js";
+import ColorUtils from "../utils/color-utils.js";
 
 export default {
   props: ['noteToTag', 'allTags'],
@@ -156,8 +159,37 @@ export default {
     },
     handleCreateTagAndSelect() {
         if (!this.canCreateTag) return;
+        
+        const tagName = this.searchQuery.trim();
+        
+        // Validate tag name
+        if (!ValidationUtils.isValidTitle(tagName)) {
+            alertService.error(
+                'Invalid Tag Name',
+                'Tag name must be between 1-200 characters'
+            );
+            return;
+        }
+        
+        // Check for exact duplicates (case-insensitive)
+        const normalized = StringUtils.slugify(tagName);
+        const duplicateExists = this.allTags.some(tag => 
+            StringUtils.slugify(tag.name) === normalized
+        );
+        
+        if (duplicateExists) {
+            alertService.error(
+                'Tag Already Exists',
+                `A tag named "${tagName}" already exists`
+            );
+            return;
+        }
+        
         // Emit event for main app to handle tag creation
-        this.$emit('create-tag', this.searchQuery.trim());
+        this.$emit('create-tag', { 
+            name: StringUtils.capitalize(tagName),
+            color: ColorUtils.generateRandom()
+        });
     },
     confirmSelection() {
       // Only emit if there are actual changes

@@ -3,8 +3,10 @@ import { pinia, initializeStores, useNotesStore, useTagsStore, useSettingsStore 
 import { noteActionsService } from "./services/note-actions-service.js";
 import { aiEventService } from "./services/ai-event-service.js";
 import { editorResizeService } from "./services/editor-resize-service.js";
-import { openHelp } from "./services/openHelp.js"; // IMPORT THE NEW MODULE
+import { openHelp } from "./components/openHelp.js";
 import aiHandler from "./services/ai-handler.js";
+import DateUtils from "./utils/date-utils.js";
+import ArrayUtils from "./utils/array-utils.js";
 
 import AppHeader from "./components/AppHeader.js";
 import AppSidebar from "./components/AppSidebar.js";
@@ -43,7 +45,7 @@ const app = createApp({
     ...mapWritableState(useNotesStore, ['editingNote']),
     ...mapState(useTagsStore, ['allTags']),
     ...mapState(useSettingsStore, [
-        'isSidebarCollapsed', 'handsFreeMode', 'saveVoiceRecordings', 
+        'sidebarCollapsed', 'handsFreeMode', 'saveVoiceRecordings', 
         'currentTheme', 'currentLayout', 'isNoticeBoardVisible', 'noticeBoardContent'
     ]),
     ...mapWritableState(useSettingsStore, ['searchQuery', 'currentFilter', 'currentTag', 'sortBy', 'sortOrder']),
@@ -167,7 +169,16 @@ const app = createApp({
     
     // --- UI & View Handlers ---
     setTheme(theme) { this.setThemeInStore(theme); },
-    toggleSidebar() { this.setSidebarCollapsedInStore(!this.isSidebarCollapsed); },
+
+    // KEY FIX: The logic is now self-contained here, removing the unreliable watcher.
+    toggleSidebar() {
+      const newCollapsedState = !this.sidebarCollapsed;
+      // 1. Update the state in the store
+      this.setSidebarCollapsedInStore(newCollapsedState);
+      // 2. Directly update the DOM. This is now guaranteed to run on every click.
+      document.body.classList.toggle("sidebar-collapsed", newCollapsedState);
+    },
+
     toggleLayout() { this.setLayoutInStore(this.currentLayout === 'grid' ? 'list' : 'grid'); },
     handleSearch(queryText) { this.searchQuery = (queryText || '').trim().replace(/\s+/g, ' '); },
     switchView(view) {
@@ -247,11 +258,11 @@ const app = createApp({
       const statusMap = { ready: 'text-success', error: 'text-danger', checking: 'text-warning' };
       return statusMap[this.aiStatus.status] || 'text-info';
     },
-    // **KEY CHANGE**: The openHelp method now just calls the imported function.
     openHelp,
   },
   watch: {
-    isSidebarCollapsed(isCollapsed) { document.body.classList.toggle("sidebar-collapsed", isCollapsed); },
+    // KEY FIX: The problematic watcher has been removed.
+    // isSidebarCollapsed(isCollapsed) { document.body.classList.toggle("sidebar-collapsed", isCollapsed); },
     handsFreeMode(newValue) { newValue ? aiHandler.startAmbientListening() : aiHandler.stopAmbientListening(); },
   },
   async created() {
@@ -272,8 +283,9 @@ const app = createApp({
       alertService.error('Initialization Failed', 'Could not initialize the application. Please refresh the page.');
     }
   },
-  mounted() { 
-    document.body.classList.toggle("sidebar-collapsed", this.isSidebarCollapsed); 
+  mounted() {
+    // This is still needed to set the correct initial state on page load.
+    document.body.classList.toggle("sidebar-collapsed", this.sidebarCollapsed); 
   },
   beforeUnmount() {
     aiEventService.teardown(); // Clean up listeners

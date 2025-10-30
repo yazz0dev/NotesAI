@@ -1,6 +1,10 @@
 import EditorToolbar from "./EditorToolbar.js";
 import { alertService } from "../services/alert-service.js";
 import aiHandler from "../services/ai-handler.js";
+import ValidationUtils from "../utils/validation-utils.js";
+import StringUtils from "../utils/string-utils.js";
+import DateUtils from "../utils/date-utils.js";
+import MarkdownHandler from "../utils/markdown-handler.js";
 
 export default {
   components: {
@@ -317,6 +321,11 @@ export default {
 
     triggerSave() {
       if (this.isContentLoaded) {
+        // Validate title before saving
+        if (!ValidationUtils.isValidTitle(this.editableNote.title)) {
+          alertService.error('Invalid Title', 'Title must be between 1-200 characters');
+          return;
+        }
         this.debouncedSave();
       }
     },
@@ -631,11 +640,7 @@ export default {
 
     formatLastUpdated(dateString) {
       if (!dateString) return 'Never';
-      const date = new Date(dateString);
-      return date.toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: 'numeric', minute: '2-digit', hour12: true
-      });
+      return DateUtils.formatWithTime(dateString);
     },
   },
 };

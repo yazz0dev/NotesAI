@@ -1,4 +1,7 @@
 import dbService from '../services/store.js';
+import ValidationUtils from '../utils/validation-utils.js';
+import StringUtils from '../utils/string-utils.js';
+import ColorUtils from '../utils/color-utils.js';
 
 const { defineStore } = window.Pinia;
 
@@ -86,8 +89,14 @@ export const useTagsStore = defineStore('tags', {
 
     // Create a new tag
     async createTag(tagData) {
-      // Check if tag already exists
-      const existingTag = this.getTagByName(tagData.name);
+      // Validate tag name
+      if (!ValidationUtils.isValidTitle(tagData.name)) {
+        throw new Error('Invalid tag name. Name must be between 1-200 characters');
+      }
+
+      // Check if tag already exists (case-insensitive)
+      const normalized = StringUtils.slugify(tagData.name);
+      const existingTag = this.tags.find(tag => StringUtils.slugify(tag.name) === normalized);
       if (existingTag) {
         console.warn('Tag already exists:', tagData.name);
         return existingTag;
@@ -95,8 +104,8 @@ export const useTagsStore = defineStore('tags', {
 
       const newTag = {
         id: Date.now().toString(),
-        name: tagData.name,
-        color: tagData.color || this.generateRandomColor(),
+        name: StringUtils.capitalize(tagData.name),
+        color: tagData.color || ColorUtils.generateRandom(),
         description: tagData.description || '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -119,12 +128,23 @@ export const useTagsStore = defineStore('tags', {
         throw new Error('Tag not found');
       }
 
-      // If name is being updated, check for duplicates
+      // If name is being updated, validate and check for duplicates
       if (updates.name) {
-        const existingTag = this.getTagByName(updates.name);
-        if (existingTag && existingTag.id !== tagId) {
+        if (!ValidationUtils.isValidTitle(updates.name)) {
+          throw new Error('Invalid tag name. Name must be between 1-200 characters');
+        }
+
+        // Check for case-insensitive duplicates
+        const normalized = StringUtils.slugify(updates.name);
+        const existingTag = this.tags.find(tag => 
+          StringUtils.slugify(tag.name) === normalized && tag.id !== tagId
+        );
+        if (existingTag) {
           throw new Error('A tag with this name already exists');
         }
+
+        // Normalize the name
+        updates.name = StringUtils.capitalize(updates.name);
       }
 
       const updatedTag = {
@@ -230,12 +250,7 @@ export const useTagsStore = defineStore('tags', {
 
     // Generate a random color for new tags
     generateRandomColor() {
-      const colors = [
-        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', 
-        '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
-        '#52B788', '#F4A261', '#E76F51', '#2A9D8F'
-      ];
-      return colors[Math.floor(Math.random() * colors.length)];
+      return ColorUtils.generateRandom();
     },
 
     // Sync tags with notes (ensure all tags used in notes exist)

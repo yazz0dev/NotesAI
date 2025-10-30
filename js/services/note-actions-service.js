@@ -1,5 +1,8 @@
 // js/services/note-actions-service.js
 import { alertService } from './alert-service.js';
+import ValidationUtils from '../utils/validation-utils.js';
+import StringUtils from '../utils/string-utils.js';
+import DateUtils from '../utils/date-utils.js';
 import { useNotesStore } from '../stores/notesStore.js';
 
 // Helper to get the store instance
@@ -8,13 +11,23 @@ const getStore = () => useNotesStore();
 async function saveNote(noteToSave) {
     const notesStore = getStore();
     try {
+        // Validate title
+        if (!ValidationUtils.isValidTitle(noteToSave.title)) {
+            alertService.error('Invalid Title', 'Title must be between 1-200 characters');
+            return null;
+        }
+
+        // Warn if content is empty
+        if (!ValidationUtils.isValidContent(noteToSave.content, 0)) {
+            console.warn('Note content is empty - creating draft');
+        }
+
         let savedNote;
         if (noteToSave.id) {
             savedNote = await notesStore.updateNote(noteToSave.id, noteToSave);
         } else {
             savedNote = await notesStore.createNote(noteToSave);
         }
-        // Return the saved note so the main component can update its state
         return savedNote;
     } catch (error) {
         console.error("Failed to save note:", error);

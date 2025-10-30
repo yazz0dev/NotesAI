@@ -27,7 +27,7 @@
       <template v-else>
         <app-header
           :is-voice-active="isVoiceActive"
-          :is-sidebar-collapsed="isSidebarCollapsed"
+          :is-sidebar-collapsed="sidebarCollapsed"
           :current-layout="currentLayout"
           :sort-label="getSortLabel()"
           @open-settings="isSettingsModalVisible = true"
@@ -81,7 +81,7 @@
             :current-view="currentView"
             :all-tags="allTags"
             :newTagName="newTagName"
-            :is-sidebar-collapsed="isSidebarCollapsed"
+            :sidebar-collapsed="sidebarCollapsed"
             @update:new-tag-name="(value) => { newTagName = value; }"
             @switch-view="switchView"
             @create-note="createNewNote"
@@ -90,32 +90,35 @@
           ></app-sidebar>
 
           <div class="main-content-wrapper">
-            <!-- KEY CHANGE: The Notice Board is now correctly placed in the main content area -->
-            <notice-board
-              :is-visible="isNoticeBoardVisible"
-              :content="noticeBoardContent"
-              :is-loading="isNoticeBoardLoading"
-              @toggle-visibility="toggleNoticeBoard"
-              @refresh="refreshNoticeBoard"
-              @navigate-to-note="handleNavigateToNote"
-            ></notice-board>
-
             <div class="d-flex flex-grow-1 overflow-hidden">
-                <main class="main-content flex-fill">
-                  <notes-list
-                    :notes="filteredNotes"
-                    :layout="currentLayout"
-                    :all-tags="allTags"
-                    @edit-note="editNote"
-                    @delete-note="deleteNote"
-                    @toggle-favorite="handleToggleFavorite"
-                    @archive-note="handleArchiveNote"
-                    @open-tag-modal="openTagModal"
-                    @set-reminder="setReminder"
-                    @remove-reminder="handleRemoveReminder"
-                    @create-note="createNewNote"
-                  ></notes-list>
-                </main>
+                <div class="main-content-left">
+                    <!-- Notice Board - Inside left column, above notes -->
+                    <notice-board
+                      :is-visible="isNoticeBoardVisible"
+                      :content="noticeBoardContent"
+                      :is-loading="isNoticeBoardLoading"
+                      :is-editor-open="!!editingNote"
+                      @toggle-visibility="toggleNoticeBoard"
+                      @refresh="refreshNoticeBoard"
+                      @navigate-to-note="handleNavigateToNote"
+                    ></notice-board>
+                    
+                    <main class="main-content flex-fill">
+                      <notes-list
+                        :notes="filteredNotes"
+                        :layout="currentLayout"
+                        :all-tags="allTags"
+                        @edit-note="editNote"
+                        @delete-note="deleteNote"
+                        @toggle-favorite="handleToggleFavorite"
+                        @archive-note="handleArchiveNote"
+                        @open-tag-modal="openTagModal"
+                        @set-reminder="setReminder"
+                        @remove-reminder="handleRemoveReminder"
+                        @create-note="createNewNote"
+                      ></notes-list>
+                    </main>
+                </div>
 
                 <div class="editor-resizer" v-if="editingNote" @mousedown="startResize"></div>
 

@@ -17,7 +17,7 @@ class AIService {
   async init() {
     if (this.isInitialized) return;
 
-    // FINAL FIX: Initialize a global flag to track download state across all services.
+    // Initialize a global flag to track download state across all services.
     window._isAiModelDownloading = false;
 
     this.dispatchAIEvent("ai-status-update", { status: "checking", message: "Initializing AI services..." });

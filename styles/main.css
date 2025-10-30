@@ -53,19 +53,29 @@ body.is-resizing {
 
 .main-content-wrapper {
   flex: 1;
-  min-width: 0; /* Important for allowing flex items to shrink properly */
-  width: 100%;
+  min-width: 0;
   display: flex;
-  flex-direction: column; /* Stacks notice board on top of content */
+  flex-direction: column;
   position: relative;
   height: 100%;
-  background-color: var(--bg-primary); /* Add background color here */
+  background-color: var(--bg-primary);
 }
 
-/* KEY CHANGE: The wrapper for the notes-list and editor now grows to fill space */
+/* Main flex container for content and editor */
 .main-content-wrapper > .d-flex {
     flex-grow: 1;
     min-height: 0;
+    width: 100%;
+}
+
+/* Left column containing Notice Board and Notes List */
+.main-content-left {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bg-primary);
 }
 
 .main-content {
@@ -74,7 +84,7 @@ body.is-resizing {
   flex-direction: column;
   min-width: 300px;
   background-color: var(--bg-primary);
-  overflow: hidden; /* Changed from overflow-x: hidden */
+  overflow: hidden;
 }
 
 /* --- Utilities --- */

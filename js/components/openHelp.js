@@ -1,5 +1,5 @@
-// js/services/openHelp.js
-import { alertService } from './alert-service.js';
+// js/components/openHelp.js
+import { alertService } from '../services/alert-service.js';
 
 const helpContent = `
 <div style="text-align: left; font-size: 0.9rem;">
