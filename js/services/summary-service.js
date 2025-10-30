@@ -31,12 +31,13 @@ class SummaryService {
       const summarizerAvailability = await this.checkSummarizerAvailability();
       if (summarizerAvailability.available) {
         const summarizerType = type === 'concise' ? 'tldr' : 'key-points';
-        // Added `expectedInputLanguages` and global download flag logic.
+        // Added `expectedInputLanguages` and `outputLanguage` to avoid Chrome warnings
         const summarizer = await Summarizer.create({
           type: summarizerType,
           format: 'markdown',
           length: type === 'detailed' ? 'long' : 'medium',
           expectedInputLanguages: ['en'],
+          outputLanguage: 'en',
           monitor: (m) => {
             m.addEventListener('downloadprogress', (e) => {
               if (!window._isAiModelDownloading) {

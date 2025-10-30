@@ -51,6 +51,7 @@ class PromptAPIService {
     const availability = await this.checkAvailability();
     if (!availability.available) { throw new Error(availability.reason); }
     this.dispatchEvent("prompt-status-update", { status: "processing", message: "AI is thinking..." });
+    let session;
     try {
       const modelParams = await this.getModelParams();
       const initialPrompts = systemPrompt ? [{ role: 'system', content: systemPrompt }] : [];
@@ -58,7 +59,7 @@ class PromptAPIService {
         initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
         temperature: options.temperature || modelParams.defaultTemperature,
         topK: options.topK || modelParams.defaultTopK,
-        // Add the required `outputLanguage` parameter.
+        // Specify output language to avoid Chrome warnings
         outputLanguage: 'en',
         monitor: (m) => {
           m.addEventListener('downloadprogress', (e) => {
@@ -74,15 +75,19 @@ class PromptAPIService {
         },
         ...options.sessionOptions
       };
+      // Ensure outputLanguage is set even if overridden
+      if (!sessionOptions.outputLanguage) {
+        sessionOptions.outputLanguage = 'en';
+      }
       // Use the top-level `self.LanguageModel` object.
-      const session = await self.LanguageModel.create(sessionOptions);
+      session = await self.LanguageModel.create(sessionOptions);
       let response;
       if (options.stream) {
         response = await this._runStreamingPrompt(session, prompt, options);
       } else {
         response = await session.prompt(prompt, options.promptOptions);
       }
-      if (!options.keepSession) { session.destroy(); }
+      
       this.dispatchEvent("prompt-status-update", { status: "ready", message: "AI processing complete" });
       return response;
     } catch (error) {
@@ -91,6 +96,8 @@ class PromptAPIService {
       this.dispatchEvent("prompt-status-update", { status: "error", message: `AI Error: Model failed to run.` });
       if (window._isAiModelDownloading) window._isAiModelDownloading = false;
       throw error;
+    } finally {
+        if (session && !options.keepSession) { session.destroy(); }
     }
   }
 
@@ -110,7 +117,7 @@ class PromptAPIService {
       ...options.promptOptions
     };
     try {
-      const response = await this.runPrompt(prompt, null, { ...options, promptOptions });
+      const response = await this.runPrompt(prompt, options.systemPrompt || null, { ...options, promptOptions });
       return JSON.parse(response);
     } catch (error) {
       console.error("Structured prompt error:", error);
@@ -132,6 +139,7 @@ class PromptAPIService {
       initialPrompts: initialPrompts.length > 0 ? initialPrompts : undefined,
       temperature: options.temperature || modelParams.defaultTemperature,
       topK: options.topK || modelParams.defaultTopK,
+      // Specify output language to avoid Chrome warnings
       outputLanguage: 'en',
       monitor: (m) => {
         m.addEventListener('downloadprogress', (e) => {
@@ -146,6 +154,10 @@ class PromptAPIService {
       },
       ...options
     };
+    // Ensure outputLanguage is set even if overridden
+    if (!sessionOptions.outputLanguage) {
+      sessionOptions.outputLanguage = 'en';
+    }
     this._activeSession = await self.LanguageModel.create(sessionOptions);
     return this._activeSession;
   }

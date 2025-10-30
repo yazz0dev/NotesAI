@@ -8,12 +8,13 @@ class CommandService {
     this.audioChunks = [];
     this.isAmbientListening = false;
     this.isActive = false;
-    this.pendingTranscript = '';
+    this.currentMode = 'command';
+    // NEW: Track last command to prevent rapid-fire duplicates
+    this.lastCommand = null;
     this.lastCommandTime = 0;
   }
 
   init() {
-    // Check speech recognition support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.warn("Speech Recognition not supported.");
@@ -45,7 +46,6 @@ class CommandService {
     };
 
     this.ambientRecognition.onerror = (e) => {
-      // Only log actual errors, not normal events like "no-speech"
       if (e.error !== 'no-speech' && e.error !== 'audio-capture') {
         console.error("Ambient recognition error:", e.error);
       }
@@ -54,42 +54,14 @@ class CommandService {
     this.ambientRecognition.onresult = (event) => {
       const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
       if (transcript.includes("hey notes")) {
-        this.processCommand(transcript);
+        this.processTranscript(transcript, 'command');
       }
     };
   }
 
-  processCommand(transcript) {
-    this.dispatchEvent("command-status-update", { status: "active", message: `Command: ${transcript}` });
-
-    // Enhanced command parsing
-    const createNoteRegex = /create note(?: titled| called)?\s*(.*?)\s*(?:with content|that says|with)\s*(.*)/i;
-    const simpleCreateNoteRegex = /create note\s(.*)/i;
-    const searchRegex = /search for\s(.*)/i;
-    const deleteRegex = /delete note\s(.*)/i;
-
-    let match;
-
-    if ((match = createNoteRegex.exec(transcript)) !== null) {
-      this.dispatchEvent("command-create-note", { summary: match[1].trim(), content: match[2].trim() });
-    } else if ((match = simpleCreateNoteRegex.exec(transcript)) !== null) {
-      this.dispatchEvent("command-create-note", { content: match[1].trim() });
-    } else if ((match = searchRegex.exec(transcript)) !== null) {
-      this.dispatchEvent("command-search", { query: match[1].trim() });
-    } else if ((match = deleteRegex.exec(transcript)) !== null) {
-      this.dispatchEvent("command-delete-note", { query: match[1].trim() });
-    } else if (transcript.includes("summarize")) {
-      this.dispatchEvent("command-summarize-notes", {});
-    }
-  }
-
   startAmbientListening() {
     if (this.ambientRecognition && !this.isAmbientListening && !this.isActive) {
-      try { 
-        this.ambientRecognition.start(); 
-      } catch (e) { 
-        console.warn("Failed to start ambient listening:", e);
-      }
+      try { this.ambientRecognition.start(); } catch (e) { console.warn("Failed to start ambient listening:", e); }
     }
   }
 
@@ -100,13 +72,24 @@ class CommandService {
   }
 
   async startListening({ mode = 'command' }) {
-    if (this.isActive) return;
+    if (this.isActive) {
+        // If we are switching modes, we might need to restart.
+        if (this.currentMode !== mode) {
+             this.stopListening();
+             // Allow a tiny setImmediate-like pause for cleanup before restarting
+             await new Promise(resolve => setTimeout(resolve, 50));
+        } else {
+             return;
+        }
+    }
+    
     this.stopAmbientListening();
+    this.currentMode = mode;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { 
+    if (!SpeechRecognition) {
       this.dispatchEvent("command-error", { message: "Speech recognition not supported" });
-      return; 
+      return;
     }
 
     try {
@@ -122,60 +105,30 @@ class CommandService {
       this.activeRecognition.continuous = true;
       this.activeRecognition.interimResults = true;
 
-      this.activeRecognition.onresult = (e) => {
-        let interim_transcript = '';
-        let final_transcript = '';
-
-        for (let i = e.resultIndex; i < e.results.length; ++i) {
-          const transcript = e.results[i][0].transcript;
-          if (e.results[i].isFinal) {
-            final_transcript += transcript.trim() + ' ';
+      this.activeRecognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
           } else {
-            interim_transcript += transcript;
+            interimTranscript += event.results[i][0].transcript;
           }
         }
 
-        // Show all voice activity in the header for feedback
-        if (interim_transcript || final_transcript) {
-          const displayText = (final_transcript + interim_transcript).trim();
-          this.dispatchEvent("command-status-update", { status: "recording", message: `"${displayText}"` });
+        const currentText = (finalTranscript + interimTranscript).trim();
+        if (currentText) {
+          this.dispatchEvent("command-status-update", { status: "recording", message: `"${currentText}"` });
         }
 
-        if (mode === 'dictation') {
-          // Check for commands in the final transcript
-          if (final_transcript) {
-            const command = this.findCommand(final_transcript.toLowerCase());
-            if (command) {
-              // Execute command and don't add text to note
-              this.dispatchEvent("command-execute", { command });
-              this.lastCommandTime = Date.now();
-              // Don't dispatch dictation events for command text
-              return;
-            }
+        if (mode === 'dictation' && interimTranscript) {
+          this.dispatchEvent("dictation-update", { transcript: interimTranscript });
+        }
 
-            // Not a command, add to note
-            this.dispatchEvent("dictation-finalized", { transcript: final_transcript });
-          }
-
-          // Handle interim results - only show if not potentially part of a command
-          if (interim_transcript) {
-            const trimmedInterim = interim_transcript.toLowerCase().trim();
-
-            // Check if this interim result could be the start of a command
-            if (this.couldBeCommand(trimmedInterim)) {
-              // This might be part of a command, show command detection status
-              this.dispatchEvent("command-status-update", {
-                status: "recording",
-                message: `Command detected: "${interim_transcript}"`
-              });
-            } else {
-              // This doesn't look like a command, send to dictation
-              this.dispatchEvent("dictation-update", { transcript: interim_transcript });
-            }
-          }
-        } else {
-          if (final_transcript) {
-            this.processCommand(final_transcript.toLowerCase());
+        if (finalTranscript) {
+          const processed = this.processTranscript(finalTranscript.trim(), mode);
+          if (!processed && mode === 'dictation') {
+            this.dispatchEvent("dictation-finalized", { transcript: finalTranscript.trim() });
           }
         }
       };
@@ -183,20 +136,30 @@ class CommandService {
       this.activeRecognition.onstart = () => {
         this.isActive = true;
         this.dispatchEvent("listening-started", { mode });
-        this.dispatchEvent("command-status-update", { 
-          status: "recording", 
-          message: mode === 'dictation' ? "Dictating..." : "Listening for command..." 
+        this.dispatchEvent("command-status-update", {
+          status: "recording",
+          message: mode === 'dictation' ? "Dictating..." : "Listening for command..."
         });
+        if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+            this.mediaRecorder.start();
+        }
       };
 
       this.activeRecognition.onend = () => {
-        if (!this.isActive) return;
+        // If we are supposed to be active but stopped unexpectedly, try to restart
+        // UNLESS we manually stopped it (isActive would be false then)
+        if (this.isActive) {
+             // Simple auto-restart for continuous listening
+             try { this.activeRecognition.start(); } catch(e) { /* ignore if already started */ }
+             return;
+        }
+
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
           this.mediaRecorder.onstop = async () => {
             const audioBlob = new Blob(this.audioChunks, { type: "audio/webm" });
             const audioDataUrl = await this.blobToDataURL(audioBlob);
             this.dispatchEvent("listening-finished", { mode: 'dictation', audioUrl: audioDataUrl });
-            stream.getTracks().forEach((track) => track.stop());
+            stream?.getTracks().forEach((track) => track.stop());
             this.cleanupActiveSession();
           };
           this.mediaRecorder.stop();
@@ -206,7 +169,6 @@ class CommandService {
         }
       };
 
-      this.mediaRecorder?.start();
       this.activeRecognition.start();
     } catch (error) {
       console.error("Listening failed to start:", error);
@@ -215,9 +177,61 @@ class CommandService {
     }
   }
 
+  processTranscript(transcript, mode) {
+    const lowerTranscript = transcript.toLowerCase();
+    const now = Date.now();
+
+    for (const command of voiceCommands) {
+      const isAppCommand = command.scope === 'app';
+      const isEditorCommand = command.scope === 'editor' && mode === 'dictation';
+
+      if (!isAppCommand && !isEditorCommand) continue;
+
+      for (const keyword of command.keywords) {
+        let argument = null;
+        let match = false;
+
+        if (command.requiresArgument) {
+            const keywordRegex = new RegExp(`\\b${keyword.toLowerCase()}\\b`, 'i');
+            const matchResult = lowerTranscript.match(keywordRegex);
+            if (matchResult) {
+                argument = transcript.substring(matchResult.index + keyword.length).trim();
+                if (argument) match = true;
+            }
+        } else {
+          const keywordRegex = new RegExp(`\\b${keyword.toLowerCase()}\\b`);
+          if (keywordRegex.test(lowerTranscript)) {
+            match = true;
+          }
+        }
+
+        if (match) {
+          if (this.lastCommand === keyword && (now - this.lastCommandTime) < 1500) {
+               console.log(`Duplicate command ignored: ${keyword}`);
+               return true; 
+          }
+
+          console.log(`Command matched: ${keyword}`, { argument });
+          this.lastCommand = keyword;
+          this.lastCommandTime = now;
+
+          if (isAppCommand) {
+            command.action(argument, transcript);
+          }
+          if (isEditorCommand) {
+            this.dispatchEvent('editor-command', { command, value: argument });
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   stopListening() {
-    if (this.isActive && this.activeRecognition) {
-      this.activeRecognition.stop();
+    this.isActive = false; // Mark as inactive so onend doesn't auto-restart
+    if (this.activeRecognition) {
+      try { this.activeRecognition.stop(); } catch(e) {}
     }
   }
 
@@ -227,49 +241,12 @@ class CommandService {
     this.mediaRecorder = null;
     this.audioChunks = [];
     if (localStorage.getItem("handsFreeMode") === "true") {
-      setTimeout(() => this.startAmbientListening(), 500);
+      this.startAmbientListening();
+    } else {
+      this.dispatchEvent("command-status-update", { status: "ready", message: "Voice commands ready" });
     }
   }
 
-  findCommand(transcript) {
-    if (!transcript) return null;
-    for (const command of voiceCommands) {
-      for (const keyword of command.keywords) {
-        if (transcript.includes(keyword)) {
-          // Execute app-level commands immediately
-          if (command.type === 'app-level' && command.action) {
-            try {
-              command.action();
-              return null; // Don't return the command since we executed it
-            } catch (error) {
-              console.error('Error executing app-level command:', error);
-            }
-          }
-          return command;
-        }
-      }
-    }
-    return null;
-  }
-
-  // Check if transcript could be the start of a command (for interim results)
-  couldBeCommand(transcript) {
-    if (!transcript) return false;
-    const words = transcript.toLowerCase().trim().split(' ');
-    for (const command of voiceCommands) {
-      for (const keyword of command.keywords) {
-        const keywordWords = keyword.split(' ');
-        // Check if the transcript words match the beginning of any keyword
-        const matchesStart = keywordWords.slice(0, words.length).every((kwWord, i) => kwWord === words[i]);
-        if (matchesStart) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  // Utility methods
   dispatchEvent(name, detail) {
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }

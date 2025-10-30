@@ -1,47 +1,14 @@
 // js/services/ai-event-service.js
-import { alertService } from './alert-service.js';
-import { useNotesStore } from '../stores/notesStore.js';
-import { useSettingsStore } from '../stores/settingsStore.js';
+import { aiToolsService } from './ai-tools-service.js';
 import aiHandler from './ai-handler.js';
 
 let vueInstance = null;
+let isActionInFlight = false;
 
 // --- Event Handlers ---
 
 function handleAIStatusUpdate(event) {
     if (vueInstance) vueInstance.aiStatus = event.detail;
-}
-
-function handleAICreateNote(event) {
-    if (vueInstance) {
-        vueInstance.createNewNote({ title: event.detail.summary, content: event.detail.content });
-        vueInstance.$nextTick(() => {
-            if (vueInstance.editingNote && !vueInstance.isVoiceActive) {
-                vueInstance.handleVoiceToggle();
-            }
-        });
-    }
-}
-
-function handleAISearch(event) {
-    const settingsStore = useSettingsStore();
-    settingsStore.searchQuery = event.detail.query;
-    const searchInput = document.getElementById("search-input");
-    if (searchInput) searchInput.textContent = settingsStore.searchQuery;
-}
-
-async function handleAIDeleteNote(event) {
-    const notesStore = useNotesStore();
-    const query = event.detail.query.toLowerCase();
-    if (!query) return;
-    const noteToDelete = notesStore.activeNotes.find(n =>
-        (n.title || '').toLowerCase().includes(query)
-    );
-    if (noteToDelete) {
-        if (vueInstance) vueInstance.deleteNote(noteToDelete.id);
-    } else {
-        alertService.info('Note Not Found', `Could not find an active note matching "${query}".`);
-    }
 }
 
 function handleAIListeningStarted() {
@@ -70,7 +37,7 @@ function handleAIDictationFinalized(event) {
         const newContent = vueInstance.contentBeforeDictation + separator + finalText;
 
         vueInstance.editingNote.content = newContent;
-        vueInstance.contentBeforeDictation = newContent; // Update base content for next dictation
+        vueInstance.contentBeforeDictation = newContent;
 
         vueInstance.$nextTick(() => {
             vueInstance.saveNote(vueInstance.editingNote);
@@ -90,60 +57,76 @@ function handleAIListeningFinished(event) {
     }
 }
 
-function handleAICommandExecuted(event) {
-    if (vueInstance && vueInstance.editingNote) {
-        vueInstance.contentBeforeDictation = event.detail.content;
-    }
-}
+// --- App-level Voice Command Handlers ---
 
-function handleVoiceCreateNote() {
-    if (vueInstance) {
-        vueInstance.createNewNote();
-        vueInstance.$nextTick(() => {
-            if (vueInstance.editingNote) {
+async function handleVoiceCreateNote() {
+    if (!vueInstance || isActionInFlight) return;
+    try {
+        isActionInFlight = true;
+        const newNote = await vueInstance.createNewNote();
+        if (newNote) {
+            await vueInstance.$nextTick(); 
+            if (vueInstance.editingNote && vueInstance.editingNote.id === newNote.id) {
                 vueInstance.contentBeforeDictation = '';
-                setTimeout(() => aiHandler.startListening({ mode: 'dictation' }), 300);
+                aiHandler.startListening({ mode: 'dictation' });
             }
-        });
+        }
+    } finally {
+        setTimeout(() => { isActionInFlight = false; }, 500);
     }
 }
 
-function handleVoiceStartDictation() {
-    if (vueInstance) {
-        if (!vueInstance.editingNote) {
-            vueInstance.createNewNote();
-            vueInstance.$nextTick(() => {
-                if (vueInstance.editingNote) {
-                    vueInstance.contentBeforeDictation = vueInstance.editingNote.content || '';
-                    setTimeout(() => aiHandler.startListening({ mode: 'dictation' }), 300);
-                }
-            });
-        } else {
-            vueInstance.contentBeforeDictation = vueInstance.editingNote.content || '';
-            aiHandler.startListening({ mode: 'dictation' });
-        }
+async function handleVoiceStartDictation() {
+    if (!vueInstance || isActionInFlight) return;
+    if (vueInstance.isVoiceActive && aiHandler.commandService.currentMode === 'dictation') return;
+    if (!vueInstance.editingNote) {
+        await handleVoiceCreateNote();
+    } else {
+        vueInstance.contentBeforeDictation = vueInstance.editingNote.content || '';
+        aiHandler.startListening({ mode: 'dictation' });
     }
 }
 
 function handleVoiceStopDictation() {
-    if (vueInstance && vueInstance.isVoiceActive) {
-        aiHandler.stopListening();
+    if (vueInstance && vueInstance.isVoiceActive) aiHandler.stopListening();
+}
+
+function handleVoiceCloseEditor() {
+    if (vueInstance && vueInstance.editingNote) vueInstance.closeEditor();
+}
+
+function handleVoiceSaveNote() {
+    if (vueInstance && vueInstance.editingNote) vueInstance.saveNote(vueInstance.editingNote);
+}
+
+async function handleVoiceAIQuery(event) {
+    if (vueInstance && event.detail.query) {
+        const fullQuery = event.detail.originalTranscript;
+        const searchInput = document.getElementById("search-input");
+        if (searchInput) {
+            searchInput.textContent = fullQuery;
+        }
+
+        await aiToolsService.processQueryWithTools(fullQuery);
+
+        if (searchInput) {
+            searchInput.textContent = '';
+        }
     }
 }
 
 const listeners = {
     "command-status-update": handleAIStatusUpdate,
-    "command-create-note": handleAICreateNote,
-    "command-search": handleAISearch,
     "listening-started": handleAIListeningStarted,
     "dictation-update": handleAIDictationUpdate,
     "dictation-finalized": handleAIDictationFinalized,
     "listening-finished": handleAIListeningFinished,
-    "command-delete-note": handleAIDeleteNote,
-    "command-execute": handleAICommandExecuted,
     "voice-create-note": handleVoiceCreateNote,
     "voice-start-dictation": handleVoiceStartDictation,
     "voice-stop-dictation": handleVoiceStopDictation,
+    "voice-close-editor": handleVoiceCloseEditor,
+    "voice-save-note": handleVoiceSaveNote,
+    "voice-ai-query": handleVoiceAIQuery,
 };
 
 export const aiEventService = {
@@ -158,5 +141,6 @@ export const aiEventService = {
             window.removeEventListener(event, handler);
         }
         vueInstance = null;
+        isActionInFlight = false;
     }
 };

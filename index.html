@@ -34,7 +34,6 @@
           @open-help="openHelp"
           @voice-toggle="handleVoiceToggle"
           @toggle-sidebar="toggleSidebar"
-          @search="handleSearch"
           @toggle-layout="toggleLayout"
           @change-sort="handleSortChange"
         >
@@ -46,18 +45,28 @@
 
           <template #toolbar>
             <div class="header-toolbar d-flex align-items-center px-4">
-              <div class="search-container position-relative flex-grow-1 me-3">
+              <div class="search-container position-relative flex-grow-1 me-3" :class="{ 'ai-active': isAiSearchActive }">
                 <div class="input-group">
                   <span class="input-group-text border-end-0">
                     <i class="bi bi-search"></i>
                   </span>
                   <div
                     id="search-input"
-                    class="form-control border-start-0"
+                    class="form-control border-start-0 border-end-0"
                     contenteditable="true"
-                    @input="handleSearch($event.target.textContent)"
-                    placeholder="Search notes...">
+                    @input="handleSearchInput($event.target.textContent)"
+                    @keydown.enter.prevent="submitSearch($event.target.textContent)"
+                    placeholder="Search notes or ask AI...">
                   </div>
+                  <button
+                    class="btn btn-outline-secondary border-start-0"
+                    :class="{ 'active': isAiSearchActive }"
+                    @click="toggleAiSearch"
+                    title="Toggle AI-powered Search"
+                    id="ai-search-toggle"
+                  >
+                    <i class="bi bi-stars"></i>
+                  </button>
                 </div>
               </div>
               <div class="toolbar-right d-flex gap-2">
@@ -92,8 +101,9 @@
           <div class="main-content-wrapper">
             <div class="d-flex flex-grow-1 overflow-hidden">
                 <div class="main-content-left">
-                    <!-- Notice Board - Inside left column, above notes -->
+                    <!-- Notice Board - Conditionally rendered based on view context -->
                     <notice-board
+                      v-if="isNoticeBoardAvailable"
                       :is-visible="isNoticeBoardVisible"
                       :content="noticeBoardContent"
                       :is-loading="isNoticeBoardLoading"
@@ -138,6 +148,8 @@
       <settings-modal v-if="isSettingsModalVisible" v-model="handsFreeMode" :current-theme="currentTheme" :save-voice-recordings="saveVoiceRecordings" @update:theme="setTheme" @update:save-voice-recordings="saveVoiceRecordings = $event" @close="isSettingsModalVisible = false"></settings-modal>
       <alert-modal></alert-modal>
       <tag-selection-modal v-if="noteToTag" :note-to-tag="noteToTag" :all-tags="allTags" @close="closeTagModal" @update-tags="handleUpdateTags" @create-tag="handleCreateTag"></tag-selection-modal>
+      
+      <help-modal :is-visible="isHelpModalVisible" @close="isHelpModalVisible = false"></help-modal>
     </div>
     
     <!-- Load Vue and Pinia synchronously before the module scripts -->

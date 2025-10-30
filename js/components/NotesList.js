@@ -1,6 +1,4 @@
-import MarkdownHandler from '../utils/markdown-handler.js';
-import StringUtils from '../utils/string-utils.js';
-import DateUtils from '../utils/date-utils.js';
+import { MarkdownHandler, StringUtils, DateUtils } from '../utils/index.js';
 
 export default {
     props: ["notes", "layout", "allTags"],

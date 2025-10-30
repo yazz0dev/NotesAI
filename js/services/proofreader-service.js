@@ -85,6 +85,7 @@ class ProofreaderService {
       // Use the minimal, officially supported parameters to ensure stability.
       session = await Proofreader.create({
         expectedInputLanguages: ["en"],
+        outputLanguage: 'en',
         monitor: (m) => {
           m.addEventListener("downloadprogress", e => {
             if (!window._isAiModelDownloading) {

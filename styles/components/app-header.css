@@ -37,15 +37,26 @@
 .header-toolbar .search-container .form-control {
     background: var(--bg-tertiary);
     border-color: var(--border-color);
+    transition: all 0.2s ease-in-out;
 }
 
+/* AI Search Active State */
+.header-toolbar .search-container.ai-active .form-control,
 .header-toolbar .search-container .form-control:focus {
     background: var(--bg-primary);
+    box-shadow: 0 0 0 2px var(--primary-color) inset;
 }
 
 .header-toolbar .search-container .input-group-text {
     border-color: var(--border-color);
 }
+
+.header-toolbar .search-container #ai-search-toggle.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
 
 /* ============================================
    AI STATUS

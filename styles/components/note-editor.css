@@ -150,6 +150,7 @@
     padding: 2px 4px;
     border-radius: 3px;
     animation: pulse-error 2s ease-in-out;
+    position: relative;
   }
 
   .proofreader-error:hover {
@@ -176,6 +177,72 @@
     background-color: rgba(220, 53, 69, 0.4) !important;
   }
 
+  /* ===== PROOFREADER INLINE POPOVER ===== */
+  .proofreader-popover {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 0;
+    margin-top: 2px;
+    animation: popoverFadeIn 0.2s ease-out;
+  }
+
+  @keyframes popoverFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .proofreader-popover-content {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+  }
+
+  .proofreader-popover-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .proofreader-popover-content strong {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    word-break: break-word;
+    padding: 4px 0;
+  }
+
+  .proofreader-popover-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .btn-xs {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    height: auto;
+    border-radius: 3px;
+  }
+
+  .btn-xs i {
+    font-size: 0.65rem;
+    margin: 0;
+  }
+
 /* ===== AI SUMMARY INDICATOR ===== */
 .ai-summary-indicator {
   font-size: 0.75rem;
@@ -190,4 +257,44 @@
 
 .ai-summary-indicator .btn-sm-custom i {
   font-size: 0.65rem;
+}
+
+/* ===== NEW: PROOFREADER SUGGESTIONS PANEL ===== */
+.proofreader-suggestions-panel {
+    background-color: var(--bg-tertiary);
+    max-height: 250px;
+    overflow-y: auto;
+    animation: slideInDown 0.3s ease-out;
+}
+
+@keyframes slideInDown {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.suggestion-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transition: background-color 0.2s ease;
+}
+
+.suggestion-card:hover {
+    background-color: var(--bg-secondary);
+}
+
+.suggestion-text {
+    flex-grow: 1;
+    margin-right: 0.75rem;
 }

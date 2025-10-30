@@ -22,8 +22,9 @@ export const useSettingsStore = defineStore('settings', {
     currentLayout: 'grid', // 'grid', 'list', 'compact'
     sortBy: 'updatedAt', // 'updatedAt', 'createdAt', 'title'
     sortOrder: 'desc', // 'asc', 'desc'
-    isNoticeBoardVisible: true, // ADD THIS
-    noticeBoardContent: null, // ADD THIS
+    isNoticeBoardVisible: true, // User preference for collapsed/expanded
+    isNoticeBoardAvailable: true, // Controls if the component should be rendered at all
+    noticeBoardContent: null,
     
     // Filter settings
     currentFilter: 'all', // 'all', 'active', 'archived', 'favorites'
@@ -105,7 +106,10 @@ export const useSettingsStore = defineStore('settings', {
       if (savedSettings) {
         try {
           const parsed = JSON.parse(savedSettings);
-          // Ensure default for new properties if not in localStorage
+          // **IMPORTANT**: Don't load `isNoticeBoardAvailable` from storage.
+          // Let it be determined dynamically by the app logic.
+          delete parsed.isNoticeBoardAvailable; 
+          
           const defaults = {
               isNoticeBoardVisible: true,
               noticeBoardContent: null
@@ -138,8 +142,6 @@ export const useSettingsStore = defineStore('settings', {
       const effectiveTheme = this.effectiveTheme;
       document.documentElement.setAttribute('data-theme', effectiveTheme);
       
-      // KEY FIX: This is the correct way to manage the theme class
-      // It ensures other classes on the body (like .sidebar-collapsed) are not removed.
       if (effectiveTheme === 'dark') {
         document.body.classList.add('dark-mode');
       } else {
@@ -155,6 +157,11 @@ export const useSettingsStore = defineStore('settings', {
           this.applyTheme();
         });
       }
+    },
+
+    // Update notice board availability
+    setNoticeBoardAvailability(isAvailable) {
+        this.isNoticeBoardAvailable = isAvailable;
     },
 
     // Update notice board visibility
@@ -257,7 +264,6 @@ export const useSettingsStore = defineStore('settings', {
       this.enableNotifications = enabled;
       this.saveToLocalStorage();
       
-      // Request notification permission if enabled
       if (enabled && 'Notification' in window) {
         Notification.requestPermission();
       }

@@ -5,6 +5,7 @@
 @import url('./components/note-editor.css');
 @import url('./components/modals.css');
 @import url('./components/notice-board.css');
+@import url('./components/help-modal.css'); /* ADD THIS LINE */
 
 
 /* --- Global Styles --- */
@@ -107,16 +108,16 @@ body.is-resizing {
 }
 
 /* --- Custom Scrollbar --- */
-.sidebar-nav::-webkit-scrollbar, .tag-list-sidebar::-webkit-scrollbar, .tag-list-wrapper::-webkit-scrollbar, .notes-list-container::-webkit-scrollbar, .notice-board-content::-webkit-scrollbar {
+.sidebar-nav::-webkit-scrollbar, .tag-list-sidebar::-webkit-scrollbar, .tag-list-wrapper::-webkit-scrollbar, .notes-list-container::-webkit-scrollbar, .notice-board-content::-webkit-scrollbar, .help-modal-content::-webkit-scrollbar {
     width: 6px;
 }
-.sidebar-nav::-webkit-scrollbar-track, .tag-list-sidebar::-webkit-scrollbar-track, .tag-list-wrapper::-webkit-scrollbar-track, .notes-list-container::-webkit-scrollbar-track, .notice-board-content::-webkit-scrollbar-track {
+.sidebar-nav::-webkit-scrollbar-track, .tag-list-sidebar::-webkit-scrollbar-track, .tag-list-wrapper::-webkit-scrollbar-track, .notes-list-container::-webkit-scrollbar-track, .notice-board-content::-webkit-scrollbar-track, .help-modal-content::-webkit-scrollbar-track {
     background: transparent;
 }
-.sidebar-nav::-webkit-scrollbar-thumb, .tag-list-sidebar::-webkit-scrollbar-thumb, .tag-list-wrapper::-webkit-scrollbar-thumb, .notes-list-container::-webkit-scrollbar-thumb, .notice-board-content::-webkit-scrollbar-thumb {
+.sidebar-nav::-webkit-scrollbar-thumb, .tag-list-sidebar::-webkit-scrollbar-thumb, .tag-list-wrapper::-webkit-scrollbar-thumb, .notes-list-container::-webkit-scrollbar-thumb, .notice-board-content::-webkit-scrollbar-thumb, .help-modal-content::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 6px;
 }
-.sidebar-nav::-webkit-scrollbar-thumb:hover, .tag-list-sidebar::-webkit-scrollbar-thumb:hover, .tag-list-wrapper::-webkit-scrollbar-thumb:hover, .notes-list-container::-webkit-scrollbar-thumb:hover, .notice-board-content::-webkit-scrollbar-thumb:hover {
+.sidebar-nav::-webkit-scrollbar-thumb:hover, .tag-list-sidebar::-webkit-scrollbar-thumb:hover, .tag-list-wrapper::-webkit-scrollbar-thumb:hover, .notes-list-container::-webkit-scrollbar-thumb:hover, .notice-board-content::-webkit-scrollbar-thumb:hover, .help-modal-content::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }

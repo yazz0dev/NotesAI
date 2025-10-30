@@ -1,7 +1,5 @@
 import dbService from '../services/store.js';
-import ValidationUtils from '../utils/validation-utils.js';
-import StringUtils from '../utils/string-utils.js';
-import DateUtils from '../utils/date-utils.js';
+import { ValidationUtils, StringUtils, DateUtils } from '../utils/index.js';
 
 const { defineStore } = window.Pinia;
 
@@ -145,9 +143,6 @@ export const useNotesStore = defineStore('notes', {
         this.notes.push(savedNote);
         this.saveStatus = 'saved';
         
-        // **KEY CHANGE**: Automatically check if the notice board needs updating
-        this.triggerNoticeBoardUpdateIfNeeded(savedNote);
-
         setTimeout(() => {
           if (this.saveStatus === 'saved') {
             this.saveStatus = 'idle';
@@ -190,9 +185,6 @@ export const useNotesStore = defineStore('notes', {
         const savedNote = await dbService.saveNote(updatedNote);
         this.notes[noteIndex] = savedNote;
         
-        // **KEY CHANGE**: Automatically check if the notice board needs updating
-        this.triggerNoticeBoardUpdateIfNeeded(savedNote);
-
         if (this.editingNote?.id === noteId) {
           this.editingNote = { ...savedNote };
         }
@@ -213,22 +205,6 @@ export const useNotesStore = defineStore('notes', {
       }
     },
     
-    // **KEY CHANGE**: New helper method to decide when to regenerate
-    triggerNoticeBoardUpdateIfNeeded(note) {
-        const noteText = `${note.title} ${note.content}`.toLowerCase();
-        const hasKeywords = NOTICE_BOARD_KEYWORDS.some(kw => noteText.includes(kw));
-        
-        // Regenerate if the note has keywords and more than a few words
-        if (hasKeywords && note.content.length > 20) {
-            console.log("Relevant note changed, triggering Notice Board refresh...");
-            // Debounce the call to prevent multiple rapid updates
-            if (this.noticeBoardDebounce) clearTimeout(this.noticeBoardDebounce);
-            this.noticeBoardDebounce = setTimeout(() => {
-                this.generateNoticeBoard();
-            }, 3000); // Wait 3 seconds after the last change
-        }
-    },
-
     // Delete a note
     async deleteNote(noteId) {
       try {
@@ -328,21 +304,28 @@ export const useNotesStore = defineStore('notes', {
       }
     },
 
-    // Generate Notice Board
-    async generateNoticeBoard() {
+    /**
+     * **MODIFIED**: Generates Notice Board content based on a specific set of notes.
+     * @param {Array} notesForContext - The array of notes to analyze.
+     */
+    async generateNoticeBoard(notesForContext = []) {
       const { useSettingsStore } = await import('./settingsStore.js');
       const settingsStore = useSettingsStore();
       const { alertService } = await import('../services/alert-service.js');
 
       try {
-          const candidateNotes = this.activeNotes
+          if (!notesForContext || notesForContext.length === 0) {
+              settingsStore.setNoticeBoardContent(null);
+              return;
+          }
+
+          const candidateNotes = notesForContext
               .filter(note => {
                   const noteText = `${note.title} ${note.content}`.toLowerCase();
                   return NOTICE_BOARD_KEYWORDS.some(kw => noteText.includes(kw));
               })
-              // Sort by most recently updated to prioritize fresh content
               .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-              .slice(0, 5); // Take top 5 candidates
+              .slice(0, 5);
 
           if (candidateNotes.length === 0) {
               settingsStore.setNoticeBoardContent(null);
@@ -357,10 +340,9 @@ export const useNotesStore = defineStore('notes', {
       } catch (error) {
           console.error('Failed to generate notice board:', error);
           settingsStore.setNoticeBoardContent("### Oops!\nCould not generate the notice board due to an AI error.");
-
           alertService.error(
             'Notice Board Failed',
-            'The AI could not generate the notice board. This can happen with the experimental on-device model. <strong>Restarting your browser often helps.</strong>'
+            'The AI could not generate the notice board. Check your connection and try again.'
           );
       }
     },
