@@ -7,7 +7,7 @@ This project was built for the **Google Chrome Built-in AI Challenge 2025**.
 ---
 
 ### **[🚀 Live Demo Link]** - [Live link](https://notesaiweb.netlify.app/)
-### **[🎬 Video Demo Link]** - [YOUR YOUTUBE/VIMEO URL HERE]
+### **[🎬 Video Demo Link]** - [[YouTube link](https://youtu.be/4q-rovqSNd8?si=JO0vcMnnc2VvlzSe)]
 
 ---
 
