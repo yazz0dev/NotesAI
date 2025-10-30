@@ -45,11 +45,6 @@
           </template>
 
           <template #toolbar>
-            <!-- 
-              KEY FIX: Removed the "flex-grow-1" class from this div.
-              The parent container in AppHeader.js already handles the growing behavior.
-              This class was causing the toolbar to push the ai-status slot out of view.
-            -->
             <div class="header-toolbar d-flex align-items-center px-4">
               <div class="search-container position-relative flex-grow-1 me-3">
                 <div class="input-group">
@@ -94,32 +89,44 @@
             @create-tag="handleCreateTag"
           ></app-sidebar>
 
-          <div :class="['main-content-wrapper', { 'editor-visible': !!editingNote }]">
-            <main class="main-content flex-fill">
-              <notes-list
-                :notes="filteredNotes"
-                :layout="currentLayout"
-                :all-tags="allTags"
-                @edit-note="editNote"
-                @delete-note="deleteNote"
-                @toggle-favorite="handleToggleFavorite"
-                @archive-note="handleArchiveNote"
-                @open-tag-modal="openTagModal"
-                @set-reminder="setReminder"
-                @remove-reminder="handleRemoveReminder"
-                @create-note="createNewNote"
-              ></notes-list>
-            </main>
+          <div class="main-content-wrapper">
+            <!-- KEY CHANGE: The Notice Board is now correctly placed in the main content area -->
+            <notice-board
+              :is-visible="isNoticeBoardVisible"
+              :content="noticeBoardContent"
+              :is-loading="isNoticeBoardLoading"
+              @toggle-visibility="toggleNoticeBoard"
+              @refresh="refreshNoticeBoard"
+              @navigate-to-note="handleNavigateToNote"
+            ></notice-board>
 
-            <div class="editor-resizer" v-if="editingNote" @mousedown="startResize"></div>
+            <div class="d-flex flex-grow-1 overflow-hidden">
+                <main class="main-content flex-fill">
+                  <notes-list
+                    :notes="filteredNotes"
+                    :layout="currentLayout"
+                    :all-tags="allTags"
+                    @edit-note="editNote"
+                    @delete-note="deleteNote"
+                    @toggle-favorite="handleToggleFavorite"
+                    @archive-note="handleArchiveNote"
+                    @open-tag-modal="openTagModal"
+                    @set-reminder="setReminder"
+                    @remove-reminder="handleRemoveReminder"
+                    @create-note="createNewNote"
+                  ></notes-list>
+                </main>
 
-            <note-editor
-                v-if="editingNote"
-                :note="editingNote"
-                :save-status="saveStatus"
-                @save="saveNote"
-                @close="closeEditor"
-            ></note-editor>
+                <div class="editor-resizer" v-if="editingNote" @mousedown="startResize"></div>
+
+                <note-editor
+                    v-if="editingNote"
+                    :note="editingNote"
+                    :save-status="saveStatus"
+                    @save="saveNote"
+                    @close="closeEditor"
+                ></note-editor>
+            </div>
           </div>
         </div>
       </template>
@@ -132,21 +139,16 @@
     
     <!-- Load Vue and Pinia synchronously before the module scripts -->
     <script src="https://cdn.jsdelivr.net/npm/vue@3.5.22/dist/vue.global.prod.js"></script>
-    <!-- Load vue-demi (required by Pinia) -->
     <script src="https://cdn.jsdelivr.net/npm/vue-demi@0.14.6/lib/index.iife.js"></script>
-    <!-- Using jsDelivr for better reliability -->
     <script src="https://cdn.jsdelivr.net/npm/pinia@2.1.7/dist/pinia.iife.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" defer></script>
     
-    <!-- Wait for Pinia to load before importing the module -->
     <script>
-      // Function to check if Pinia is loaded
       function waitForPinia() {
         if (window.Pinia && window.Vue && window.VueDemi) {
           console.log('Vue, VueDemi, and Pinia loaded successfully');
           console.log('Pinia version:', window.Pinia.version || 'IIFE build (no version info)');
-          // Dynamically import the main module with absolute path
           import('/js/main.js').catch(err => {
             console.error('Failed to load main.js:', err);
           });
@@ -159,8 +161,6 @@
           setTimeout(waitForPinia, 50);
         }
       }
-      
-      // Start checking
       waitForPinia();
     </script>
   </body>

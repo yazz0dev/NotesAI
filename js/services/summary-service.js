@@ -68,6 +68,39 @@ class SummaryService {
     }
   }
 
+  async generateNoticeBoardSummary(notes) {
+    if (!notes || notes.length === 0) {
+      return "No notes provided for summary.";
+    }
+
+    const systemPrompt = `You are an assistant creating a summary for a user's notice board. Extract actionable items, deadlines, and key info. Format output using simple markdown (headings, bold, lists). When mentioning an item from a note, you MUST reference it using the format [Note ID: note-id-here] at the end of the line. If notes are empty, say so.`;
+
+    const notesContent = notes.map(note => {
+        const cleanContent = note.content.replace(/<[^>]*>/g, " ").trim().substring(0, 500);
+        return `
+---
+Note ID: ${note.id}
+Title: ${note.title}
+Content:
+${cleanContent}
+---
+        `;
+    }).join('\n');
+
+    const userPrompt = `Generate a notice board summary from these notes:\n\n${notesContent}`;
+
+    this.dispatchEvent("summary-status-update", { status: "processing", message: "Updating Notice Board..." });
+    try {
+        const summary = await this.promptAPIService.runPrompt(userPrompt, systemPrompt);
+        this.dispatchEvent("summary-status-update", { status: "ready", message: "Notice Board updated" });
+        return summary;
+    } catch (error) {
+        console.error("Notice board generation error:", error);
+        this.dispatchEvent("summary-status-update", { status: "error", message: `AI Error: ${error.message}` });
+        throw error;
+    }
+  }
+
   dispatchEvent(name, detail) {
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }

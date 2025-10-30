@@ -139,44 +139,37 @@ function clearInputError() {
   state.inputError = "";
 }
 
-// Markdown to HTML converter for AI summaries
+// **KEY CHANGE**: Centralized and improved markdown to HTML converter
 function markdownToHtml(markdown) {
   if (!markdown) return '';
 
   let html = markdown
-    // Code blocks (```code```)
-    .replace(/```([\s\S]*?)```/g, '<pre class="markdown-code-block"><code>$1</code></pre>')
-    // Inline code (`code`)
-    .replace(/`([^`]+)`/g, '<code class="markdown-inline-code">$1</code>')
-    // Bold (**text** or __text__)
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/__(.*?)__/g, '<strong>$1</strong>')
-    // Italic (*text* or _text_)
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/_(.*?)_/g, '<em>$1</em>')
-    // Headers (# ## ###)
+    // Headers (h4, h5, h6)
     .replace(/^### (.*$)/gm, '<h6 class="markdown-header">$1</h6>')
     .replace(/^## (.*$)/gm, '<h5 class="markdown-header">$1</h5>')
     .replace(/^# (.*$)/gm, '<h4 class="markdown-header">$1</h4>')
-    // Unordered lists (- item or * item)
-    .replace(/^\- (.*$)/gm, '<li class="markdown-list-item">$1</li>')
-    .replace(/^\* (.*$)/gm, '<li class="markdown-list-item">$1</li>')
-    // Ordered lists (1. item)
-    .replace(/^\d+\. (.*$)/gm, '<li class="markdown-ordered-item">$1</li>')
-    // Line breaks (double spaces or actual newlines)
+    // Bold
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.*?)__/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/_(.*?)_/g, '<em>$1</em>')
+    // Unordered lists
+    .replace(/^\s*[\-\*] (.*$)/gm, '<li class="markdown-list-item">$1</li>')
+    // Convert newlines to paragraphs
     .replace(/\n\n/g, '</p><p class="markdown-paragraph">')
     .replace(/\n/g, '<br>');
 
-  // Wrap content in paragraphs and handle lists
-  html = '<p class="markdown-paragraph">' + html + '</p>';
+  // Wrap the entire content in a paragraph to start
+  html = `<p class="markdown-paragraph">${html}</p>`;
 
-  // Convert consecutive list items into proper lists
-  html = html.replace(/(<li class="markdown-list-item">.*?<\/li>)+/g, '<ul class="markdown-list">$&</ul>');
-  html = html.replace(/(<li class="markdown-ordered-item">.*?<\/li>)+/g, '<ol class="markdown-ordered-list">$&</ol>');
+  // Group list items into a single <ul>
+  html = html.replace(/(<li class="markdown-list-item">.*?<\/li>)+/g, '<ul class="markdown-list">$1</ul>');
 
-  // Clean up nested paragraphs
-  html = html.replace(/<p class="markdown-paragraph"><(ul|ol|h[1-6]|pre)/g, '<$1');
-  html = html.replace(/<\/(ul|ol|h[1-6]|pre)><\/p>/g, '</$1>');
+  // Clean up empty paragraphs and paragraphs wrapping lists/headers
+  html = html.replace(/<p class="markdown-paragraph"><(ul|h[4-6])>/g, '<$1>');
+  html = html.replace(/<\/(ul|h[4-6])><\/p>/g, '</$1>');
+  html = html.replace(/<p class="markdown-paragraph">\s*<\/p>/g, '');
 
   return html;
 }
@@ -218,4 +211,5 @@ export const alertService = {
   warning,
   info,
   infoMarkdown,
+  markdownToHtml, // Export the improved function
 };

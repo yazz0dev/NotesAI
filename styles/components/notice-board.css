@@ -1,0 +1,101 @@
+/* --- Notice Board Component --- */
+.notice-board-container {
+    flex-shrink: 0;
+    margin: 0.75rem 0.75rem 0 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--bg-secondary);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    overflow: hidden;
+    transition: margin-bottom 0.4s ease-out;
+}
+
+.notice-board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.notice-board-header h6 {
+    color: var(--text-primary);
+}
+
+.btn-icon {
+    color: var(--text-secondary);
+    background-color: transparent;
+    border: none;
+}
+
+.btn-icon:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-tertiary);
+}
+
+.notice-board-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, padding 0.4s ease-out;
+    padding: 0 1rem;
+}
+
+.notice-board-container.visible .notice-board-panel {
+    max-height: 300px;
+    padding: 0 1rem 1rem 1rem;
+}
+
+.notice-board-content {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.notice-board-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
+    color: var(--text-secondary);
+    gap: 0.5rem;
+}
+
+.notice-board-state .bi {
+    font-size: 1.5rem;
+}
+
+.markdown-content ul {
+    padding-left: 1.25rem;
+    margin-bottom: 0;
+}
+
+.markdown-content li {
+    margin-bottom: 0.5rem;
+}
+
+.anim-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+a.notice-board-link {
+    text-decoration: none;
+    margin-left: 0.25rem;
+    color: var(--primary-color);
+    display: inline-block;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+a.notice-board-link:hover {
+    opacity: 1;
+}

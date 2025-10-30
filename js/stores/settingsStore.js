@@ -22,6 +22,8 @@ export const useSettingsStore = defineStore('settings', {
     currentLayout: 'grid', // 'grid', 'list', 'compact'
     sortBy: 'updatedAt', // 'updatedAt', 'createdAt', 'title'
     sortOrder: 'desc', // 'asc', 'desc'
+    isNoticeBoardVisible: true, // ADD THIS
+    noticeBoardContent: null, // ADD THIS
     
     // Filter settings
     currentFilter: 'all', // 'all', 'active', 'archived', 'favorites'
@@ -103,7 +105,12 @@ export const useSettingsStore = defineStore('settings', {
       if (savedSettings) {
         try {
           const parsed = JSON.parse(savedSettings);
-          this.$patch(parsed);
+          // Ensure default for new properties if not in localStorage
+          const defaults = {
+              isNoticeBoardVisible: true,
+              noticeBoardContent: null
+          };
+          this.$patch({...defaults, ...parsed});
         } catch (e) {
           console.error('Failed to load settings:', e);
         }
@@ -141,6 +148,18 @@ export const useSettingsStore = defineStore('settings', {
           this.applyTheme();
         });
       }
+    },
+
+    // Update notice board visibility
+    setNoticeBoardVisibility(isVisible) {
+      this.isNoticeBoardVisible = isVisible;
+      this.saveToLocalStorage();
+    },
+
+    // Update notice board content
+    setNoticeBoardContent(content) {
+      this.noticeBoardContent = content;
+      this.saveToLocalStorage();
     },
 
     // Update hands-free mode

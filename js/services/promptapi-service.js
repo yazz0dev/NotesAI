@@ -87,7 +87,8 @@ class PromptAPIService {
       return response;
     } catch (error) {
       console.error("AI execution error:", error);
-      this.dispatchEvent("prompt-status-update", { status: "error", message: `AI Error: ${error.message}` });
+      // **KEY CHANGE**: Provide a more specific error message in the AI status header.
+      this.dispatchEvent("prompt-status-update", { status: "error", message: `AI Error: Model failed to run.` });
       if (window._isAiModelDownloading) window._isAiModelDownloading = false;
       throw error;
     }

@@ -85,6 +85,97 @@
     box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
   }
   
+/* --- NEW: Notice Board Smart Header & Panel --- */
+.notice-board-wrapper {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.notice-board-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.notice-board-trigger:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.notice-board-trigger .badge {
+  font-size: 0.7rem;
+  padding: 0.25em 0.5em;
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.notice-board-panel {
+  overflow: hidden;
+  transition: max-height 0.4s ease-out, opacity 0.3s ease-out, transform 0.4s ease-out;
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.notice-board-panel.visible {
+  max-height: 300px; /* Adjust as needed */
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notice-board-content {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.notice-board-content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.notice-board-content-body {
+    padding: 0.75rem;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.notice-board-content .markdown-content p:last-child,
+.notice-board-content .markdown-content ul:last-child {
+  margin-bottom: 0;
+}
+
+a.notice-board-link {
+    text-decoration: none;
+    margin-left: 0.25rem;
+    display: inline-block;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+a.notice-board-link:hover {
+    opacity: 1;
+}
+
+.anim-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
   /* --- Sidebar Tags Section --- */
   .tag-list-sidebar { overflow-y: auto; }
   .sidebar h6 { color: var(--text-muted); }

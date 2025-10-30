@@ -4,6 +4,7 @@
 @import url('./components/notes-list.css');
 @import url('./components/note-editor.css');
 @import url('./components/modals.css');
+@import url('./components/notice-board.css');
 
 
 /* --- Global Styles --- */
@@ -51,24 +52,21 @@ body.is-resizing {
 }
 
 .main-content-wrapper {
-  /* KEY FIX: Removed padding-left, as the sidebar is now in the flow */
-  /* padding-left: var(--sidebar-width); */
-  
-  /* KEY FIX: Make this a flex item that grows and can shrink */
   flex: 1;
   min-width: 0; /* Important for allowing flex items to shrink properly */
-
   width: 100%;
   display: flex;
+  flex-direction: column; /* Stacks notice board on top of content */
   position: relative;
-  /* transition: padding-left 0.3s var(--ease-out-quint); -- No longer needed */
   height: 100%;
+  background-color: var(--bg-primary); /* Add background color here */
 }
 
-/* This is no longer needed because the wrapper itself will now grow/shrink */
-/* body.sidebar-collapsed .main-content-wrapper {
-  padding-left: var(--sidebar-compact-width);
-} */
+/* KEY CHANGE: The wrapper for the notes-list and editor now grows to fill space */
+.main-content-wrapper > .d-flex {
+    flex-grow: 1;
+    min-height: 0;
+}
 
 .main-content {
   flex: 1 1 auto;
@@ -76,7 +74,7 @@ body.is-resizing {
   flex-direction: column;
   min-width: 300px;
   background-color: var(--bg-primary);
-  overflow-x: hidden;
+  overflow: hidden; /* Changed from overflow-x: hidden */
 }
 
 /* --- Utilities --- */
@@ -99,16 +97,16 @@ body.is-resizing {
 }
 
 /* --- Custom Scrollbar --- */
-.sidebar-nav::-webkit-scrollbar, .tag-list-sidebar::-webkit-scrollbar, .tag-list-wrapper::-webkit-scrollbar, .notes-list-container::-webkit-scrollbar {
+.sidebar-nav::-webkit-scrollbar, .tag-list-sidebar::-webkit-scrollbar, .tag-list-wrapper::-webkit-scrollbar, .notes-list-container::-webkit-scrollbar, .notice-board-content::-webkit-scrollbar {
     width: 6px;
 }
-.sidebar-nav::-webkit-scrollbar-track, .tag-list-sidebar::-webkit-scrollbar-track, .tag-list-wrapper::-webkit-scrollbar-track, .notes-list-container::-webkit-scrollbar-track {
+.sidebar-nav::-webkit-scrollbar-track, .tag-list-sidebar::-webkit-scrollbar-track, .tag-list-wrapper::-webkit-scrollbar-track, .notes-list-container::-webkit-scrollbar-track, .notice-board-content::-webkit-scrollbar-track {
     background: transparent;
 }
-.sidebar-nav::-webkit-scrollbar-thumb, .tag-list-sidebar::-webkit-scrollbar-thumb, .tag-list-wrapper::-webkit-scrollbar-thumb, .notes-list-container::-webkit-scrollbar-thumb {
+.sidebar-nav::-webkit-scrollbar-thumb, .tag-list-sidebar::-webkit-scrollbar-thumb, .tag-list-wrapper::-webkit-scrollbar-thumb, .notes-list-container::-webkit-scrollbar-thumb, .notice-board-content::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 6px;
 }
-.sidebar-nav::-webkit-scrollbar-thumb:hover, .tag-list-sidebar::-webkit-scrollbar-thumb:hover, .tag-list-wrapper::-webkit-scrollbar-thumb:hover, .notes-list-container::-webkit-scrollbar-thumb:hover {
+.sidebar-nav::-webkit-scrollbar-thumb:hover, .tag-list-sidebar::-webkit-scrollbar-thumb:hover, .tag-list-wrapper::-webkit-scrollbar-thumb:hover, .notes-list-container::-webkit-scrollbar-thumb:hover, .notice-board-content::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }

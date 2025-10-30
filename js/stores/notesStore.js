@@ -2,6 +2,9 @@ import dbService from '../services/store.js';
 
 const { defineStore } = window.Pinia;
 
+// Keywords to identify potentially important notes for the notice board
+const NOTICE_BOARD_KEYWORDS = ['urgent', 'important', 'todo', 'meeting', 'deadline', 'task', 'reminder', 'action item'];
+
 export const useNotesStore = defineStore('notes', {
   state: () => ({
     notes: [],
@@ -9,7 +12,7 @@ export const useNotesStore = defineStore('notes', {
     selectedNoteIds: new Set(),
     isLoading: true,
     lastSync: null,
-    saveStatus: 'idle' // 'idle', 'saving', 'saved', 'error'
+    saveStatus: 'idle', // 'idle', 'saving', 'saved', 'error'
   }),
 
   getters: {
@@ -135,7 +138,9 @@ export const useNotesStore = defineStore('notes', {
         this.notes.push(savedNote);
         this.saveStatus = 'saved';
         
-        // Reset status after a delay
+        // **KEY CHANGE**: Automatically check if the notice board needs updating
+        this.triggerNoticeBoardUpdateIfNeeded(savedNote);
+
         setTimeout(() => {
           if (this.saveStatus === 'saved') {
             this.saveStatus = 'idle';
@@ -168,14 +173,15 @@ export const useNotesStore = defineStore('notes', {
         const savedNote = await dbService.saveNote(updatedNote);
         this.notes[noteIndex] = savedNote;
         
-        // Update editing note if it's the same
+        // **KEY CHANGE**: Automatically check if the notice board needs updating
+        this.triggerNoticeBoardUpdateIfNeeded(savedNote);
+
         if (this.editingNote?.id === noteId) {
-          this.editingNote = savedNote;
+          this.editingNote = { ...savedNote };
         }
         
         this.saveStatus = 'saved';
         
-        // Reset status after a delay
         setTimeout(() => {
           if (this.saveStatus === 'saved') {
             this.saveStatus = 'idle';
@@ -189,6 +195,22 @@ export const useNotesStore = defineStore('notes', {
         throw error;
       }
     },
+    
+    // **KEY CHANGE**: New helper method to decide when to regenerate
+    triggerNoticeBoardUpdateIfNeeded(note) {
+        const noteText = `${note.title} ${note.content}`.toLowerCase();
+        const hasKeywords = NOTICE_BOARD_KEYWORDS.some(kw => noteText.includes(kw));
+        
+        // Regenerate if the note has keywords and more than a few words
+        if (hasKeywords && note.content.length > 20) {
+            console.log("Relevant note changed, triggering Notice Board refresh...");
+            // Debounce the call to prevent multiple rapid updates
+            if (this.noticeBoardDebounce) clearTimeout(this.noticeBoardDebounce);
+            this.noticeBoardDebounce = setTimeout(() => {
+                this.generateNoticeBoard();
+            }, 3000); // Wait 3 seconds after the last change
+        }
+    },
 
     // Delete a note
     async deleteNote(noteId) {
@@ -196,12 +218,10 @@ export const useNotesStore = defineStore('notes', {
         await dbService.deleteNote(noteId);
         this.notes = this.notes.filter(n => n.id !== noteId);
         
-        // Clear editing note if it's the deleted one
         if (this.editingNote?.id === noteId) {
           this.editingNote = null;
         }
         
-        // Remove from selection
         this.selectedNoteIds.delete(noteId);
       } catch (error) {
         console.error('Failed to delete note:', error);
@@ -211,28 +231,26 @@ export const useNotesStore = defineStore('notes', {
 
     // Toggle favorite status
     async toggleFavorite(noteId) {
-      const note = this.notes.find(n => n.id === noteId);
+      const note = this.getNoteById(noteId);
       if (!note) return;
-      
       return this.updateNote(noteId, { isFavorite: !note.isFavorite });
     },
 
     // Toggle archive status
     async toggleArchive(noteId) {
-      const note = this.notes.find(n => n.id === noteId);
+      const note = this.getNoteById(noteId);
       if (!note) return;
-      
       return this.updateNote(noteId, { isArchived: !note.isArchived });
     },
 
     // Set note reminder
     async setReminder(noteId, reminderAt) {
-      return this.updateNote(noteId, { reminderAt });
+      return this.updateNote(noteId, { reminderAt, reminderSeen: false });
     },
 
     // Remove note reminder
     async removeReminder(noteId) {
-      return this.updateNote(noteId, { reminderAt: null });
+      return this.updateNote(noteId, { reminderAt: null, reminderSeen: null });
     },
 
     // Update note tags
@@ -290,6 +308,43 @@ export const useNotesStore = defineStore('notes', {
       } catch (error) {
         console.error('Failed to archive selected notes:', error);
         throw error;
+      }
+    },
+
+    // Generate Notice Board
+    async generateNoticeBoard() {
+      const { useSettingsStore } = await import('./settingsStore.js');
+      const settingsStore = useSettingsStore();
+      const { alertService } = await import('../services/alert-service.js');
+
+      try {
+          const candidateNotes = this.activeNotes
+              .filter(note => {
+                  const noteText = `${note.title} ${note.content}`.toLowerCase();
+                  return NOTICE_BOARD_KEYWORDS.some(kw => noteText.includes(kw));
+              })
+              // Sort by most recently updated to prioritize fresh content
+              .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+              .slice(0, 5); // Take top 5 candidates
+
+          if (candidateNotes.length === 0) {
+              settingsStore.setNoticeBoardContent(null);
+              return;
+          }
+          
+          const summaryService = (await import('../services/summary-service.js')).default;
+          const summary = await summaryService.generateNoticeBoardSummary(candidateNotes);
+          
+          settingsStore.setNoticeBoardContent(summary);
+
+      } catch (error) {
+          console.error('Failed to generate notice board:', error);
+          settingsStore.setNoticeBoardContent("### Oops!\nCould not generate the notice board due to an AI error.");
+
+          alertService.error(
+            'Notice Board Failed',
+            'The AI could not generate the notice board. This can happen with the experimental on-device model. <strong>Restarting your browser often helps.</strong>'
+          );
       }
     },
 
