@@ -64,9 +64,16 @@ export default {
   },
   mounted() {
     this.initializeEditorContent();
+    // Add keyboard shortcut handler for the editor
+    if (this.$refs.editor) {
+      this.$refs.editor.addEventListener('keydown', this.handleKeyboardShortcuts);
+    }
   },
   beforeUnmount() {
     window.removeEventListener('editor-command', this.handleVoiceCommand);
+    if (this.$refs.editor) {
+      this.$refs.editor.removeEventListener('keydown', this.handleKeyboardShortcuts);
+    }
     this.clearProofreadPopover(); // Clean up popover on component destruction
   },
   template: `
@@ -462,6 +469,38 @@ export default {
         }
       }
     },
+    handleKeyboardShortcuts(event) {
+      // Handle common formatting shortcuts
+      if (event.ctrlKey || event.metaKey) {
+        switch(event.key.toLowerCase()) {
+          case 'b':
+            event.preventDefault();
+            this.toggleBold();
+            this.handleInput();
+            break;
+          case 'i':
+            event.preventDefault();
+            this.toggleItalic();
+            this.handleInput();
+            break;
+          case 'u':
+            event.preventDefault();
+            this.toggleUnderline();
+            this.handleInput();
+            break;
+          case 'z':
+            if (!event.shiftKey) {
+              event.preventDefault();
+              this.undo();
+            }
+            break;
+          case 'y':
+            event.preventDefault();
+            this.redo();
+            break;
+        }
+      }
+    },
     debounce(func, delay) {
       let timeout;
       return (...args) => {
@@ -822,6 +861,18 @@ export default {
       console.log('[NoteEditor] proofreadNote - voice command');
       await this.manualProofread();
       return Promise.resolve();
+    },
+    selectAll() {
+      console.log('[NoteEditor] selectAll');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      selection.removeAllRanges();
+      selection.addRange(range);
     },
     insertTaskHTML() {
       const editor = this.$refs.editor;

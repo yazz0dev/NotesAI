@@ -112,6 +112,12 @@ const commands = [
         type: 'editorMethod'
     },
     {
+        keywords: ['select all', 'select everything', 'highlight all'],
+        method: 'selectAll',
+        scope: 'editor',
+        type: 'editorMethod'
+    },
+    {
         keywords: ['undo that', 'undo', 'undo last'],
         method: 'undo',
         scope: 'editor',
