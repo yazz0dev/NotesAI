@@ -369,6 +369,9 @@ input:focus, textarea:focus, select:focus {
   color: var(--text-primary);
 }
 
+/* Note: Alert backgrounds use hardcoded RGBA values matching theme colors
+   for simplicity. Future improvement: Create CSS variables with RGB values
+   to enable dynamic alpha transparency (e.g., --primary-color-rgb: 77, 171, 247) */
 .alert-primary {
   background-color: rgba(77, 171, 247, 0.1);
   border-color: var(--primary-color);
