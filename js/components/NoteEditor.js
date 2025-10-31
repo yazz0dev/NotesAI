@@ -64,10 +64,12 @@ export default {
   },
   mounted() {
     this.initializeEditorContent();
-    // Add keyboard shortcut handler for the editor
-    if (this.$refs.editor) {
-      this.$refs.editor.addEventListener('keydown', this.handleKeyboardShortcuts);
-    }
+    // Add keyboard shortcut handler after DOM is ready
+    this.$nextTick(() => {
+      if (this.$refs.editor) {
+        this.$refs.editor.addEventListener('keydown', this.handleKeyboardShortcuts);
+      }
+    });
   },
   beforeUnmount() {
     window.removeEventListener('editor-command', this.handleVoiceCommand);
@@ -476,17 +478,14 @@ export default {
           case 'b':
             event.preventDefault();
             this.toggleBold();
-            this.handleInput();
             break;
           case 'i':
             event.preventDefault();
             this.toggleItalic();
-            this.handleInput();
             break;
           case 'u':
             event.preventDefault();
             this.toggleUnderline();
-            this.handleInput();
             break;
           case 'z':
             if (!event.shiftKey) {
@@ -582,8 +581,12 @@ export default {
                 // Trigger input event to save changes
                 this.handleInput();
                 
-                // Provide audio feedback
-                toastService.success('Voice Command', `Executed: ${command.method.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+                // Provide audio feedback with better formatting
+                const commandName = command.method
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/^./, str => str.toUpperCase())
+                  .trim();
+                toastService.success('Voice Command', commandName);
                 
                 console.log('[NoteEditor] Voice command executed successfully:', command.method);
             } else {
