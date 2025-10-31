@@ -151,12 +151,13 @@ export default {
             const tempDiv = document.createElement('div');
             tempDiv.appendChild(fragment);
             taskContent = tempDiv.innerHTML || 'Task...';
-            range.deleteContents();
+            // Note: deleteContents not needed here - insertHTML will replace selection
           }
         }
         
         const taskHTML = `<div class="task-item" contenteditable="false" data-checked="false"><span class="task-checkbox"></span><span class="task-text" contenteditable="true">${taskContent}</span></div><div><br></div>`;
         
+        // insertHTML will automatically replace any selected content
         document.execCommand('insertHTML', false, taskHTML);
         this.$emit("content-change");
         

@@ -582,10 +582,7 @@ export default {
                 this.handleInput();
                 
                 // Provide audio feedback with better formatting
-                const commandName = command.method
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/^./, str => str.toUpperCase())
-                  .trim();
+                const commandName = this.formatCommandName(command.method);
                 toastService.success('Voice Command', commandName);
                 
                 console.log('[NoteEditor] Voice command executed successfully:', command.method);
@@ -601,6 +598,13 @@ export default {
                 this.isExecutingCommand = false;
             }, 200);
         }
+    },
+    formatCommandName(method) {
+      // Convert camelCase to Title Case
+      return method
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
     },
     insertParagraph() { 
       console.log('[NoteEditor] insertParagraph');
@@ -739,6 +743,17 @@ export default {
     },
     toggleBold() { 
       console.log('[NoteEditor] toggleBold');
+      this.toggleFormatting('bold');
+    },
+    toggleUnderline() { 
+      console.log('[NoteEditor] toggleUnderline');
+      this.toggleFormatting('underline');
+    },
+    toggleItalic() { 
+      console.log('[NoteEditor] toggleItalic');
+      this.toggleFormatting('italic');
+    },
+    toggleFormatting(command) {
       const editor = this.$refs.editor;
       if (!editor) return;
       
@@ -749,48 +764,12 @@ export default {
       const hasSelection = selection.rangeCount > 0 && !selection.isCollapsed;
       
       if (hasSelection) {
-        // Toggle bold on selection
-        document.execCommand('bold', false, null);
+        // Toggle formatting on selection
+        document.execCommand(command, false, null);
       } else {
-        // No selection - toggle bold state for typing
-        document.execCommand('bold', false, null);
+        // No selection - toggle formatting state for typing
+        document.execCommand(command, false, null);
         // Insert zero-width space to ensure the formatting applies
-        const zws = '\u200B';
-        document.execCommand('insertText', false, zws);
-      }
-    },
-    toggleUnderline() { 
-      console.log('[NoteEditor] toggleUnderline');
-      const editor = this.$refs.editor;
-      if (!editor) return;
-      
-      editor.focus();
-      
-      const selection = window.getSelection();
-      const hasSelection = selection.rangeCount > 0 && !selection.isCollapsed;
-      
-      if (hasSelection) {
-        document.execCommand('underline', false, null);
-      } else {
-        document.execCommand('underline', false, null);
-        const zws = '\u200B';
-        document.execCommand('insertText', false, zws);
-      }
-    },
-    toggleItalic() { 
-      console.log('[NoteEditor] toggleItalic');
-      const editor = this.$refs.editor;
-      if (!editor) return;
-      
-      editor.focus();
-      
-      const selection = window.getSelection();
-      const hasSelection = selection.rangeCount > 0 && !selection.isCollapsed;
-      
-      if (hasSelection) {
-        document.execCommand('italic', false, null);
-      } else {
-        document.execCommand('italic', false, null);
         const zws = '\u200B';
         document.execCommand('insertText', false, zws);
       }
