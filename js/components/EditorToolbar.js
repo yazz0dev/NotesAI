@@ -67,28 +67,13 @@ export default {
         const editor = document.querySelector('.note-content-editable');
         if (!editor) return;
         
-        // Save selection before command
-        const selection = window.getSelection();
-        let savedRange = null;
-        if (selection.rangeCount > 0) {
-          savedRange = selection.getRangeAt(0).cloneRange();
-        }
-        
-        // Execute the command
+        // Focus editor before executing command
         editor.focus();
+        
+        // Execute the command - let it naturally handle the toggle behavior
         document.execCommand(command, false, value);
         
-        // Restore selection if needed
-        if (savedRange) {
-          try {
-            selection.removeAllRanges();
-            selection.addRange(savedRange);
-          } catch (e) {
-            // Range may no longer be valid, that's okay
-          }
-        }
-        
-        // Update formatting state immediately
+        // Update formatting state immediately after command execution
         this.$nextTick(() => {
           this.updateFormattingState();
           this.$emit("content-change"); // Notify parent to update model
