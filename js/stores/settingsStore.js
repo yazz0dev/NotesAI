@@ -145,6 +145,12 @@ export const useSettingsStore = defineStore('settings', {
       } else {
         document.body.classList.remove('dark-mode');
       }
+      
+      // Update meta theme-color for mobile browsers
+      const metaThemeColor = document.getElementById('theme-color-meta');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', effectiveTheme === 'dark' ? '#1a1a1a' : '#ffffff');
+      }
     },
 
     // Setup watcher for auto theme changes

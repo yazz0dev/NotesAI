@@ -91,7 +91,7 @@
     margin: 0; line-height: 1.4; flex: 1;
 }
 .btn-close-enhanced {
-    background: none; border: none; font-size: 1.25rem; color: #6b7280;
+    background: none; border: none; font-size: 1.25rem; color: var(--text-secondary);
     cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s ease;
     display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
 }
