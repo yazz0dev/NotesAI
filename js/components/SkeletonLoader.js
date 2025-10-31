@@ -2,7 +2,7 @@ export default {
     template: `
       <div class="d-flex w-100">
         <!-- Skeleton Sidebar -->
-        <nav class="sidebar bg-light border-end d-flex flex-column p-3 skeleton">
+        <nav class="sidebar border-end d-flex flex-column p-3 skeleton">
             <div class="sidebar-header mb-3"><div class="placeholder w-75"></div></div>
             <div class="sidebar-nav flex-fill">
                 <div class="placeholder-glow"><span class="placeholder col-12 mb-2"></span></div>

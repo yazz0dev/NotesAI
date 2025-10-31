@@ -318,3 +318,283 @@ input:focus, textarea:focus, select:focus {
 .modal-footer {
   border-top-color: var(--border-color);
 }
+
+/* Bootstrap component dark mode support */
+.badge {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.badge.bg-primary {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border-color: var(--primary-color) !important;
+}
+
+.badge.bg-secondary {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.badge.bg-success {
+  background-color: var(--success-color) !important;
+  color: white !important;
+  border-color: var(--success-color) !important;
+}
+
+.badge.bg-danger {
+  background-color: var(--danger-color) !important;
+  color: white !important;
+  border-color: var(--danger-color) !important;
+}
+
+.badge.bg-warning {
+  background-color: var(--warning-color) !important;
+  color: var(--dark-color) !important;
+  border-color: var(--warning-color) !important;
+}
+
+.badge.bg-info {
+  background-color: var(--info-color) !important;
+  color: white !important;
+  border-color: var(--info-color) !important;
+}
+
+/* Alert components */
+.alert {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+/* Note: Alert backgrounds use hardcoded RGBA values matching theme colors
+   for simplicity. Future improvement: Create CSS variables with RGB values
+   to enable dynamic alpha transparency (e.g., --primary-color-rgb: 77, 171, 247) */
+.alert-primary {
+  background-color: rgba(77, 171, 247, 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.alert-success {
+  background-color: rgba(81, 207, 102, 0.1);
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.alert-danger {
+  background-color: rgba(255, 107, 107, 0.1);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.alert-warning {
+  background-color: rgba(255, 212, 59, 0.1);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+
+.alert-info {
+  background-color: rgba(116, 192, 252, 0.1);
+  border-color: var(--info-color);
+  color: var(--info-color);
+}
+
+/* List group */
+.list-group-item {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.list-group-item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.list-group-item.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+/* Nav tabs and pills */
+.nav-tabs {
+  border-bottom-color: var(--border-color);
+}
+
+.nav-tabs .nav-link {
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+
+.nav-tabs .nav-link:hover {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.nav-tabs .nav-link.active {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  border-bottom-color: var(--bg-primary);
+}
+
+.nav-pills .nav-link {
+  color: var(--text-secondary);
+}
+
+.nav-pills .nav-link:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.nav-pills .nav-link.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Pagination */
+.pagination .page-link {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.pagination .page-link:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.pagination .page-item.disabled .page-link {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+}
+
+/* Progress bars */
+.progress {
+  background-color: var(--bg-tertiary);
+}
+
+.progress-bar {
+  background-color: var(--primary-color);
+}
+
+/* Accordion */
+.accordion-item {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+.accordion-button {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: var(--bg-tertiary);
+  color: var(--primary-color);
+}
+
+.accordion-button:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(77, 171, 247, 0.25);
+}
+
+.accordion-body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Tables */
+.table {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.table thead th {
+  border-bottom-color: var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.table tbody tr {
+  border-bottom-color: var(--border-color);
+}
+
+.table tbody tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  background-color: var(--bg-secondary);
+}
+
+.breadcrumb-item {
+  color: var(--text-secondary);
+}
+
+.breadcrumb-item.active {
+  color: var(--text-primary);
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+  color: var(--text-muted);
+}
+
+/* Offcanvas */
+.offcanvas {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.offcanvas-header {
+  border-bottom-color: var(--border-color);
+}
+
+/* Close button */
+.btn-close {
+  filter: var(--bs-btn-close-filter, none);
+}
+
+[data-theme="dark"] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Placeholder / Skeleton loaders */
+.placeholder {
+  background-color: var(--bg-tertiary);
+  opacity: 0.5;
+}
+
+.placeholder-glow .placeholder {
+  animation: placeholder-glow 2s ease-in-out infinite;
+}
+
+@keyframes placeholder-glow {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.placeholder-wave {
+  animation: placeholder-wave 2s linear infinite;
+  background: linear-gradient(90deg, var(--bg-tertiary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+  background-size: 200% 100%;
+}
+
+@keyframes placeholder-wave {
+  to {
+    background-position: -200% 0;
+  }
+}
