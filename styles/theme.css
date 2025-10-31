@@ -567,3 +567,31 @@ input:focus, textarea:focus, select:focus {
 [data-theme="dark"] .btn-close {
   filter: invert(1) grayscale(100%) brightness(200%);
 }
+
+/* Placeholder / Skeleton loaders */
+.placeholder {
+  background-color: var(--bg-tertiary);
+  opacity: 0.5;
+}
+
+.placeholder-glow .placeholder {
+  animation: placeholder-glow 2s ease-in-out infinite;
+}
+
+@keyframes placeholder-glow {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.placeholder-wave {
+  animation: placeholder-wave 2s linear infinite;
+  background: linear-gradient(90deg, var(--bg-tertiary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+  background-size: 200% 100%;
+}
+
+@keyframes placeholder-wave {
+  to {
+    background-position: -200% 0;
+  }
+}

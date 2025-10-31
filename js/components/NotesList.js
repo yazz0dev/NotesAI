@@ -67,7 +67,7 @@ export default {
 
                             <!-- Card Body -->
                             <div class="card-body pt-0">
-                                <h6 class="card-title fw-semibold text-dark mb-2 line-clamp-2">
+                                <h6 class="card-title fw-semibold mb-2 line-clamp-2">
                                     {{ note.title || 'Untitled Note' }}
                                 </h6>
                                 
@@ -106,7 +106,7 @@ export default {
                                 <div v-if="note.tags && note.tags.length" class="mb-0">
                                     <div class="d-flex flex-wrap gap-1">
                                         <span v-for="tagId in note.tags.slice(0, 3)" :key="tagId"
-                                              class="badge bg-light text-dark border">
+                                              class="badge bg-secondary border">
                                             {{ getTagById(tagId)?.name || '...' }}
                                         </span>
                                         <span v-if="note.tags.length > 3" class="badge bg-secondary">
