@@ -64,9 +64,18 @@ export default {
   },
   mounted() {
     this.initializeEditorContent();
+    // Add keyboard shortcut handler after DOM is ready
+    this.$nextTick(() => {
+      if (this.$refs.editor) {
+        this.$refs.editor.addEventListener('keydown', this.handleKeyboardShortcuts);
+      }
+    });
   },
   beforeUnmount() {
     window.removeEventListener('editor-command', this.handleVoiceCommand);
+    if (this.$refs.editor) {
+      this.$refs.editor.removeEventListener('keydown', this.handleKeyboardShortcuts);
+    }
     this.clearProofreadPopover(); // Clean up popover on component destruction
   },
   template: `
@@ -462,6 +471,35 @@ export default {
         }
       }
     },
+    handleKeyboardShortcuts(event) {
+      // Handle common formatting shortcuts
+      if (event.ctrlKey || event.metaKey) {
+        switch(event.key.toLowerCase()) {
+          case 'b':
+            event.preventDefault();
+            this.toggleBold();
+            break;
+          case 'i':
+            event.preventDefault();
+            this.toggleItalic();
+            break;
+          case 'u':
+            event.preventDefault();
+            this.toggleUnderline();
+            break;
+          case 'z':
+            if (!event.shiftKey) {
+              event.preventDefault();
+              this.undo();
+            }
+            break;
+          case 'y':
+            event.preventDefault();
+            this.redo();
+            break;
+        }
+      }
+    },
     debounce(func, delay) {
       let timeout;
       return (...args) => {
@@ -486,8 +524,13 @@ export default {
     // Voice command handlers with improved async execution
     async handleVoiceCommand(event) {
         if (this.isExecutingCommand) {
-            console.warn('[NoteEditor] Command already executing, skipping');
-            return;
+            console.warn('[NoteEditor] Command already executing, queuing...');
+            // Wait a bit and try again
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (this.isExecutingCommand) {
+                console.warn('[NoteEditor] Command still executing, skipping');
+                return;
+            }
         }
         
         const { command } = event.detail;
@@ -501,6 +544,9 @@ export default {
         this.isExecutingCommand = true;
         
         try {
+            // Ensure editor has focus
+            this.$refs.editor.focus();
+            
             // Save current selection/cursor position
             const selection = window.getSelection();
             let savedRange = null;
@@ -512,29 +558,32 @@ export default {
             if (command.method && typeof this[command.method] === 'function') {
                 console.log('[NoteEditor] Executing command method:', command.method);
                 
-                // Execute command with proper context
+                // Execute command with proper context and wait for completion
                 const result = await Promise.resolve(this[command.method](command.value));
                 
                 // Allow DOM to update
                 await this.$nextTick();
                 
-                // Restore or set cursor position intelligently
-                if (!savedRange) {
-                    // No previous selection, set cursor to end
-                    this.setCursorToEnd();
-                } else {
-                    // Restore previous selection if still valid
+                // For formatting commands, restore the selection
+                const formattingCommands = ['toggleBold', 'toggleItalic', 'toggleUnderline'];
+                if (formattingCommands.includes(command.method) && savedRange) {
                     try {
                         selection.removeAllRanges();
                         selection.addRange(savedRange);
                     } catch (e) {
-                        // If range is no longer valid, set to end
-                        this.setCursorToEnd();
+                        console.log('[NoteEditor] Could not restore selection after formatting');
                     }
                 }
                 
+                // For insert commands, cursor should already be positioned correctly
+                // so we don't need to restore the old position
+                
                 // Trigger input event to save changes
                 this.handleInput();
+                
+                // Provide audio feedback with better formatting
+                const commandName = this.formatCommandName(command.method);
+                toastService.success('Voice Command', commandName);
                 
                 console.log('[NoteEditor] Voice command executed successfully:', command.method);
             } else {
@@ -542,11 +591,20 @@ export default {
             }
         } catch(e) {
             console.error("[NoteEditor] Voice command failed:", e);
-            toastService.error('Command Failed', 'Could not execute voice command');
+            toastService.error('Command Failed', 'Could not execute voice command: ' + e.message);
         } finally {
-            // Always reset flag
-            this.isExecutingCommand = false;
+            // Always reset flag after a delay to prevent immediate re-execution
+            setTimeout(() => {
+                this.isExecutingCommand = false;
+            }, 200);
         }
+    },
+    formatCommandName(method) {
+      // Convert camelCase to Title Case
+      return method
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
     },
     insertParagraph() { 
       console.log('[NoteEditor] insertParagraph');
@@ -685,27 +743,36 @@ export default {
     },
     toggleBold() { 
       console.log('[NoteEditor] toggleBold');
-      const editor = this.$refs.editor;
-      if (!editor) return;
-      
-      editor.focus();
-      document.execCommand('bold', false, null);
+      this.toggleFormatting('bold');
     },
     toggleUnderline() { 
       console.log('[NoteEditor] toggleUnderline');
-      const editor = this.$refs.editor;
-      if (!editor) return;
-      
-      editor.focus();
-      document.execCommand('underline', false, null);
+      this.toggleFormatting('underline');
     },
     toggleItalic() { 
       console.log('[NoteEditor] toggleItalic');
+      this.toggleFormatting('italic');
+    },
+    toggleFormatting(command) {
       const editor = this.$refs.editor;
       if (!editor) return;
       
       editor.focus();
-      document.execCommand('italic', false, null);
+      
+      // Check if there's a selection
+      const selection = window.getSelection();
+      const hasSelection = selection.rangeCount > 0 && !selection.isCollapsed;
+      
+      if (hasSelection) {
+        // Toggle formatting on selection
+        document.execCommand(command, false, null);
+      } else {
+        // No selection - toggle formatting state for typing
+        document.execCommand(command, false, null);
+        // Insert zero-width space to ensure the formatting applies
+        const zws = '\u200B';
+        document.execCommand('insertText', false, zws);
+      }
     },
     clearFormatting() { 
       console.log('[NoteEditor] clearFormatting');
@@ -776,6 +843,18 @@ export default {
       console.log('[NoteEditor] proofreadNote - voice command');
       await this.manualProofread();
       return Promise.resolve();
+    },
+    selectAll() {
+      console.log('[NoteEditor] selectAll');
+      const editor = this.$refs.editor;
+      if (!editor) return;
+      
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      selection.removeAllRanges();
+      selection.addRange(range);
     },
     insertTaskHTML() {
       const editor = this.$refs.editor;

@@ -12,6 +12,23 @@
     box-shadow: -5px 0 20px -10px var(--shadow-color);
   }
   
+  /* --- Editor Toolbar --- */
+  .editor-toolbar {
+    background-color: var(--bg-secondary);
+  }
+  
+  .editor-toolbar .btn.active {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: white;
+  }
+  
+  .editor-toolbar .btn.active:hover {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    opacity: 0.9;
+  }
+  
   .editor-content-wrapper {
     display: flex;
     flex-direction: column;

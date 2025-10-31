@@ -67,19 +67,19 @@ const commands = [
         type: 'editorMethod'
     },
     {
-        keywords: ['make it bold', 'start bold', 'bold this', 'stop bold', 'end bold', 'bold'],
+        keywords: ['make it bold', 'start bold', 'bold this', 'stop bold', 'end bold', 'bold', 'apply bold', 'remove bold'],
         method: 'toggleBold',
         scope: 'editor',
         type: 'editorMethod'
     },
     {
-        keywords: ['underline this', 'start underline', 'add underline', 'stop underline', 'end underline', 'underline'],
+        keywords: ['underline this', 'start underline', 'add underline', 'stop underline', 'end underline', 'underline', 'apply underline', 'remove underline'],
         method: 'toggleUnderline',
         scope: 'editor',
         type: 'editorMethod'
     },
     {
-        keywords: ['italicize', 'make it italic', 'start italic', 'italic'],
+        keywords: ['italicize', 'make it italic', 'start italic', 'italic', 'apply italic', 'remove italic', 'stop italic'],
         method: 'toggleItalic',
         scope: 'editor',
         type: 'editorMethod'
@@ -108,6 +108,12 @@ const commands = [
         keywords: ['delete paragraph', 'delete last paragraph', 'remove paragraph', 'scratch paragraph'],
         method: 'deleteLastUnit',
         value: 'paragraph',
+        scope: 'editor',
+        type: 'editorMethod'
+    },
+    {
+        keywords: ['select all', 'select everything', 'highlight all'],
+        method: 'selectAll',
         scope: 'editor',
         type: 'editorMethod'
     },
